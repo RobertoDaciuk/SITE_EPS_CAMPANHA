@@ -102,6 +102,10 @@ model Usuario {
   /// "Coluna D": "NUMERO_PEDIDO"
   /// }
   mapeamentoPlanilhaSalvo Json?
+  /// Formato de data preferido para parsing das planilhas (DD/MM/YYYY, MM/DD/YYYY, etc.)
+  /// Salvo pelo Admin no modal de configuração de formato de datas
+  /// Padrão: "DD/MM/YYYY" (formato brasileiro)
+  formatoDataPlanilha     String?               @default("DD/MM/YYYY")
   /// ID da ótica à qual este usuário pertence (apenas para GERENTE e VENDEDOR)
   opticaId                String?
   /// ID do gerente responsável (apenas para VENDEDOR)
@@ -359,6 +363,9 @@ model EnvioVenda {
   numeroCartelaAtendida    Int?
   /// Data/hora da validação e alocação
   dataValidacao            DateTime?
+  /// Data real da venda extraída da planilha (quando a venda aconteceu no sistema externo)
+  /// Usado para validar se a venda ocorreu dentro do período da campanha (dataInicio <= dataVenda <= dataFim)
+  dataVenda                DateTime?
   /// ID do vendedor que submeteu
   vendedorId               String
   /// ID da campanha associada

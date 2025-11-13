@@ -29,6 +29,12 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { ProcessarValidacaoDto } from './dto/processar-validacao.dto';
 import { StatusEnvioVenda, TipoUnidade } from '@prisma/client';
 import { RecompensaService } from '../recompensa/recompensa.service';
+import {
+  parseDateWithFormat,
+  validarDataDentroPeriodoCampanha,
+  formatarDataParaExibicao,
+  FormatoData,
+} from './helpers/data.helper';
 
 /**
  * Tipo robusto de resultado interno da validação de um envio.
@@ -105,6 +111,30 @@ export class ValidacaoService {
         return {
           admin: `[${campanhaTitulo}] [TÉCNICO] CNPJ do pedido ${contexto.numeroPedido} na planilha (${contexto.cnpjPlanilha}) não corresponde ao CNPJ da ótica do vendedor (${contexto.cnpjVendedor}) nem ao CNPJ da matriz (${contexto.cnpjMatriz || 'N/A'}). DETALHES: Vendedor ID: ${contexto.vendedorId}, Ótica: ${contexto.nomeOptica}, Matriz: ${contexto.nomeMatriz || 'Nenhuma'}.`,
           vendedor: 'O CNPJ do pedido não corresponde à sua ótica cadastrada. Verifique se o pedido foi realizado pela ótica correta.'
+        };
+
+      case 'DATA_VENDA_NAO_MAPEADA':
+        return {
+          admin: `[${campanhaTitulo}] [ERRO CRÍTICO] Coluna DATA_VENDA não foi mapeada na planilha pelo admin. Pedido afetado: ${contexto.numeroPedido}. O admin deve realizar o mapeamento da coluna que contém a data da venda antes de processar a planilha.`,
+          vendedor: 'Não foi possível validar a data da venda. Entre em contato com o administrador.'
+        };
+
+      case 'DATA_VENDA_NAO_ENCONTRADA':
+        return {
+          admin: `[${campanhaTitulo}] [TÉCNICO] Data da venda não encontrada ou está vazia na coluna '${contexto.nomeColuna}' para o pedido ${contexto.numeroPedido}. Verifique se o sistema de origem está preenchendo o campo corretamente.`,
+          vendedor: 'A data da venda está ausente no pedido. Verifique se o pedido está completo no sistema.'
+        };
+
+      case 'DATA_VENDA_FORMATO_INVALIDO':
+        return {
+          admin: `[${campanhaTitulo}] [TÉCNICO] Data da venda '${contexto.dataVendaOriginal}' do pedido ${contexto.numeroPedido} está em formato inválido. Formato esperado: ${contexto.formatoEsperado}. Não foi possível fazer parsing da data. AÇÃO: Admin deve verificar o formato configurado ou corrigir os dados da planilha.`,
+          vendedor: `A data da venda '${contexto.dataVendaOriginal}' está em formato inválido. Entre em contato com o administrador.`
+        };
+
+      case 'DATA_VENDA_FORA_PERIODO':
+        return {
+          admin: `[${campanhaTitulo}] [VALIDAÇÃO CRÍTICA] Data da venda do pedido ${contexto.numeroPedido} está FORA do período da campanha. Data da venda: ${contexto.dataVendaFormatada}, Período da campanha: ${contexto.dataInicioFormatada} até ${contexto.dataFimFormatada}. MOTIVO: Venda ocorreu ${contexto.motivoDetalhado}. Apenas vendas dentro do período da campanha são elegíveis para pontuação.`,
+          vendedor: `A data da venda (${contexto.dataVendaFormatada}) está fora do período válido da campanha (${contexto.dataInicioFormatada} até ${contexto.dataFimFormatada}). Apenas vendas realizadas durante o período da campanha são elegíveis.`
         };
 
       case 'PAR_DUAS_LINHAS_REQUERIDAS':
@@ -476,11 +506,148 @@ export class ValidacaoService {
       }
 
       // -----------------------------------------------------------------------
-      // VALIDAÇÃO 2: REGRAS (Só chega aqui se CNPJ for válido)
+      // VALIDAÇÃO 1.5: DATA DA VENDA (NOVO - Validação Crítica)
+      // -----------------------------------------------------------------------
+      // Valida se a data da venda está dentro do período da campanha
+      // REGRA: dataInicio <= dataVenda <= dataFim
+      if (!resultadoValidacao) {
+        this.logger.log(`[1.5/4] Validando DATA DA VENDA para Pedido: ${envio.numeroPedido}...`);
+
+        // Buscar nome da coluna DATA_VENDA na planilha
+        const colunaDataVendaPlanilha = mapaInvertido['DATA_VENDA'];
+
+        if (!colunaDataVendaPlanilha) {
+          // DATA_VENDA não foi mapeada
+          const mensagens = this._gerarMensagensDuais('DATA_VENDA_NAO_MAPEADA', {
+            campanhaTitulo,
+            numeroPedido: envio.numeroPedido,
+          });
+          resultadoValidacao = {
+            status: 'REJEITADO',
+            motivo: mensagens.admin,
+            motivoVendedor: mensagens.vendedor,
+          };
+          this.logger.error(
+            `Mapeamento DATA_VENDA ausente para Pedido ${envio.numeroPedido}. Pulando envio.`,
+          );
+          envio['resultado'] = resultadoValidacao;
+          relatorio[resultadoValidacao.status.toLowerCase()]++;
+          continue; // Pula para o próximo envio
+        }
+
+        // Extrair data da venda da planilha
+        const dataVendaOriginal = linhaPlanilha[colunaDataVendaPlanilha];
+
+        if (!dataVendaOriginal) {
+          // Data vazia na planilha
+          const mensagens = this._gerarMensagensDuais('DATA_VENDA_NAO_ENCONTRADA', {
+            campanhaTitulo,
+            nomeColuna: colunaDataVendaPlanilha,
+            numeroPedido: envio.numeroPedido,
+          });
+          resultadoValidacao = {
+            status: 'REJEITADO',
+            motivo: mensagens.admin,
+            motivoVendedor: mensagens.vendedor,
+          };
+          this.logger.warn(
+            `Data da venda não encontrada na planilha para Pedido ${envio.numeroPedido}.`,
+          );
+          envio['resultado'] = resultadoValidacao;
+          relatorio[resultadoValidacao.status.toLowerCase()]++;
+          continue;
+        }
+
+        // Fazer parsing da data usando o formato brasileiro (padrão)
+        // TODO: Futuramente permitir que admin configure o formato
+        const dataVendaParsed = parseDateWithFormat(
+          String(dataVendaOriginal),
+          FormatoData.BRASILEIRO,
+        );
+
+        if (!dataVendaParsed) {
+          // Erro no parsing da data
+          const mensagens = this._gerarMensagensDuais('DATA_VENDA_FORMATO_INVALIDO', {
+            campanhaTitulo,
+            dataVendaOriginal,
+            numeroPedido: envio.numeroPedido,
+            formatoEsperado: 'DD/MM/YYYY (brasileiro)',
+          });
+          resultadoValidacao = {
+            status: 'REJEITADO',
+            motivo: mensagens.admin,
+            motivoVendedor: mensagens.vendedor,
+          };
+          this.logger.warn(
+            `Data da venda em formato inválido para Pedido ${envio.numeroPedido}: ${dataVendaOriginal}`,
+          );
+          envio['resultado'] = resultadoValidacao;
+          relatorio[resultadoValidacao.status.toLowerCase()]++;
+          continue;
+        }
+
+        // Validar se a data está dentro do período da campanha
+        const campanha = envio.requisito.regraCartela.campanha;
+        const dataInicio = campanha.dataInicio;
+        const dataFim = campanha.dataFim;
+
+        const dataDentroPeriodo = validarDataDentroPeriodoCampanha(
+          dataVendaParsed,
+          dataInicio,
+          dataFim,
+        );
+
+        if (!dataDentroPeriodo) {
+          // Data fora do período
+          const dataVendaFormatada = formatarDataParaExibicao(dataVendaParsed);
+          const dataInicioFormatada = formatarDataParaExibicao(dataInicio);
+          const dataFimFormatada = formatarDataParaExibicao(dataFim);
+
+          // Determinar se foi antes ou depois
+          let motivoDetalhado = '';
+          if (dataVendaParsed < dataInicio) {
+            motivoDetalhado = 'ANTES do início da campanha';
+          } else if (dataVendaParsed > dataFim) {
+            motivoDetalhado = 'DEPOIS do término da campanha';
+          }
+
+          const mensagens = this._gerarMensagensDuais('DATA_VENDA_FORA_PERIODO', {
+            campanhaTitulo,
+            numeroPedido: envio.numeroPedido,
+            dataVendaFormatada,
+            dataInicioFormatada,
+            dataFimFormatada,
+            motivoDetalhado,
+          });
+
+          resultadoValidacao = {
+            status: 'REJEITADO',
+            motivo: mensagens.admin,
+            motivoVendedor: mensagens.vendedor,
+          };
+
+          this.logger.warn(
+            `⚠ Data da venda FORA DO PERÍODO para Pedido ${envio.numeroPedido}: ` +
+              `${dataVendaFormatada} (Campanha: ${dataInicioFormatada} a ${dataFimFormatada})`,
+          );
+          envio['resultado'] = resultadoValidacao;
+          relatorio[resultadoValidacao.status.toLowerCase()]++;
+          continue;
+        }
+
+        // ✅ Data válida! Armazenar para persistir depois
+        envio['dataVendaParsed'] = dataVendaParsed;
+        this.logger.log(
+          `✓ Data da venda validada para Pedido: ${envio.numeroPedido} (${formatarDataParaExibicao(dataVendaParsed)})`,
+        );
+      }
+
+      // -----------------------------------------------------------------------
+      // VALIDAÇÃO 2: REGRAS (Só chega aqui se CNPJ e DATA forem válidos)
       // -----------------------------------------------------------------------
       if (!resultadoValidacao) {
-        // Se ainda não definiu resultado, significa que CNPJ foi validado
-        this.logger.log(`[2/3] Aplicando regras de negócio (Rule Builder)...`);
+        // Se ainda não definiu resultado, significa que CNPJ e DATA foram validados
+        this.logger.log(`[2/4] Aplicando regras de negócio (Rule Builder)...`);
 
         const tipoPedidoCampanha = (envio.requisito.regraCartela.campanha as any).tipoPedido || 'OS_OP_EPS';
         const resultadoRegras = this._aplicarRegras(
@@ -1188,6 +1355,7 @@ export class ValidacaoService {
               numeroCartelaAtendida: numeroCartelaAtendida, // ✅ CORRIGIDO: Usa spillover calculado
               codigoReferenciaUsado: envio['codigoReferenciaUsado'], // NOVO Sprint 18
               valorPontosReaisRecebido: envio['valorPontosReaisRecebido'], // NOVO Sprint 18
+              dataVenda: envio['dataVendaParsed'], // NOVO: Data da venda parseada e validada
             },
           });
 
