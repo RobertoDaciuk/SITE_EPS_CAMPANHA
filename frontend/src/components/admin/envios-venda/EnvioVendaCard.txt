@@ -1,0 +1,264 @@
+/**
+ * ============================================================================
+ * COMPONENTE: EnvioVendaCard (CRIAÇÃO - Admin Frontend) - Princípios 1, 3, 4, 5.1, 5.2
+ * ============================================================================
+ * * Propósito:
+ * Card que exibe os detalhes de um envio de venda para o Admin e permite a
+ * validação ou rejeição manual.
+ * * Funcionalidades:
+ * - Exibe dados do envio (pedido, vendedor, campanha, requisito, status).
+ * - Botões "Validar" e "Rejeitar" visíveis apenas para status "EM_ANALISE".
+ * - Inteface responsiva e com feedback visual.
+ * - Integração com API para ações de validação/rejeição.
+ * * Dependências:
+ * - @/lib/axios (API)
+ * - react-hot-toast (Notificações)
+ * - lucide-react (Ícones)
+ * - @/components/ui (Componentes Shadcn UI)
+ * - DialogRejeitarEnvio.tsx (para a funcionalidade de rejeição)
+ * * @module AdminEnviosVenda
+ * ============================================================================
+ */
+"use client";
+
+import React, { useState } from "react";
+import {
+  Card,
+  CardHeader, 
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  CheckCircle,
+  XCircle,
+  Hourglass,
+  AlertCircle,
+  FileText,
+  User,
+  Tags,
+  Calendar,
+  DollarSign,
+  Info,
+} from "lucide-react";
+import api from "@/lib/axios";
+import toast from "react-hot-toast";
+import { DialogRejeitarEnvio } from "./DialogRejeitarEnvio"; // Importado
+
+// ========================================
+// TIPAGEM
+// ========================================
+
+/**
+ * Interface para os dados de um Envio de Venda
+ */
+export interface EnvioVendaAdmin {
+  id: string;
+  numeroPedido: string;
+  status: "EM_ANALISE" | "VALIDADO" | "REJEITADO" | "CONFLITO_MANUAL";
+  dataEnvio: string;
+  dataValidacao: string | null;
+  motivoRejeicao: string | null;
+  infoConflito: string | null;
+  numeroCartelaAtendida: number | null;
+  vendedor: {
+    id: string;
+    nome: string;
+    email: string;
+  };
+  requisito: {
+    id: string;
+    descricao: string;
+  };
+  campanhaId: string; // ✅ Adicionado para ser mais explícito
+}
+
+/**
+ * Props do componente EnvioVendaCard
+ */
+interface EnvioVendaCardProps {
+  envio: EnvioVendaAdmin;
+  onActionSuccess: () => void; // Callback para recarregar lista após ação
+}
+
+// ========================================
+// COMPONENTE: EnvioVendaCard
+// ========================================
+
+const EnvioVendaCard: React.FC<EnvioVendaCardProps> = ({
+  envio,
+  onActionSuccess,
+}) => {
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false); // Estado do diálogo
+
+  // ========================================
+  // FUNÇÃO: Mapeamento de Status para Componentes Visuais
+  // ========================================
+  const getStatusDisplay = (status: EnvioVendaAdmin["status"]) => {
+    switch (status) {
+      case "EM_ANALISE":
+        return (
+          <Badge className="bg-orange-500 hover:bg-orange-500/80 text-white">
+            <Hourglass className="mr-1 h-3 w-3" /> Em Análise
+          </Badge>
+        );
+      case "VALIDADO":
+        return (
+          <Badge className="bg-success hover:bg-success/80 text-white">
+            <CheckCircle className="mr-1 h-3 w-3" /> Validado
+          </Badge>
+        );
+      case "REJEITADO":
+        return (
+          <Badge variant="destructive">
+            <XCircle className="mr-1 h-3 w-3" /> Rejeitado
+          </Badge>
+        );
+      case "CONFLITO_MANUAL":
+        return (
+          <Badge className="bg-amber-600 hover:bg-amber-600/80 text-white">
+            <AlertCircle className="mr-1 h-3 w-3" /> Conflito Manual
+          </Badge>
+        );
+      default:
+        return <Badge variant="secondary">{status}</Badge>;
+    }
+  };
+
+  // ========================================
+  // FUNÇÃO: Validar Envio (API Call)
+  // ========================================
+  const handleValidar = async () => {
+    setIsProcessing(true);
+    try {
+      await api.patch(`/envios-venda/${envio.id}/validar-manual`);
+      toast.success("Envio validado com sucesso!");
+      onActionSuccess(); // Recarrega a lista
+    } catch (error: any) {
+      const errorMessage =
+        error.response?.data?.message || "Erro ao validar envio.";
+      toast.error(errorMessage);
+      console.error("Erro ao validar envio:", error);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // ========================================
+  // FUNÇÃO: Rejeitar Envio (API Call - via Dialog)
+  // ========================================
+  const handleRejeitar = async (motivo: string) => {
+    setIsProcessing(true);
+    try {
+      await api.patch(`/envios-venda/${envio.id}/rejeitar-manual`, {
+        motivoRejeicao: motivo,
+      });
+      toast.success("Envio rejeitado com sucesso!");
+      setIsRejectDialogOpen(false); // Fecha o diálogo
+      onActionSuccess(); // Recarrega a lista
+    } catch (error: any) {
+      const errorMessage =
+        error.response?.data?.message || "Erro ao rejeitar envio.";
+      toast.error(errorMessage);
+      console.error("Erro ao rejeitar envio:", error);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // ========================================
+  // RENDERIZAÇÃO
+  // ========================================
+  return (
+    <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-xl font-bold flex items-center gap-2">
+          <FileText className="h-5 w-5 text-primary" />
+          {envio.numeroPedido}
+        </CardTitle>
+        {getStatusDisplay(envio.status)}
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {/* Vendedor */}
+        <div className="flex items-center text-sm text-muted-foreground">
+          <User className="mr-2 h-4 w-4" />
+          Vendedor: <span className="ml-1 font-medium text-foreground">{envio.vendedor.nome}</span>
+        </div>
+        {/* Requisito */}
+        <div className="flex items-center text-sm text-muted-foreground">
+          <Tags className="mr-2 h-4 w-4" />
+          Requisito:{" "}
+          <span className="ml-1 font-medium text-foreground">
+            {envio.requisito.descricao}
+          </span>
+        </div>
+        {/* Data de Envio */}
+        <div className="flex items-center text-sm text-muted-foreground">
+          <Calendar className="mr-2 h-4 w-4" />
+          Data Envio:{" "}
+          <span className="ml-1 font-medium text-foreground">
+            {new Date(envio.dataEnvio).toLocaleDateString("pt-BR")}
+          </span>
+        </div>
+        {/* Cartela Atendida (se validado) */}
+        {envio.numeroCartelaAtendida && (
+          <div className="flex items-center text-sm text-muted-foreground">
+            <DollarSign className="mr-2 h-4 w-4 text-success" />
+            Cartela Atendida:{" "}
+            <span className="ml-1 font-bold text-success">
+              {envio.numeroCartelaAtendida}
+            </span>
+          </div>
+        )}
+        {/* Motivo da Rejeição (se rejeitado) */}
+        {envio.status === "REJEITADO" && envio.motivoRejeicao && (
+          <div className="flex items-start text-sm text-red-600 bg-red-50 p-2 rounded-md">
+            <Info className="mr-2 h-4 w-4 flex-shrink-0 mt-0.5" />
+            <span className="font-medium">Motivo Rejeição:</span>
+            <span className="ml-1 flex-grow">{envio.motivoRejeicao}</span>
+          </div>
+        )}
+        {/* Informação de Conflito (se houver) */}
+        {envio.status === "CONFLITO_MANUAL" && envio.infoConflito && (
+          <div className="flex items-start text-sm text-amber-600 bg-amber-50 p-2 rounded-md">
+            <AlertCircle className="mr-2 h-4 w-4 flex-shrink-0 mt-0.5" />
+            <span className="font-medium">Conflito:</span>
+            <span className="ml-1 flex-grow">{envio.infoConflito}</span>
+          </div>
+        )}
+      </CardContent>
+      {/* Botões de Ação */}
+      {envio.status === "EM_ANALISE" && (
+        <CardFooter className="flex justify-end gap-2 pt-4 border-t border-border/70">
+          <Button
+            variant="outline"
+            onClick={() => setIsRejectDialogOpen(true)} // Abre o diálogo
+            disabled={isProcessing}
+            className="text-red-600 hover:bg-red-50 hover:text-red-700"
+          >
+            <XCircle className="mr-2 h-4 w-4" />
+            {isProcessing ? "Rejeitando..." : "Rejeitar"}
+          </Button>
+          <Button onClick={handleValidar} disabled={isProcessing}>
+            <CheckCircle className="mr-2 h-4 w-4" />
+            {isProcessing ? "Validando..." : "Validar"}
+          </Button>
+        </CardFooter>
+      )}
+
+      {/* Diálogo de Rejeição */}
+      <DialogRejeitarEnvio
+        isOpen={isRejectDialogOpen}
+        onClose={() => setIsRejectDialogOpen(false)}
+        onSubmit={handleRejeitar}
+        isSubmitting={isProcessing}
+      />
+    </Card>
+  );
+};
+
+export default EnvioVendaCard;
