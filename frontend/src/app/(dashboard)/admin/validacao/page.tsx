@@ -55,6 +55,7 @@ import {
 import toast from "react-hot-toast";
 import UploadPlanilha from "@/components/validacao/UploadPlanilha";
 import ModalDetalhesValidacao from "@/components/validacao/ModalDetalhesValidacao";
+import ModalFormatoData from "@/components/validacao/ModalFormatoData";
 import api from "@/lib/axios";
 import {
   LineChart,
@@ -334,6 +335,12 @@ export default function ValidacaoPage() {
       revalidado: number;
     };
   } | null>(null);
+
+  // ========================================
+  // ESTADOS: Modal de Formato de Data (NOVO)
+  // ========================================
+  const [modalFormatoDataAberto, setModalFormatoDataAberto] = useState(false);
+  const [formatoDataAtual, setFormatoDataAtual] = useState("DD/MM/YYYY");
 
   // ========================================
   // EFEITO: Proteção de Rota (ADMIN)
