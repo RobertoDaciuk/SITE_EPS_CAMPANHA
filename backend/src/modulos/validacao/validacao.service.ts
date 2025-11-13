@@ -35,6 +35,11 @@ import {
   formatarDataParaExibicao,
   FormatoData,
 } from './helpers/data.helper';
+import {
+  limparCnpj,
+  validarCnpj,
+  formatarCnpj,
+} from './helpers/cnpj.helper';
 
 /**
  * Tipo robusto de resultado interno da validação de um envio.
@@ -91,7 +96,7 @@ export class ValidacaoService {
     switch (tipo) {
       case 'CNPJ_NAO_CADASTRADO':
         return {
-          admin: `[${campanhaTitulo}] [TÉCNICO] Vendedor (ID: ${contexto.vendedorId}) não está associado a uma ótica com CNPJ cadastrado no sistema. Verifique o cadastro da ótica no banco de dados.`,
+          admin: `[${campanhaTitulo}] [TÉCNICO] Vendedor "${contexto.vendedorNome}" (Email: ${contexto.vendedorEmail}) não está associado a uma ótica com CNPJ cadastrado no sistema. Ótica: ${contexto.nomeOptica || 'Não cadastrada'}. Pedido: ${contexto.numeroPedido}. AÇÃO: Verifique o cadastro completo da ótica no banco de dados e associe um CNPJ válido.`,
           vendedor: 'Sua ótica não possui CNPJ cadastrado no sistema. Entre em contato com o administrador para regularizar o cadastro.'
         };
 
@@ -107,9 +112,15 @@ export class ValidacaoService {
           vendedor: `O CNPJ '${contexto.cnpjPlanilha}' do pedido está em formato inválido. Verifique se o CNPJ está correto no sistema de origem.`
         };
 
+      case 'CNPJ_DIGITOS_VERIFICADORES_INVALIDOS':
+        return {
+          admin: `[${campanhaTitulo}] [ERRO CRÍTICO] CNPJ '${contexto.cnpjPlanilha}' encontrado na planilha para o pedido ${contexto.numeroPedido} possui dígitos verificadores inválidos. Formato recebido: "${contexto.cnpjOriginal}". O CNPJ falhou na validação do algoritmo oficial da Receita Federal. Verifique se o CNPJ foi digitado corretamente na planilha de origem ou se há erro no sistema que gerou os dados.`,
+          vendedor: `O CNPJ '${formatarCnpj(contexto.cnpjPlanilha)}' do pedido é inválido (dígitos verificadores incorretos). Verifique se o CNPJ está correto no sistema.`
+        };
+
       case 'CNPJ_DIVERGENTE':
         return {
-          admin: `[${campanhaTitulo}] [TÉCNICO] CNPJ do pedido ${contexto.numeroPedido} na planilha (${contexto.cnpjPlanilha}) não corresponde ao CNPJ da ótica do vendedor (${contexto.cnpjVendedor}) nem ao CNPJ da matriz (${contexto.cnpjMatriz || 'N/A'}). DETALHES: Vendedor ID: ${contexto.vendedorId}, Ótica: ${contexto.nomeOptica}, Matriz: ${contexto.nomeMatriz || 'Nenhuma'}.`,
+          admin: `[${campanhaTitulo}] [TÉCNICO] CNPJ do pedido ${contexto.numeroPedido} na planilha (${formatarCnpj(contexto.cnpjPlanilha)}) não corresponde ao CNPJ da ótica do vendedor (${formatarCnpj(contexto.cnpjVendedor)}) nem ao CNPJ da matriz (${contexto.cnpjMatriz ? formatarCnpj(contexto.cnpjMatriz) : 'N/A'}). DETALHES: Vendedor: "${contexto.vendedorNome}" (${contexto.vendedorEmail}), Ótica: "${contexto.nomeOptica}", Matriz: "${contexto.nomeMatriz || 'Nenhuma'}". POSSÍVEL CAUSA: Pedido foi realizado por outra ótica ou há erro no CNPJ informado na planilha.`,
           vendedor: 'O CNPJ do pedido não corresponde à sua ótica cadastrada. Verifique se o pedido foi realizado pela ótica correta.'
         };
 
@@ -149,6 +160,12 @@ export class ValidacaoService {
           vendedor: `São necessárias 1 unidade de lente no pedido, mas foram encontradas ${contexto.linhasEncontradas} unidades. Verifique se há duplicação no sistema.`
         };
 
+      case 'PAR_PRODUTOS_IDENTICOS':
+        return {
+          admin: `[${campanhaTitulo}] [ERRO CRÍTICO] Requisito do tipo PAR (ID: ${contexto.requisitoId}) requer 2 produtos DIFERENTES (olho esquerdo + olho direito), mas as 2 linhas do pedido ${contexto.numeroPedido} possuem o MESMO código de referência: "${contexto.codigoReferencia}". CAUSA: Duplicação de linha ou erro no sistema de origem. Um par de lentes deve ter 2 produtos distintos (esquerdo e direito), não 2 unidades do mesmo produto. Verifique se há erro de cadastro no sistema de origem.`,
+          vendedor: `O pedido requer um par de lentes (olho esquerdo + olho direito), mas foi detectado que as 2 unidades são do mesmo produto ("${contexto.codigoReferencia}"). Verifique se o pedido foi cadastrado corretamente com os 2 produtos diferentes.`
+        };
+
       case 'CODIGO_REFERENCIA_NAO_MAPEADO':
         return {
           admin: `[${campanhaTitulo}] [TÉCNICO] Coluna CODIGO_REFERENCIA não foi mapeada na planilha pelo admin. O admin deve acessar a tela de validação e realizar o mapeamento da coluna que contém o código do produto antes de processar a planilha. Pedido afetado: ${contexto.numeroPedido}.`,
@@ -175,7 +192,7 @@ export class ValidacaoService {
 
       case 'CONFLITO_VENDEDOR_DUPLICADO':
         return {
-          admin: `[${campanhaTitulo}] [CONFLITO_MANUAL] Conflito interno detectado: Pedido ${contexto.numeroPedido} já foi validado para outro vendedor (ID: ${contexto.vendedorConflitanteId}, Nome: ${contexto.vendedorConflitanteNome || 'N/A'}) nesta mesma campanha. EnvioVenda conflitante ID: ${contexto.envioConflitanteId}. AÇÃO REQUERIDA: Admin deve revisar manualmente e decidir qual vendedor deve receber os pontos. Possível duplicação de pedido no sistema.`,
+          admin: `[${campanhaTitulo}] [CONFLITO_MANUAL] Conflito interno detectado: Pedido ${contexto.numeroPedido} já foi validado para outro vendedor. VENDEDOR CONFLITANTE: "${contexto.vendedorConflitanteNome}" (${contexto.vendedorConflitanteEmail}), Ótica: "${contexto.opticaConflitanteNome}". VENDEDOR ATUAL: "${contexto.vendedorAtualNome}" (${contexto.vendedorAtualEmail}), Ótica: "${contexto.opticaAtualNome}". AÇÃO REQUERIDA: Admin deve revisar manualmente e decidir qual vendedor deve receber os pontos. Possível duplicação de pedido no sistema ou erro de digitação do número do pedido.`,
           vendedor: 'Este pedido já foi validado para outro vendedor. Entre em contato com o administrador para resolução do conflito.'
         };
 
@@ -413,7 +430,9 @@ export class ValidacaoService {
       if (!cnpjDoVendedor) {
         const mensagens = this._gerarMensagensDuais('CNPJ_NAO_CADASTRADO', {
           campanhaTitulo,
-          vendedorId: envio.vendedorId,
+          vendedorNome: envio.vendedor.nome,
+          vendedorEmail: envio.vendedor.email,
+          nomeOptica: envio.vendedor.optica?.nome,
           numeroPedido: envio.numeroPedido,
         });
         resultadoValidacao = {
@@ -452,6 +471,26 @@ export class ValidacaoService {
         };
         this.logger.warn(
           `CNPJ inválido na planilha para Pedido ${envio.numeroPedido}: ${cnpjDaPlanilha}`,
+        );
+      } else if (!validarCnpj(cnpjDaPlanilha)) {
+        // -----------------------------------------------------------------------
+        // VALIDAÇÃO DOS DÍGITOS VERIFICADORES DO CNPJ (Sprint 19)
+        // -----------------------------------------------------------------------
+        // O CNPJ tem 14 dígitos, mas os dígitos verificadores estão incorretos
+        // Algoritmo oficial da Receita Federal detectou inconsistência
+        const mensagens = this._gerarMensagensDuais('CNPJ_DIGITOS_VERIFICADORES_INVALIDOS', {
+          campanhaTitulo,
+          cnpjPlanilha: cnpjDaPlanilha,
+          cnpjOriginal: linhaPlanilha[nomeColunaCnpj],
+          numeroPedido: envio.numeroPedido,
+        });
+        resultadoValidacao = {
+          status: 'REJEITADO',
+          motivo: mensagens.admin,
+          motivoVendedor: mensagens.vendedor,
+        };
+        this.logger.warn(
+          `[SEGURANÇA] CNPJ com dígitos verificadores inválidos para Pedido ${envio.numeroPedido}: ${cnpjDaPlanilha}. Possível erro de digitação ou fraude.`,
         );
       } else if (cnpjDaPlanilha === cnpjDoVendedor) {
         // -----------------------------------------------------------------------
@@ -493,7 +532,8 @@ export class ValidacaoService {
             cnpjPlanilha: cnpjDaPlanilha,
             cnpjVendedor: cnpjDoVendedor,
             cnpjMatriz: cnpjDaMatriz,
-            vendedorId: envio.vendedorId,
+            vendedorNome: envio.vendedor.nome,
+            vendedorEmail: envio.vendedor.email,
             nomeOptica: envio.vendedor.optica?.nome,
             nomeMatriz: matriz?.nome,
           });
@@ -770,6 +810,13 @@ export class ValidacaoService {
               status: 'VALIDADO',
               vendedorId: { not: envio.vendedorId }, // Outro vendedor
             },
+            include: {
+              vendedor: {
+                include: {
+                  optica: true,
+                },
+              },
+            },
           });
 
           if (conflitoOutroVendedor) {
@@ -777,9 +824,12 @@ export class ValidacaoService {
             const mensagens = this._gerarMensagensDuais('CONFLITO_VENDEDOR_DUPLICADO', {
               campanhaTitulo,
               numeroPedido: envio.numeroPedido,
-              vendedorConflitanteId: conflitoOutroVendedor.vendedorId,
-              vendedorConflitanteNome: 'N/A',
-              envioConflitanteId: conflitoOutroVendedor.id,
+              vendedorConflitanteNome: conflitoOutroVendedor.vendedor.nome,
+              vendedorConflitanteEmail: conflitoOutroVendedor.vendedor.email,
+              opticaConflitanteNome: conflitoOutroVendedor.vendedor.optica?.nome || 'N/A',
+              vendedorAtualNome: envio.vendedor.nome,
+              vendedorAtualEmail: envio.vendedor.email,
+              opticaAtualNome: envio.vendedor.optica?.nome || 'N/A',
             });
             resultadoValidacao = {
               status: 'CONFLITO_MANUAL',
@@ -910,8 +960,10 @@ export class ValidacaoService {
    * ============================================================================
    *
    * Normaliza um CNPJ removendo todos os caracteres não-numéricos.
+   * Agora usa o helper externo para centralizar a lógica.
    *
    * ADICIONADO: Sprint 16.4 (Tarefa 38.4)
+   * ATUALIZADO: Sprint 19 (Validação de Dígitos Verificadores)
    *
    * @param cnpj - CNPJ bruto (pode conter pontos, traços, barras)
    * @returns CNPJ limpo (apenas números) ou null se inválido
@@ -923,12 +975,7 @@ export class ValidacaoService {
    * _limparCnpj("")                   // null
    */
   private _limparCnpj(cnpj: string | null | undefined): string | null {
-    if (!cnpj) {
-      return null;
-    }
-
-    const cnpjLimpo = String(cnpj).replace(/\D/g, '');
-    return cnpjLimpo.length > 0 ? cnpjLimpo : null;
+    return limparCnpj(cnpj);
   }
 
   /**
@@ -1171,6 +1218,42 @@ export class ValidacaoService {
 
         this.logger.log(`Códigos extraídos da planilha: ${codigosDaPlanilha.length > 0 ? codigosDaPlanilha.join(', ') : 'NENHUM'}`);
 
+        // -----------------------------------------------------------------------
+        // VALIDAÇÃO CRÍTICA: PAR NÃO PODE TER PRODUTOS IDÊNTICOS (Sprint 19)
+        // -----------------------------------------------------------------------
+        // Se o requisito é PAR e tem 2 linhas, os códigos DEVEM ser diferentes
+        // PAR = olho esquerdo + olho direito = 2 produtos DIFERENTES
+        if (tipoUnidade === 'PAR' && codigosDaPlanilha.length === 2) {
+          // Normalizar códigos para comparação case-insensitive
+          const codigo1 = codigosDaPlanilha[0].toUpperCase().trim();
+          const codigo2 = codigosDaPlanilha[1].toUpperCase().trim();
+
+          if (codigo1 === codigo2) {
+            const campanhaTitulo = campanha?.titulo || 'N/A';
+            const numeroPedidoFormatado = tipoPedido ? `${numeroPedido} (${tipoPedido})` : numeroPedido;
+            const mensagens = this._gerarMensagensDuais('PAR_PRODUTOS_IDENTICOS', {
+              campanhaTitulo,
+              requisitoId: requisito.id,
+              numeroPedido: numeroPedidoFormatado,
+              codigoReferencia: codigosDaPlanilha[0],
+            });
+
+            this.logger.warn(
+              `[VALIDAÇÃO PAR] Pedido ${numeroPedido}: As 2 linhas possuem o MESMO código de referência (${codigosDaPlanilha[0]}). PAR requer 2 produtos DIFERENTES.`,
+            );
+
+            return {
+              sucesso: false,
+              motivo: mensagens.admin,
+              motivoVendedor: mensagens.vendedor,
+            };
+          }
+
+          this.logger.log(
+            `✓ Validação PAR: 2 produtos DIFERENTES encontrados (${codigo1} e ${codigo2})`,
+          );
+        }
+
         if (codigosDaPlanilha.length === 0) {
           return {
             sucesso: false,
@@ -1304,7 +1387,8 @@ export class ValidacaoService {
         // -----------------------------------------------------------------------
         // VALIDADO: Usar transação para operações atômicas (Validação + Recompensa)
         // -----------------------------------------------------------------------
-        await this.prisma.$transaction(async (tx) => {
+        try {
+          await this.prisma.$transaction(async (tx) => {
           // -----------------------------------------------------------------------
           // PASSO 1A: CALCULAR SPILLOVER (CORRIGIDO Sprint 16.5 - Tarefa 38.8)
           // -----------------------------------------------------------------------
@@ -1390,7 +1474,70 @@ export class ValidacaoService {
           );
 
           this.logger.log(`Gatilhos de recompensa processados para Envio ID ${envioAtualizado.id}.`);
-        });
+          });
+        } catch (error: any) {
+          // -----------------------------------------------------------------------
+          // TRATAMENTO DE RACE CONDITION (Sprint 19)
+          // -----------------------------------------------------------------------
+          // Se dois processos tentarem validar o mesmo pedido simultaneamente,
+          // o índice único "unique_validado_pedido_campanha" impedirá a duplicação
+          // Código de erro do PostgreSQL: 23505 (unique_violation)
+          if (error.code === '23505' || error.message?.includes('unique_validado_pedido_campanha')) {
+            this.logger.warn(
+              `[RACE CONDITION DETECTADA] Pedido ${envio.numeroPedido} já foi validado por outro processo. Marcando como CONFLITO_MANUAL.`,
+            );
+
+            // Buscar o envio conflitante que já foi validado
+            const envioConflitante = await this.prisma.envioVenda.findFirst({
+              where: {
+                numeroPedido: envio.numeroPedido,
+                campanhaId: envio.campanhaId,
+                status: 'VALIDADO',
+                vendedorId: { not: envio.vendedorId },
+              },
+              include: {
+                vendedor: {
+                  include: {
+                    optica: true,
+                  },
+                },
+              },
+            });
+
+            // Marcar este envio como CONFLITO_MANUAL
+            const campanhaTitulo = envio.requisito?.regraCartela?.campanha?.titulo || 'N/A';
+            const mensagens = this._gerarMensagensDuais('CONFLITO_VENDEDOR_DUPLICADO', {
+              campanhaTitulo,
+              numeroPedido: envio.numeroPedido,
+              vendedorConflitanteNome: envioConflitante?.vendedor?.nome || 'N/A',
+              vendedorConflitanteEmail: envioConflitante?.vendedor?.email || 'N/A',
+              opticaConflitanteNome: envioConflitante?.vendedor?.optica?.nome || 'N/A',
+              vendedorAtualNome: envio.vendedor.nome,
+              vendedorAtualEmail: envio.vendedor.email,
+              opticaAtualNome: envio.vendedor.optica?.nome || 'N/A',
+            });
+
+            await this.prisma.envioVenda.update({
+              where: { id: envio.id },
+              data: {
+                status: 'CONFLITO_MANUAL',
+                motivoRejeicao: mensagens.admin,
+                motivoRejeicaoVendedor: mensagens.vendedor,
+              },
+            });
+
+            this.logger.log(
+              `Envio ID ${envio.id} marcado como CONFLITO_MANUAL devido a race condition resolvida.`,
+            );
+          } else {
+            // Outro tipo de erro - propagar
+            this.logger.error(
+              `Erro inesperado ao processar Envio ID ${envio.id}:`,
+              error,
+            );
+            throw error;
+          }
+        }
       } else {
         // -----------------------------------------------------------------------
         // REJEITADO ou CONFLITO_MANUAL: Atualizar status diretamente
@@ -1577,6 +1724,17 @@ export class ValidacaoService {
       const nomeColunaCnpj = mapaInvertido['CNPJ_OTICA'];
       const cnpjDaPlanilha = this._limparCnpj(linhaPlanilha[nomeColunaCnpj]);
       const cnpjDoVendedor = this._limparCnpj(envioRejeitado.vendedor.optica?.cnpj);
+
+      // Validação 0: Validar dígitos verificadores do CNPJ (Sprint 19)
+      if (!cnpjDaPlanilha || cnpjDaPlanilha.length !== 14) {
+        this.logger.log(`Revalidação falhou: CNPJ inválido ou ausente (${cnpjDaPlanilha}).`);
+        continue;
+      }
+
+      if (!validarCnpj(cnpjDaPlanilha)) {
+        this.logger.log(`[SEGURANÇA] Revalidação falhou: CNPJ com dígitos verificadores inválidos (${cnpjDaPlanilha}). Possível fraude.`);
+        continue;
+      }
 
       // Validação 1: CNPJ
       let validacaoPassou = false;
