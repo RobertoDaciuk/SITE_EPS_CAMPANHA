@@ -290,63 +290,56 @@ if (!condicaoAtendida) {
 
 ---
 
-### **FALHA #7: Validação PAR/UNIDADE Não Verifica Linhas Idênticas**
+### **~~FALHA #7: Validação PAR/UNIDADE Não Verifica Linhas Idênticas~~** ❌ **CORREÇÃO: NÃO É FALHA!**
 **Localização:** `validacao.service.ts:1095-1129`
 
-**Problema:**
+**⚠️ IMPORTANTE: Esta análise estava INCORRETA e foi corrigida!**
+
+**Entendimento INCORRETO (análise inicial):**
+```
+PAR = 2 produtos DIFERENTES (olho direito + esquerdo)
+→ 2 linhas com mesmo código = DUPLICATA (deveria rejeitar)
+```
+
+**Entendimento CORRETO:**
+```
+PAR = 2 produtos IGUAIS (mesmo código de referência, 2 unidades)
+→ 2 linhas com mesmo código = PAR VÁLIDO ✅
+→ 3+ linhas = INVÁLIDO (excede o par) ✅
+
+UNIDADE = 1 produto (1 linha)
+→ 1 linha = VÁLIDO ✅
+→ 2+ linhas = INVÁLIDO ✅
+```
+
+**Validação ATUAL (CORRETA):**
 ```typescript
 const tipoUnidade = requisito.tipoUnidade || 'UNIDADE';
 const quantidadeEsperada = tipoUnidade === 'PAR' ? 2 : 1;
 
 if (linhasEncontradas.length !== quantidadeEsperada) {
-  // Rejeita
+  // ✅ Rejeita se não tiver exatamente 2 linhas (PAR)
+  // ✅ Rejeita se não tiver exatamente 1 linha (UNIDADE)
+  // ✅ Impede 3+ linhas para PAR
 }
-// ✅ Valida quantidade
-
-// ❌ MAS NÃO VALIDA SE AS 2 LINHAS SÃO DIFERENTES!
-// Cenário: Pedido #100 aparece 2x na planilha com DADOS IDÊNTICOS
-// Sistema aceita como PAR, mas deveria ser UNIDADE duplicada!
 ```
 
-**Cenário de Falha:**
+**Exemplo Correto:**
 ```
 Planilha:
 Linha 1: Pedido #100, Produto "Lente A", Valor 100
-Linha 2: Pedido #100, Produto "Lente A", Valor 100  (DUPLICATA!)
+Linha 2: Pedido #100, Produto "Lente A", Valor 100
 
-Sistema: ✅ "PAR válido" (2 linhas encontradas)
-Realidade: ❌ É duplicata, não é par!
+Sistema: ✅ "PAR válido" (2 linhas com mesmo produto)
+Realidade: ✅ Correto! PAR significa 2 unidades do mesmo produto
 ```
 
-**Impacto:**
-- ❌ Duplicatas são aceitas como pares
-- ❌ Vendedor pode submeter mesma venda 2x
-- ❌ Pagamento duplicado
+**Conclusão:**
+- ✅ Validação PAR/UNIDADE está **CORRETA**
+- ✅ Não necessita alteração
+- ❌ Análise inicial foi baseada em entendimento incorreto do requisito
 
-**Solução:**
-```typescript
-// Após validar quantidade, verificar se são produtos DIFERENTES
-if (tipoUnidade === 'PAR' && linhasEncontradas.length === 2) {
-  const linha1 = linhasEncontradas[0];
-  const linha2 = linhasEncontradas[1];
-
-  // Comparar código de referência (produto)
-  const colunaCodRef = mapaInvertido['CODIGO_REFERENCIA'];
-  const codigo1 = linha1[colunaCodRef];
-  const codigo2 = linha2[colunaCodRef];
-
-  if (codigo1 === codigo2) {
-    // ❌ Produtos idênticos! É duplicata, não é par!
-    return {
-      sucesso: false,
-      motivo: `[TÉCNICO] Pedido ${numeroPedido} possui 2 linhas com produto IDÊNTICO (${codigo1}). Um PAR deve ter 2 produtos DIFERENTES (olho direito + esquerdo). Possível duplicação de dados no sistema de origem.`,
-      motivoVendedor: 'O pedido possui linhas duplicadas. Um par de lentes deve ter olho direito e esquerdo diferentes.',
-    };
-  }
-}
-```
-
-**Severidade:** 🔴 **ALTA** - Risco de duplicação e fraude
+**Severidade:** ~~🔴 ALTA~~ → ✅ **SEM FALHA** - Validação está funcionando conforme esperado
 
 ---
 
@@ -620,9 +613,9 @@ if (cnpjDaPlanilha.length !== CNPJ_TAMANHO_VALIDO) {
 
 ### **🔴 Crítico (Corrigir Imediatamente):**
 1. ✅ **Validação de DATA_VENDA** - **JÁ IMPLEMENTADA!**
-2. ❌ **Validação de dígitos verificadores de CNPJ** - IMPLEMENTAR
-3. ❌ **Race condition em conflito de vendedores** - ADICIONAR LOCK
-4. ❌ **Validação PAR não verifica linhas idênticas** - ADICIONAR CHECK
+2. ✅ **Validação de dígitos verificadores de CNPJ** - **IMPLEMENTADO!**
+3. ✅ **Race condition em conflito de vendedores** - **IMPLEMENTADO!**
+4. ~~❌ **Validação PAR não verifica linhas idênticas**~~ - ❌ **NÃO É FALHA** (análise incorreta)
 5. ❌ **Código de referência case-sensitive** - NORMALIZAR
 
 ### **🟡 Importante (Corrigir em Sprint Próxima):**
@@ -654,27 +647,28 @@ if (cnpjDaPlanilha.length !== CNPJ_TAMANHO_VALIDO) {
 
 - **Linhas Analisadas:** 1.550+
 - **Validadores Analisados:** 7
-- **Falhas Críticas Encontradas:** 8
+- **Falhas Críticas Identificadas:** 8 → **7 válidas** (1 descartada)
+- **Falhas Críticas Corrigidas:** ✅ **2** (CNPJ dígitos + Race condition)
 - **Falhas Médias Encontradas:** 3
 - **Inconsistências Encontradas:** 12
 - **Mensagens Duais Analisadas:** 16
-- **Código Perfeito:** ~85%
-- **Código com Falhas:** ~15%
+- **Mensagens Melhoradas:** ✅ **3** (CNPJ_NAO_CADASTRADO, CNPJ_DIVERGENTE, CONFLITO_VENDEDOR_DUPLICADO)
+- **Código Perfeito:** ~85% → **~90%** (após correções)
 
 ---
 
 ## 🏆 CONCLUSÃO
 
-O sistema de validação está **MUITO BOM** (85% perfeito), mas possui **8 falhas críticas** que precisam ser corrigidas para garantir integridade total dos dados.
+O sistema de validação está **MUITO BOM** (85% perfeito). Das **8 falhas identificadas** na análise inicial, **1 foi descartada** (análise incorreta sobre validação PAR) e **2 críticas foram IMPLEMENTADAS** (CNPJ + Race Condition).
 
 **Prioridade de Correção:**
-1. 🔴 Race condition em conflito (risco financeiro)
-2. 🔴 Validação de dígitos de CNPJ (risco de fraude)
-3. 🔴 Validação PAR com linhas idênticas (risco de duplicação)
-4. 🟡 Nome de vendedor conflitante (UX admin)
-5. 🟡 Normalização de pedidos (produtividade)
+1. ✅ Race condition em conflito (risco financeiro) - **IMPLEMENTADO!**
+2. ✅ Validação de dígitos de CNPJ (risco de fraude) - **IMPLEMENTADO!**
+3. ~~🔴 Validação PAR com linhas idênticas~~ - ❌ **NÃO É FALHA** (validação atual está correta)
+4. ✅ Melhorias nas mensagens admin (UX) - **IMPLEMENTADO!**
+5. 🟡 Normalização de pedidos (produtividade) - Pendente
 
-**Recomendação:** Implementar correções críticas na próxima sprint.
+**Status:** ✅ **2 CORREÇÕES CRÍTICAS IMPLEMENTADAS** + **MELHORIAS DE MENSAGENS**
 
 ---
 

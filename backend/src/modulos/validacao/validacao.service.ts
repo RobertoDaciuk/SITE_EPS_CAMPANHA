@@ -160,12 +160,6 @@ export class ValidacaoService {
           vendedor: `São necessárias 1 unidade de lente no pedido, mas foram encontradas ${contexto.linhasEncontradas} unidades. Verifique se há duplicação no sistema.`
         };
 
-      case 'PAR_PRODUTOS_IDENTICOS':
-        return {
-          admin: `[${campanhaTitulo}] [ERRO CRÍTICO] Requisito do tipo PAR (ID: ${contexto.requisitoId}) requer 2 produtos DIFERENTES (olho esquerdo + olho direito), mas as 2 linhas do pedido ${contexto.numeroPedido} possuem o MESMO código de referência: "${contexto.codigoReferencia}". CAUSA: Duplicação de linha ou erro no sistema de origem. Um par de lentes deve ter 2 produtos distintos (esquerdo e direito), não 2 unidades do mesmo produto. Verifique se há erro de cadastro no sistema de origem.`,
-          vendedor: `O pedido requer um par de lentes (olho esquerdo + olho direito), mas foi detectado que as 2 unidades são do mesmo produto ("${contexto.codigoReferencia}"). Verifique se o pedido foi cadastrado corretamente com os 2 produtos diferentes.`
-        };
-
       case 'CODIGO_REFERENCIA_NAO_MAPEADO':
         return {
           admin: `[${campanhaTitulo}] [TÉCNICO] Coluna CODIGO_REFERENCIA não foi mapeada na planilha pelo admin. O admin deve acessar a tela de validação e realizar o mapeamento da coluna que contém o código do produto antes de processar a planilha. Pedido afetado: ${contexto.numeroPedido}.`,
@@ -1217,42 +1211,6 @@ export class ValidacaoService {
         }
 
         this.logger.log(`Códigos extraídos da planilha: ${codigosDaPlanilha.length > 0 ? codigosDaPlanilha.join(', ') : 'NENHUM'}`);
-
-        // -----------------------------------------------------------------------
-        // VALIDAÇÃO CRÍTICA: PAR NÃO PODE TER PRODUTOS IDÊNTICOS (Sprint 19)
-        // -----------------------------------------------------------------------
-        // Se o requisito é PAR e tem 2 linhas, os códigos DEVEM ser diferentes
-        // PAR = olho esquerdo + olho direito = 2 produtos DIFERENTES
-        if (tipoUnidade === 'PAR' && codigosDaPlanilha.length === 2) {
-          // Normalizar códigos para comparação case-insensitive
-          const codigo1 = codigosDaPlanilha[0].toUpperCase().trim();
-          const codigo2 = codigosDaPlanilha[1].toUpperCase().trim();
-
-          if (codigo1 === codigo2) {
-            const campanhaTitulo = campanha?.titulo || 'N/A';
-            const numeroPedidoFormatado = tipoPedido ? `${numeroPedido} (${tipoPedido})` : numeroPedido;
-            const mensagens = this._gerarMensagensDuais('PAR_PRODUTOS_IDENTICOS', {
-              campanhaTitulo,
-              requisitoId: requisito.id,
-              numeroPedido: numeroPedidoFormatado,
-              codigoReferencia: codigosDaPlanilha[0],
-            });
-
-            this.logger.warn(
-              `[VALIDAÇÃO PAR] Pedido ${numeroPedido}: As 2 linhas possuem o MESMO código de referência (${codigosDaPlanilha[0]}). PAR requer 2 produtos DIFERENTES.`,
-            );
-
-            return {
-              sucesso: false,
-              motivo: mensagens.admin,
-              motivoVendedor: mensagens.vendedor,
-            };
-          }
-
-          this.logger.log(
-            `✓ Validação PAR: 2 produtos DIFERENTES encontrados (${codigo1} e ${codigo2})`,
-          );
-        }
 
         if (codigosDaPlanilha.length === 0) {
           return {
