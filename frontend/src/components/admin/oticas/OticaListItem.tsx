@@ -29,6 +29,7 @@ interface Optica {
   id: string;
   nome: string;
   cnpj: string;
+  codigoOtica?: string | null;
   endereco?: string | null;
   cidade?: string | null;
   estado?: string | null;
@@ -116,7 +117,7 @@ export default function OticaListItem({
               <Building2 className="h-5 w-5 text-white" />
             </div>
 
-            {/* Nome + CNPJ */}
+            {/* Nome + CNPJ + Código */}
             <div className="min-w-0 flex-1">
               <h3 className="text-lg font-bold text-gray-900 truncate">
                 {otica.nome}
@@ -124,6 +125,12 @@ export default function OticaListItem({
               <p className="text-sm font-mono text-gray-500 mt-0.5">
                 {formatCNPJ(otica.cnpj)}
               </p>
+              {otica.codigoOtica && (
+                <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
+                  <span className="font-medium">Código:</span>
+                  <span className="font-mono">{otica.codigoOtica}</span>
+                </p>
+              )}
             </div>
           </div>
 

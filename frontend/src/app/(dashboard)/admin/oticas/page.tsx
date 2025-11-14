@@ -24,11 +24,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/ContextoAutenticacao';
-import { Plus, Search, Filter, Loader2, Building2, AlertCircle } from 'lucide-react';
+import { Plus, Search, Filter, Loader2, Building2, AlertCircle, FileUp, Sparkles } from 'lucide-react';
 import api from '@/lib/axios';
 import toast from 'react-hot-toast';
+import { motion } from 'framer-motion';
 import OticaListItem from '@/components/admin/oticas/OticaListItem';
 import CriarEditarOticaModal from '@/components/admin/oticas/CriarEditarOticaModal';
+import ImportarOticasModal from '@/components/admin/oticas/ImportarOticasModal';
 
 // ============================================================================
 // INTERFACES
@@ -38,6 +40,7 @@ interface Optica {
   id: string;
   nome: string;
   cnpj: string;
+  codigoOtica?: string | null;
   endereco?: string | null;
   cidade?: string | null;
   estado?: string | null;
@@ -67,6 +70,7 @@ export default function AdminOticasPage() {
   const [oticas, setOticas] = useState<Optica[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [modalImportarOpen, setModalImportarOpen] = useState(false);
   const [oticaSelecionada, setOticaSelecionada] = useState<Optica | null>(null);
 
   // Estados de Filtros
@@ -221,62 +225,140 @@ export default function AdminOticasPage() {
   // ==========================================================================
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 flex items-center gap-3">
-                <div className="rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 p-3 shadow-lg shadow-blue-500/30">
-                  <Building2 className="h-8 w-8 text-white" />
-                </div>
-                Gerenciamento de Óticas
-              </h1>
-              <p className="text-gray-600 mt-2">
-                Gerencie as óticas parceiras da plataforma
-              </p>
-            </div>
+    <div className="flex-1 space-y-8 pb-8">
+      {/* Cabeçalho Premium */}
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: 'easeOut' }}
+        className="relative overflow-hidden rounded-3xl p-8 md:p-10
+                   bg-gradient-to-br from-primary/10 via-primary/5 to-transparent
+                   border border-primary/20 backdrop-blur-sm"
+      >
+        {/* Decoração de fundo */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -z-10" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-primary-light/10 rounded-full blur-3xl -z-10" />
 
-            {/* Botão: Adicionar Ótica */}
-            <button
-              onClick={handleAbrirModalCriar}
-              className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold shadow-lg shadow-blue-500/30 hover:from-blue-700 hover:to-indigo-700 transition-all"
+        <div className="relative flex items-start gap-6">
+          {/* Avatar/Ícone */}
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+            className="hidden sm:flex items-center justify-center w-20 h-20 rounded-2xl
+                       bg-gradient-to-br from-primary to-primary-light
+                       shadow-lg shadow-primary/30"
+          >
+            <Building2 className="w-10 h-10 text-primary-foreground" />
+          </motion.div>
+
+          {/* Texto */}
+          <div className="flex-1 space-y-3">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3, duration: 0.5 }}
+              className="flex items-center gap-3 flex-wrap"
             >
-              <Plus className="h-5 w-5" />
-              <span>Adicionar Ótica</span>
-            </button>
+              <h1 className="text-3xl md:text-4xl font-black text-foreground tracking-tight">
+                Gerenciamento de <span className="text-gradient">Óticas</span>
+              </h1>
+              <Sparkles className="w-6 h-6 text-primary animate-pulse" />
+            </motion.div>
+
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4, duration: 0.5 }}
+              className="text-base md:text-lg text-muted-foreground leading-relaxed max-w-2xl"
+            >
+              Gerencie as óticas parceiras da plataforma de forma simples e eficiente
+            </motion.p>
           </div>
 
-          {/* Estatísticas Rápidas */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-              <p className="text-sm text-gray-600 font-medium">Total</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{oticas.length}</p>
-            </div>
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-              <p className="text-sm text-emerald-600 font-medium">Ativas</p>
-              <p className="text-2xl font-bold text-emerald-700 mt-1">
-                {oticas.filter((o) => o.ativa).length}
-              </p>
-            </div>
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-              <p className="text-sm text-purple-600 font-medium">Matrizes</p>
-              <p className="text-2xl font-bold text-purple-700 mt-1">
-                {oticas.filter((o) => o.ehMatriz).length}
-              </p>
-            </div>
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-              <p className="text-sm text-blue-600 font-medium">Filiais</p>
-              <p className="text-2xl font-bold text-blue-700 mt-1">
-                {oticas.filter((o) => !o.ehMatriz).length}
-              </p>
+          <div className="flex flex-col gap-3 sm:flex-row">
+
+            {/* Botões: Adicionar e Importar */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={() => setModalImportarOpen(true)}
+                className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold shadow-lg shadow-emerald-500/30 hover:from-emerald-700 hover:to-teal-700 transition-all"
+              >
+                <FileUp className="h-5 w-5" />
+                <span>Importar Novos Cadastros</span>
+              </button>
+
+              <button
+                onClick={handleAbrirModalCriar}
+                className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold shadow-lg shadow-blue-500/30 hover:from-blue-700 hover:to-indigo-700 transition-all"
+              >
+                <Plus className="h-5 w-5" />
+                <span>Adicionar Ótica</span>
+              </button>
             </div>
           </div>
+
         </div>
+      </motion.div>
 
-        {/* Filtros */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6 overflow-hidden">
+      {/* Estatísticas Rápidas */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5, duration: 0.6 }}
+        className="grid grid-cols-2 sm:grid-cols-4 gap-4"
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.6, duration: 0.4 }}
+          className="bg-card rounded-xl shadow-sm border border-border p-4 hover:shadow-md transition-shadow"
+        >
+          <p className="text-sm text-muted-foreground font-medium">Total</p>
+          <p className="text-2xl font-bold text-foreground mt-1">{oticas.length}</p>
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.7, duration: 0.4 }}
+          className="bg-card rounded-xl shadow-sm border border-border p-4 hover:shadow-md transition-shadow"
+        >
+          <p className="text-sm text-emerald-600 font-medium">Ativas</p>
+          <p className="text-2xl font-bold text-emerald-700 mt-1">
+            {oticas.filter((o) => o.ativa).length}
+          </p>
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.8, duration: 0.4 }}
+          className="bg-card rounded-xl shadow-sm border border-border p-4 hover:shadow-md transition-shadow"
+        >
+          <p className="text-sm text-purple-600 font-medium">Matrizes</p>
+          <p className="text-2xl font-bold text-purple-700 mt-1">
+            {oticas.filter((o) => o.ehMatriz).length}
+          </p>
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.9, duration: 0.4 }}
+          className="bg-card rounded-xl shadow-sm border border-border p-4 hover:shadow-md transition-shadow"
+        >
+          <p className="text-sm text-blue-600 font-medium">Filiais</p>
+          <p className="text-2xl font-bold text-blue-700 mt-1">
+            {oticas.filter((o) => !o.ehMatriz).length}
+          </p>
+        </motion.div>
+      </motion.div>
+
+      {/* Filtros */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 1.0, duration: 0.6 }}
+        className="bg-card rounded-xl shadow-sm border border-border overflow-hidden"
+      >
           {/* Toggle Filtros */}
           <button
             onClick={() => setShowFilters(!showFilters)}
@@ -384,9 +466,14 @@ export default function AdminOticasPage() {
               )}
             </div>
           )}
-        </div>
+      </motion.div>
 
-        {/* Lista de Óticas */}
+      {/* Lista de Óticas */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 1.1, duration: 0.6 }}
+      >
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
@@ -424,7 +511,7 @@ export default function AdminOticasPage() {
             ))}
           </div>
         )}
-      </div>
+      </motion.div>
 
       {/* Modal: Criar/Editar */}
       <CriarEditarOticaModal
@@ -432,6 +519,16 @@ export default function AdminOticasPage() {
         onClose={handleFecharModal}
         onSuccess={handleSucessoModal}
         oticaToEdit={oticaSelecionada}
+      />
+
+      {/* Modal: Importar Óticas */}
+      <ImportarOticasModal
+        isOpen={modalImportarOpen}
+        onClose={() => setModalImportarOpen(false)}
+        onSuccess={() => {
+          setModalImportarOpen(false);
+          fetchOticas();
+        }}
       />
     </div>
   );
