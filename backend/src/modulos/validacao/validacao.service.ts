@@ -31,6 +31,7 @@ import { StatusEnvioVenda, TipoUnidade } from '@prisma/client';
 import { RecompensaService } from '../recompensa/recompensa.service';
 import {
   parseDateWithFormat,
+  parseDateAuto,
   validarDataDentroPeriodoCampanha,
   formatarDataParaExibicao,
   FormatoData,
@@ -138,7 +139,7 @@ export class ValidacaoService {
 
       case 'DATA_VENDA_FORMATO_INVALIDO':
         return {
-          admin: `[${campanhaTitulo}] [TÉCNICO] Data da venda '${contexto.dataVendaOriginal}' do pedido ${contexto.numeroPedido} está em formato inválido. Formato esperado: ${contexto.formatoEsperado}. Não foi possível fazer parsing da data. AÇÃO: Admin deve verificar o formato configurado ou corrigir os dados da planilha.`,
+          admin: `[${campanhaTitulo}] [TÉCNICO] Data da venda '${contexto.dataVendaOriginal}' do pedido ${contexto.numeroPedido} está em formato inválido. Sistema tentou parsear nos seguintes formatos: DD/MM/YYYY, MM/DD/YY, YYYY-MM-DD, DD.MM.YYYY, DD-MM-YYYY (com ano de 2 ou 4 dígitos). Nenhum funcionou. POSSÍVEIS CAUSAS: (1) Data com caracteres não numéricos, (2) Data inválida como 32/13/2025, (3) Formato completamente diferente. AÇÃO: Verificar o valor exato na planilha de origem.`,
           vendedor: `A data da venda '${contexto.dataVendaOriginal}' está em formato inválido. Entre em contato com o administrador.`
         };
 
@@ -592,20 +593,17 @@ export class ValidacaoService {
           continue;
         }
 
-        // Fazer parsing da data usando o formato brasileiro (padrão)
-        // TODO: Futuramente permitir que admin configure o formato
-        const dataVendaParsed = parseDateWithFormat(
-          String(dataVendaOriginal),
-          FormatoData.BRASILEIRO,
-        );
+        // Fazer parsing da data usando detecção automática de formato
+        // Tenta: DD/MM/YYYY, MM/DD/YY, YYYY-MM-DD, etc.
+        const dataVendaParsed = parseDateAuto(String(dataVendaOriginal));
 
         if (!dataVendaParsed) {
-          // Erro no parsing da data
+          // Erro no parsing da data - nenhum formato funcionou
           const mensagens = this._gerarMensagensDuais('DATA_VENDA_FORMATO_INVALIDO', {
             campanhaTitulo,
             dataVendaOriginal,
             numeroPedido: envio.numeroPedido,
-            formatoEsperado: 'DD/MM/YYYY (brasileiro)',
+            formatoEsperado: 'DD/MM/YYYY, MM/DD/YY, YYYY-MM-DD, etc.',
           });
           resultadoValidacao = {
             status: 'REJEITADO',

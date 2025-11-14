@@ -128,6 +128,14 @@ export function parseDateWithFormat(
       return null;
     }
 
+    // Normalizar ano curto (2 dígitos) para ano completo (4 dígitos)
+    // Exemplo: 25 → 2025, 99 → 1999
+    if (ano >= 0 && ano <= 99) {
+      // Regra: 00-49 → 2000-2049, 50-99 → 1950-1999
+      ano = ano >= 50 ? 1900 + ano : 2000 + ano;
+      logger.debug(`Ano curto normalizado: ${partes[2]} → ${ano}`);
+    }
+
     // Validação de ranges
     if (dia < 1 || dia > 31) {
       logger.warn(`Dia inválido: ${dia}`);
@@ -265,6 +273,54 @@ export function obterDataAtualSaoPaulo(): Date {
 
   // Retornar a data atual (JavaScript já gerencia timezone automaticamente)
   return agora;
+}
+
+/**
+ * ============================================================================
+ * HELPER: parseDateAuto
+ * ============================================================================
+ *
+ * Tenta fazer parsing da data AUTOMATICAMENTE, testando múltiplos formatos.
+ * Útil quando o formato exato da data é incerto (ex: Excel convertendo datas).
+ *
+ * @param valorData - String com a data em formato desconhecido
+ * @returns Date objeto ou null se não conseguir parsear
+ *
+ * @example
+ * parseDateAuto("13/11/2025")  // Tenta DD/MM/YYYY → Sucesso
+ * parseDateAuto("11/13/25")    // Tenta DD/MM/YYYY → Falha, tenta MM/DD/YY → Sucesso
+ * parseDateAuto("2025-11-13")  // Tenta YYYY-MM-DD → Sucesso
+ */
+export function parseDateAuto(
+  valorData: string | null | undefined,
+): Date | null {
+  if (!valorData) {
+    return null;
+  }
+
+  // Lista de formatos para tentar, em ordem de prioridade
+  const formatosParaTestar = [
+    FormatoData.BRASILEIRO,      // DD/MM/YYYY ou DD/MM/YY
+    FormatoData.AMERICANO,        // MM/DD/YYYY ou MM/DD/YY
+    FormatoData.ISO,              // YYYY-MM-DD
+    FormatoData.EUROPEU_PONTO,    // DD.MM.YYYY
+    FormatoData.BRASILEIRO_TRACO, // DD-MM-YYYY
+  ];
+
+  for (const formato of formatosParaTestar) {
+    const resultado = parseDateWithFormat(valorData, formato);
+    if (resultado) {
+      logger.debug(
+        `Data parseada com sucesso usando formato ${formato}: ${valorData} → ${resultado.toISOString().split('T')[0]}`,
+      );
+      return resultado;
+    }
+  }
+
+  logger.warn(
+    `Não foi possível parsear a data '${valorData}' em nenhum formato conhecido`,
+  );
+  return null;
 }
 
 /**
