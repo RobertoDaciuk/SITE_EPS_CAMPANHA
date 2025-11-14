@@ -30,6 +30,7 @@ import {
   IsObject,
   IsUUID,
   IsDefined,
+  IsOptional,
   ValidationOptions,
   registerDecorator,
   ValidationArguments,
@@ -150,9 +151,9 @@ export class ProcessarValidacaoDto {
 
   /**
    * Array de objetos com os dados das linhas lidas da planilha.
-   * 
+   *
    * Cada objeto representa uma linha da planilha com as colunas mapeadas.
-   * 
+   *
    * Exemplo:
    * [
    *   { "Número do Pedido (OS)": "#100", "CNPJ da Loja": "12345678000190", "Produto": "Lente X" },
@@ -161,4 +162,23 @@ export class ProcessarValidacaoDto {
    */
   @IsArray({ message: 'linhasPlanilha deve ser um array' })
   linhasPlanilha: any[];
+
+  /**
+   * Formato de data usado na planilha (OPCIONAL).
+   *
+   * Define como as datas devem ser interpretadas. Se não fornecido, usa DD/MM/YYYY (brasileiro).
+   *
+   * Formatos aceitos:
+   * - "DD/MM/YYYY" - Brasileiro (padrão)
+   * - "MM/DD/YYYY" - Americano
+   * - "YYYY-MM-DD" - ISO 8601
+   * - "DD.MM.YYYY" - Europeu (pontos)
+   * - "DD-MM-YYYY" - Com traços
+   *
+   * @example "DD/MM/YYYY"
+   * @example "MM/DD/YYYY"
+   */
+  @IsOptional()
+  @IsString({ message: 'formatoData deve ser uma string' })
+  formatoData?: string;
 }

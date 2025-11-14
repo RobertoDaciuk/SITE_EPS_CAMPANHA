@@ -549,7 +549,6 @@ export default function ValidacaoPage() {
 
     const camposObrigatorios = [
       CAMPOS_MAPEAVEIS.DATA_VENDA,
-      CAMPOS_MAPEAVEIS.NOME_PRODUTO,
       CAMPOS_MAPEAVEIS.CNPJ_OTICA,
       CAMPOS_MAPEAVEIS.CODIGO_REFERENCIA,
     ];
@@ -589,6 +588,7 @@ export default function ValidacaoPage() {
       ehSimulacao: ehSimulacao,
       mapaColunas: mapaColunas,
       linhasPlanilha: linhasCompletas, // ✅ CRÍTICO: Envia TODAS as linhas
+      formatoData: formatoDataAtual, // Formato de data selecionado pelo usuário
     };
 
     // ========================================
@@ -1413,6 +1413,38 @@ export default function ValidacaoPage() {
                   </div>
                 </div>
 
+                {/* Configuração de Formato de Data */}
+                <div className="flex items-start gap-3 p-4 bg-white/50 rounded-xl border border-gray-200/50">
+                  <Calendar className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-bold text-gray-900">
+                          Formato de Data da Planilha
+                        </p>
+                        <p className="text-xs text-gray-600 mt-1">
+                          Configure como as datas da planilha devem ser interpretadas
+                        </p>
+                      </div>
+                      <motion.button
+                        onClick={() => setModalFormatoDataAberto(true)}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg font-semibold text-sm shadow-md hover:shadow-lg transition-all flex items-center gap-2"
+                      >
+                        <Settings className="w-4 h-4" />
+                        Configurar
+                      </motion.button>
+                    </div>
+                    <div className="mt-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-xs text-blue-800">
+                        <span className="font-semibold">Formato atual:</span>{" "}
+                        <span className="font-mono font-bold">{formatoDataAtual}</span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 {ehSimulacao ? (
                   <motion.div
                     initial={{ opacity: 0, y: -10 }}
@@ -1504,9 +1536,6 @@ export default function ValidacaoPage() {
                         {!Object.values(mapaColunas).includes(
                           CAMPOS_MAPEAVEIS.DATA_VENDA
                         ) && <li>• Mapeie o campo Data da Venda</li>}
-                        {!Object.values(mapaColunas).includes(
-                          CAMPOS_MAPEAVEIS.NOME_PRODUTO
-                        ) && <li>• Mapeie o campo Nome do Produto</li>}
                         {!Object.values(mapaColunas).includes(
                           CAMPOS_MAPEAVEIS.CNPJ_OTICA
                         ) && <li>• Mapeie o campo CNPJ da Ótica</li>}
@@ -2448,6 +2477,17 @@ export default function ValidacaoPage() {
             revalidado: 0,
           })
         }
+      />
+
+      {/* Modal de Configuração de Formato de Data */}
+      <ModalFormatoData
+        isOpen={modalFormatoDataAberto}
+        onClose={() => setModalFormatoDataAberto(false)}
+        formatoAtual={formatoDataAtual}
+        onSalvar={(novoFormato) => {
+          setFormatoDataAtual(novoFormato);
+          setModalFormatoDataAberto(false);
+        }}
       />
     </div>
   );
