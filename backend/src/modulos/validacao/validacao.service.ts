@@ -235,7 +235,7 @@ export class ValidacaoService {
    * @returns Relatório consolidado do processamento
    */
   async processarPlanilha(dto: ProcessarValidacaoDto, adminId?: string) {
-    const { campanhaId, ehSimulacao, mapaColunas, linhasPlanilha } = dto;
+    const { campanhaId, ehSimulacao, mapaColunas, linhasPlanilha, formatoData } = dto;
 
     this.logger.log(
       `========== INÍCIO DO PROCESSAMENTO ==========`,
@@ -243,6 +243,7 @@ export class ValidacaoService {
     this.logger.log(`Campanha: ${campanhaId}`);
     this.logger.log(`Simulação: ${ehSimulacao}`);
     this.logger.log(`Linhas da planilha: ${linhasPlanilha.length}`);
+    this.logger.log(`Formato de data: ${formatoData || 'AUTO (DD/MM/YYYY prioritário)'}`);
 
     // -------------------------------------------------------------------------
     // ETAPA 1: Buscar todos os envios EM_ANALISE da campanha
@@ -593,17 +594,31 @@ export class ValidacaoService {
           continue;
         }
 
-        // Fazer parsing da data usando detecção automática de formato
-        // Tenta: DD/MM/YYYY, MM/DD/YY, YYYY-MM-DD, etc.
-        const dataVendaParsed = parseDateAuto(String(dataVendaOriginal));
+        // Fazer parsing da data usando formato selecionado pelo usuário ou detecção automática
+        let dataVendaParsed: Date | null = null;
+
+        if (formatoData) {
+          // Usuário selecionou um formato específico - usar parseDateWithFormat
+          this.logger.debug(
+            `Parseando data do Pedido ${envio.numeroPedido} usando formato selecionado: ${formatoData}`
+          );
+          dataVendaParsed = parseDateWithFormat(String(dataVendaOriginal), formatoData as any);
+        } else {
+          // Fallback para detecção automática
+          this.logger.debug(
+            `Parseando data do Pedido ${envio.numeroPedido} usando detecção automática`
+          );
+          dataVendaParsed = parseDateAuto(String(dataVendaOriginal));
+        }
 
         if (!dataVendaParsed) {
-          // Erro no parsing da data - nenhum formato funcionou
+          // Erro no parsing da data - formato inválido ou incompatível
+          const formatoEsperado = formatoData || 'DD/MM/YYYY, MM/DD/YY, YYYY-MM-DD, etc.';
           const mensagens = this._gerarMensagensDuais('DATA_VENDA_FORMATO_INVALIDO', {
             campanhaTitulo,
             dataVendaOriginal,
             numeroPedido: envio.numeroPedido,
-            formatoEsperado: 'DD/MM/YYYY, MM/DD/YY, YYYY-MM-DD, etc.',
+            formatoEsperado,
           });
           resultadoValidacao = {
             status: 'REJEITADO',
