@@ -31,6 +31,7 @@ import { StatusEnvioVenda, TipoUnidade } from '@prisma/client';
 import { RecompensaService } from '../recompensa/recompensa.service';
 import {
   parseDateWithFormat,
+  parseDateAuto,
   validarDataDentroPeriodoCampanha,
   formatarDataParaExibicao,
   FormatoData,
@@ -138,7 +139,7 @@ export class ValidacaoService {
 
       case 'DATA_VENDA_FORMATO_INVALIDO':
         return {
-          admin: `[${campanhaTitulo}] [TÉCNICO] Data da venda '${contexto.dataVendaOriginal}' do pedido ${contexto.numeroPedido} está em formato inválido. Formato esperado: ${contexto.formatoEsperado}. Não foi possível fazer parsing da data. AÇÃO: Admin deve verificar o formato configurado ou corrigir os dados da planilha.`,
+          admin: `[${campanhaTitulo}] [TÉCNICO] Data da venda '${contexto.dataVendaOriginal}' do pedido ${contexto.numeroPedido} está em formato inválido. Sistema tentou parsear nos seguintes formatos: DD/MM/YYYY, MM/DD/YY, YYYY-MM-DD, DD.MM.YYYY, DD-MM-YYYY (com ano de 2 ou 4 dígitos). Nenhum funcionou. POSSÍVEIS CAUSAS: (1) Data com caracteres não numéricos, (2) Data inválida como 32/13/2025, (3) Formato completamente diferente. AÇÃO: Verificar o valor exato na planilha de origem.`,
           vendedor: `A data da venda '${contexto.dataVendaOriginal}' está em formato inválido. Entre em contato com o administrador.`
         };
 
@@ -158,12 +159,6 @@ export class ValidacaoService {
         return {
           admin: `[${campanhaTitulo}] [TÉCNICO] Requisito do tipo UNIDADE (ID: ${contexto.requisitoId}) requer exatamente 1 linha na planilha para o pedido ${contexto.numeroPedido}, mas foram encontradas ${contexto.linhasEncontradas} linhas. CAUSA PROVÁVEL: Pedido duplicado ou com múltiplas entradas. Verifique inconsistências no sistema de origem.`,
           vendedor: `São necessárias 1 unidade de lente no pedido, mas foram encontradas ${contexto.linhasEncontradas} unidades. Verifique se há duplicação no sistema.`
-        };
-
-      case 'PAR_PRODUTOS_IDENTICOS':
-        return {
-          admin: `[${campanhaTitulo}] [ERRO CRÍTICO] Requisito do tipo PAR (ID: ${contexto.requisitoId}) requer 2 produtos DIFERENTES (olho esquerdo + olho direito), mas as 2 linhas do pedido ${contexto.numeroPedido} possuem o MESMO código de referência: "${contexto.codigoReferencia}". CAUSA: Duplicação de linha ou erro no sistema de origem. Um par de lentes deve ter 2 produtos distintos (esquerdo e direito), não 2 unidades do mesmo produto. Verifique se há erro de cadastro no sistema de origem.`,
-          vendedor: `O pedido requer um par de lentes (olho esquerdo + olho direito), mas foi detectado que as 2 unidades são do mesmo produto ("${contexto.codigoReferencia}"). Verifique se o pedido foi cadastrado corretamente com os 2 produtos diferentes.`
         };
 
       case 'CODIGO_REFERENCIA_NAO_MAPEADO':
@@ -598,20 +593,17 @@ export class ValidacaoService {
           continue;
         }
 
-        // Fazer parsing da data usando o formato brasileiro (padrão)
-        // TODO: Futuramente permitir que admin configure o formato
-        const dataVendaParsed = parseDateWithFormat(
-          String(dataVendaOriginal),
-          FormatoData.BRASILEIRO,
-        );
+        // Fazer parsing da data usando detecção automática de formato
+        // Tenta: DD/MM/YYYY, MM/DD/YY, YYYY-MM-DD, etc.
+        const dataVendaParsed = parseDateAuto(String(dataVendaOriginal));
 
         if (!dataVendaParsed) {
-          // Erro no parsing da data
+          // Erro no parsing da data - nenhum formato funcionou
           const mensagens = this._gerarMensagensDuais('DATA_VENDA_FORMATO_INVALIDO', {
             campanhaTitulo,
             dataVendaOriginal,
             numeroPedido: envio.numeroPedido,
-            formatoEsperado: 'DD/MM/YYYY (brasileiro)',
+            formatoEsperado: 'DD/MM/YYYY, MM/DD/YY, YYYY-MM-DD, etc.',
           });
           resultadoValidacao = {
             status: 'REJEITADO',
@@ -1217,42 +1209,6 @@ export class ValidacaoService {
         }
 
         this.logger.log(`Códigos extraídos da planilha: ${codigosDaPlanilha.length > 0 ? codigosDaPlanilha.join(', ') : 'NENHUM'}`);
-
-        // -----------------------------------------------------------------------
-        // VALIDAÇÃO CRÍTICA: PAR NÃO PODE TER PRODUTOS IDÊNTICOS (Sprint 19)
-        // -----------------------------------------------------------------------
-        // Se o requisito é PAR e tem 2 linhas, os códigos DEVEM ser diferentes
-        // PAR = olho esquerdo + olho direito = 2 produtos DIFERENTES
-        if (tipoUnidade === 'PAR' && codigosDaPlanilha.length === 2) {
-          // Normalizar códigos para comparação case-insensitive
-          const codigo1 = codigosDaPlanilha[0].toUpperCase().trim();
-          const codigo2 = codigosDaPlanilha[1].toUpperCase().trim();
-
-          if (codigo1 === codigo2) {
-            const campanhaTitulo = campanha?.titulo || 'N/A';
-            const numeroPedidoFormatado = tipoPedido ? `${numeroPedido} (${tipoPedido})` : numeroPedido;
-            const mensagens = this._gerarMensagensDuais('PAR_PRODUTOS_IDENTICOS', {
-              campanhaTitulo,
-              requisitoId: requisito.id,
-              numeroPedido: numeroPedidoFormatado,
-              codigoReferencia: codigosDaPlanilha[0],
-            });
-
-            this.logger.warn(
-              `[VALIDAÇÃO PAR] Pedido ${numeroPedido}: As 2 linhas possuem o MESMO código de referência (${codigosDaPlanilha[0]}). PAR requer 2 produtos DIFERENTES.`,
-            );
-
-            return {
-              sucesso: false,
-              motivo: mensagens.admin,
-              motivoVendedor: mensagens.vendedor,
-            };
-          }
-
-          this.logger.log(
-            `✓ Validação PAR: 2 produtos DIFERENTES encontrados (${codigo1} e ${codigo2})`,
-          );
-        }
 
         if (codigosDaPlanilha.length === 0) {
           return {
