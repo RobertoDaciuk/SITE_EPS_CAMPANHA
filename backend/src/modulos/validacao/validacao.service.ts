@@ -175,7 +175,7 @@ export class ValidacaoService {
 
       case 'CODIGO_REFERENCIA_NAO_CADASTRADO':
         return {
-          admin: `[${campanhaTitulo}] [CONFLITO_MANUAL] Código de referência '${contexto.codigoReferencia}' do pedido ${contexto.numeroPedido} não foi encontrado na tabela ProdutoCampanha desta campanha (ID: ${contexto.campanhaId}). AÇÃO REQUERIDA: Admin deve cadastrar este código na planilha de produtos da campanha ou verificar se o código está correto. Possível erro de digitação ou produto não elegível.`,
+          admin: `[${campanhaTitulo}] [CONFLITO_MANUAL] Código de referência '${contexto.codigoReferencia}' do pedido ${contexto.numeroPedido} não foi encontrado na lista de produtos elegíveis desta campanha. DETALHES: Pedido tipo ${contexto.tipoRequisito}, ${contexto.quantidadeLinhas} linha(s) na planilha. AÇÃO REQUERIDA: (1) Verificar se o código está correto na planilha, (2) Cadastrar este código na tabela de Produtos da Campanha "${campanhaTitulo}", ou (3) Confirmar com o vendedor se o produto realmente faz parte desta promoção. Códigos não cadastrados: ${contexto.codigoReferencia}`,
           vendedor: `O produto do pedido (código: ${contexto.codigoReferencia}) não está cadastrado nesta campanha. Entre em contato com o suporte para verificar a elegibilidade do produto.`
         };
 
@@ -851,14 +851,26 @@ export class ValidacaoService {
       // ETAPA 4: Armazenar resultado no envio (para posterior persistência)
       // -----------------------------------------------------------------------
       // Marcar como revalidado se o status anterior era REJEITADO ou CONFLITO_MANUAL
-      const foiRevalidado = (envio.status === 'REJEITADO' || envio.status === 'CONFLITO_MANUAL') && 
+      const foiRevalidado = (envio.status === 'REJEITADO' || envio.status === 'CONFLITO_MANUAL') &&
                             resultadoValidacao.status === 'VALIDADO';
-      
+
       if (foiRevalidado) {
         relatorio.revalidado++;
         this.logger.log(`🎉 REVALIDAÇÃO BEM-SUCEDIDA! Pedido ${envio.numeroPedido} mudou de ${envio.status} → VALIDADO`);
+
+        // Substituir mensagem padrão por mensagem de revalidação
+        const statusAnterior = envio.status;
+        const motivoAnterior = envio.motivoRejeicao || 'não especificado';
+        const motivoVendedorAnterior = envio.motivoRejeicaoVendedor || 'não especificado';
+        const dataRejeicao = envio.dataValidacao ? new Date(envio.dataValidacao).toLocaleString('pt-BR') : 'N/A';
+
+        resultadoValidacao = {
+          status: 'VALIDADO',
+          motivo: `[${campanhaTitulo}] ✅ REVALIDAÇÃO BEM-SUCEDIDA! Pedido ${envio.numeroPedido} foi VALIDADO após correção. | STATUS ANTERIOR: ${statusAnterior} (data: ${dataRejeicao}) | MOTIVO ANTERIOR: ${motivoAnterior} | ℹ️ Este pedido estava anteriormente rejeitado/em conflito, mas agora atende todos os critérios da campanha.`,
+          motivoVendedor: `✅ Seu pedido ${envio.numeroPedido} foi VALIDADO com sucesso! Nota: Este pedido estava anteriormente ${statusAnterior === 'REJEITADO' ? 'rejeitado' : 'em análise de conflito'}, mas após correções, agora está aprovado e será contabilizado na campanha.`,
+        };
       }
-      
+
       envio['resultado'] = resultadoValidacao;
       relatorio[resultadoValidacao.status.toLowerCase()]++;
       this.logger.log(
@@ -1208,9 +1220,12 @@ export class ValidacaoService {
           }
         }
 
-        this.logger.log(`Códigos extraídos da planilha: ${codigosDaPlanilha.length > 0 ? codigosDaPlanilha.join(', ') : 'NENHUM'}`);
+        // Remover duplicatas (para PAR com 2 linhas iguais, mostrar código apenas 1x)
+        const codigosUnicos = Array.from(new Set(codigosDaPlanilha));
 
-        if (codigosDaPlanilha.length === 0) {
+        this.logger.log(`Códigos extraídos da planilha: ${codigosUnicos.length > 0 ? codigosUnicos.join(', ') : 'NENHUM'} (${codigosDaPlanilha.length} linhas, ${codigosUnicos.length} códigos únicos)`);
+
+        if (codigosUnicos.length === 0) {
           return {
             sucesso: false,
             motivo: '[TÉCNICO] Nenhum código de referência encontrado nas linhas da planilha para este pedido.',
@@ -1224,17 +1239,21 @@ export class ValidacaoService {
         this.logger.debug(`Produtos cadastrados na campanha: ${produtosCadastrados.length > 0 ? produtosCadastrados.slice(0, 10).join(', ') + (produtosCadastrados.length > 10 ? '...' : '') : 'NENHUM'}`);
 
         // Verificar se os códigos da planilha existem na tabela ProdutoCampanha
-        const codigosNaoEncontrados = codigosDaPlanilha.filter(
+        const codigosNaoEncontrados = codigosUnicos.filter(
           (codigo) => !campanha.produtosCampanha?.some((p: any) => p.codigoRef === codigo),
         );
 
         if (codigosNaoEncontrados.length > 0) {
-          // Reportar o primeiro código não encontrado (ou todos concatenados na mensagem)
+          // Reportar códigos não encontrados (sem duplicatas)
+          const quantidadeLinhas = codigosDaPlanilha.length;
+          const tipoRequisito = requisito.tipoUnidade || 'UNIDADE';
           const mensagens = this._gerarMensagensDuais('CODIGO_REFERENCIA_NAO_CADASTRADO', {
             campanhaTitulo: campanha?.titulo || 'N/A',
             requisitoId: requisito.id,
-            numeroPedido: 'N/A',
+            numeroPedido: numeroPedido,
             codigoReferencia: codigosNaoEncontrados.join(', '),
+            quantidadeLinhas,
+            tipoRequisito,
             campanhaId: campanha?.id || 'N/A',
           });
           return {
