@@ -190,7 +190,7 @@ const OPCOES_MAPEAMENTO = [
   },
   {
     value: CAMPOS_MAPEAVEIS.NOME_PRODUTO,
-    label: "Nome do Produto *",
+    label: "Nome do Produto (Opcional)",
     obrigatorio: false,
   },
   {
@@ -1231,10 +1231,6 @@ export default function ValidacaoPage() {
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-blue-500 mt-0.5">•</span>
-                    <span><span className="font-bold">Nome do Produto:</span> Campo obrigatório</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-blue-500 mt-0.5">•</span>
                     <span><span className="font-bold">CNPJ da Ótica:</span> Campo obrigatório</span>
                   </li>
                   <li className="flex items-start gap-2">
@@ -1243,7 +1239,7 @@ export default function ValidacaoPage() {
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-blue-500 mt-0.5">•</span>
-                    <span><span className="font-bold">CPF e Valor:</span> Campos opcionais</span>
+                    <span><span className="font-bold">Nome do Produto e CPF:</span> Campos opcionais</span>
                   </li>
                 </ul>
               </motion.div>
