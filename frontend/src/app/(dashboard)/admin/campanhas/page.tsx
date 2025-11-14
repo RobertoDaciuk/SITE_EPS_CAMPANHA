@@ -266,158 +266,113 @@ export default function CampanhasPage() {
   // ========================================
 
   return (
-    <div className="space-y-8 p-6">
+    <div className="space-y-6">
       {/* ========================================
-          HEADER MAGNIFICO
+          HEADER SIMPLES E ELEGANTE
           ======================================== */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="glass-card rounded-2xl p-8 border border-white/10"
+        className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4"
       >
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-          <div className="flex items-start gap-4">
-            <div className="p-4 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-xl backdrop-blur-sm border border-white/10">
-              <svg className="h-10 w-10 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-              </svg>
-            </div>
-            <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-                Gerenciar Campanhas
-              </h1>
-              <p className="text-muted-foreground mt-2 text-base leading-relaxed max-w-2xl">
-                Central de controle completa. Crie campanhas incentivadoras, defina metas, gerencie produtos e acompanhe o desempenho em tempo real.
-              </p>
-              <div className="flex items-center gap-4 mt-3">
-                <div className="flex items-center gap-2 text-sm">
-                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                  <span className="text-muted-foreground">{campanhas.filter(c => getStatusCampanha(c) === "ATIVA").length} ativas</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                  <span className="text-muted-foreground">{campanhas.length} no total</span>
-                </div>
-              </div>
-            </div>
-          </div>
-          <button
-            onClick={() => setModalWizardOpen(true)}
-            disabled={usuario?.papel !== "ADMIN"}
-            className="inline-flex items-center gap-3 px-6 py-4 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold shadow-2xl shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Plus className="h-6 w-6" />
-            <div className="text-left">
-              <div className="text-sm">Criar Nova</div>
-              <div className="text-xs opacity-80">Campanha Incentivadora</div>
-            </div>
-          </button>
+        <div>
+          <h1 className="text-3xl font-bold">Gerenciar Campanhas</h1>
+          <p className="text-muted-foreground mt-1 text-sm">
+            Central de controle completa. Crie campanhas incentivadoras e acompanhe o desempenho em tempo real.
+          </p>
         </div>
+        <button
+          onClick={() => setModalWizardOpen(true)}
+          disabled={usuario?.papel !== "ADMIN"}
+          className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Plus className="h-5 w-5" />
+          <span>Criar Nova Campanha</span>
+        </button>
       </motion.div>
 
       {/* ========================================
-          ABAS DE FILTRO MAGNIFICAS
+          ABAS DE FILTRO (PADRÃO VENDEDOR)
           ======================================== */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1, duration: 0.5 }}
-        className="glass-card rounded-2xl p-3 inline-flex space-x-3 border border-white/10"
+        className="glass rounded-xl p-2 inline-flex flex-wrap space-x-2"
       >
         {/* Aba: Ativas */}
         <button
           onClick={() => setFiltroStatus("ATIVAS")}
-          className={`px-6 py-3 rounded-xl text-sm font-bold transition-all duration-300 ${
+          className={`px-3 py-1 rounded-lg text-xs md:px-4 md:py-2 md:text-sm font-medium transition-all duration-200 ${
             filtroStatus === "ATIVAS"
-              ? "bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 border-2 border-green-500/50 shadow-lg shadow-green-500/20"
-              : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+              ? "bg-primary text-primary-foreground shadow-md"
+              : "text-muted-foreground hover:text-foreground hover:bg-accent"
           }`}
         >
-          <div className="flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${filtroStatus === "ATIVAS" ? "bg-green-400 animate-pulse" : "bg-muted-foreground"}`}></div>
-            <span>Ativas</span>
-            {!isLoading && (
-              <span
-                className={`ml-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                  filtroStatus === "ATIVAS"
-                    ? "bg-green-400/20 text-green-300"
-                    : "bg-muted text-muted-foreground"
-                }`}
-              >
-                {
-                  campanhas.filter(
-                    (c) => getStatusCampanha(c) === "ATIVA"
-                  ).length
-                }
-              </span>
-            )}
-          </div>
+          Ativas
+          {!isLoading && (
+            <span
+              className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
+                filtroStatus === "ATIVAS"
+                  ? "bg-primary-foreground/20"
+                  : "bg-muted"
+              }`}
+            >
+              {campanhas.filter((c) => getStatusCampanha(c) === "ATIVA").length}
+            </span>
+          )}
         </button>
 
         {/* Aba: Concluídas */}
         <button
           onClick={() => setFiltroStatus("CONCLUIDAS")}
-          className={`px-6 py-3 rounded-xl text-sm font-bold transition-all duration-300 ${
+          className={`px-2 py-1 rounded-lg text-xs md:px-4 md:py-2 md:text-sm font-medium transition-all duration-200 ${
             filtroStatus === "CONCLUIDAS"
-              ? "bg-gradient-to-r from-blue-500/20 to-indigo-500/20 text-blue-400 border-2 border-blue-500/50 shadow-lg shadow-blue-500/20"
-              : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+              ? "bg-primary text-primary-foreground shadow-md"
+              : "text-muted-foreground hover:text-foreground hover:bg-accent"
           }`}
         >
-          <div className="flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${filtroStatus === "CONCLUIDAS" ? "bg-blue-400" : "bg-muted-foreground"}`}></div>
-            <span>Concluídas</span>
-            {!isLoading && (
-              <span
-                className={`ml-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                  filtroStatus === "CONCLUIDAS"
-                    ? "bg-blue-400/20 text-blue-300"
-                    : "bg-muted text-muted-foreground"
-                }`}
-              >
-                {
-                  campanhas.filter(
-                    (c) => getStatusCampanha(c) === "CONCLUIDA"
-                  ).length
-                }
-              </span>
-            )}
-          </div>
+          Concluídas
+          {!isLoading && (
+            <span
+              className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
+                filtroStatus === "CONCLUIDAS"
+                  ? "bg-primary-foreground/20"
+                  : "bg-muted"
+              }`}
+            >
+              {campanhas.filter((c) => getStatusCampanha(c) === "CONCLUIDA").length}
+            </span>
+          )}
         </button>
 
         {/* Aba: Expiradas */}
         <button
           onClick={() => setFiltroStatus("EXPIRADAS")}
-          className={`px-6 py-3 rounded-xl text-sm font-bold transition-all duration-300 ${
+          className={`px-2 py-1 rounded-lg text-xs md:px-4 md:py-2 md:text-sm font-medium transition-all duration-200 ${
             filtroStatus === "EXPIRADAS"
-              ? "bg-gradient-to-r from-gray-500/20 to-slate-500/20 text-gray-400 border-2 border-gray-500/50 shadow-lg shadow-gray-500/20"
-              : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+              ? "bg-primary text-primary-foreground shadow-md"
+              : "text-muted-foreground hover:text-foreground hover:bg-accent"
           }`}
         >
-          <div className="flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${filtroStatus === "EXPIRADAS" ? "bg-gray-400" : "bg-muted-foreground"}`}></div>
-            <span>Expiradas</span>
-            {!isLoading && (
-              <span
-                className={`ml-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                  filtroStatus === "EXPIRADAS"
-                    ? "bg-gray-400/20 text-gray-300"
-                    : "bg-muted text-muted-foreground"
-                }`}
-              >
-                {
-                  campanhas.filter(
-                    (c) => getStatusCampanha(c) === "EXPIRADA"
-                  ).length
-                }
-              </span>
-            )}
-          </div>
+          Expiradas
+          {!isLoading && (
+            <span
+              className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
+                filtroStatus === "EXPIRADAS"
+                  ? "bg-primary-foreground/20"
+                  : "bg-muted"
+              }`}
+            >
+              {campanhas.filter((c) => getStatusCampanha(c) === "EXPIRADA").length}
+            </span>
+          )}
         </button>
       </motion.div>
 
       {/* ========================================
-          GRID DE CAMPANHAS
+          GRID DE CAMPANHAS (PADRÃO VENDEDOR)
           ======================================== */}
       <AnimatePresence mode="wait">
         {isLoading ? (
