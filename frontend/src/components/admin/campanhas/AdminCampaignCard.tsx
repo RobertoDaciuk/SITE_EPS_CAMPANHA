@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Tag, CalendarDays, TrendingUp, DollarSign, Edit, Eye, Target, Percent, GiftIcon, Clock } from "lucide-react";
+import { Tag, CalendarDays, TrendingUp, DollarSign, Edit, Eye, Target, Percent, GiftIcon, Clock, BarChart3 } from "lucide-react";
 import { formatarDataBR, formatarMoeda, formatarNumero, estaEntreBR } from "@/lib/timezone";
 import { getImageUrl } from "@/lib/image-url";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +13,8 @@ export interface CampanhaAdmin {
   id: string;
   titulo: string;
   descricao: string;
-  pontosReaisPorCartela: number;
+  pontosReaisPorCartela?: number; // Campo legado (campanhas antigas)
+  pontosReaisMaximo?: number; // Valor máximo possível (campanhas com valores variáveis)
   percentualGerente: number;
   dataInicio: string;
   dataFim: string;
@@ -132,18 +133,19 @@ export default function AdminCampaignCard({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
+      whileHover={{ y: -5 }}
       className="h-full"
     >
-      <div className="h-full glass-card rounded-2xl overflow-hidden border border-white/10 hover:border-white/20 hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 group">
+      <div className="h-full glass rounded-xl overflow-hidden border border-border/50 hover:shadow-glass-lg hover:border-primary/30 transition-all duration-300 group">
         {/* Imagem da Campanha */}
         {imagemUrl && (
-          <div className="relative w-full aspect-video overflow-hidden">
-            <img 
-              src={imagemUrl} 
+          <div className="relative w-full h-40 overflow-hidden">
+            <img
+              src={imagemUrl}
               alt={campanha.titulo}
-              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-background/20 to-transparent" />
             
             {/* Badges sobre a imagem */}
             <div className="absolute top-3 right-3 flex items-center gap-2">
@@ -205,31 +207,35 @@ export default function AdminCampaignCard({
           {/* Métricas - Pontos e Percentual Gerente */}
           <div className="grid grid-cols-2 gap-3">
             {/* Pontos (R$) */}
-            <div className="glass-card rounded-lg p-3 border border-white/10">
+            <div className="glass rounded-lg p-3 border border-border/30">
               <div className="flex items-center gap-2 mb-1">
-                <div className="p-1 bg-green-500/20 rounded">
-                  <GiftIcon className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                <div className="w-8 h-8 rounded-lg bg-success/10 flex items-center justify-center">
+                  <GiftIcon className="h-4 w-4 text-success" />
                 </div>
                 <p className="text-xs text-muted-foreground">Pontos Máx</p>
               </div>
-              <p className="text-base font-bold text-green-400">{formatarMoeda(campanha.pontosReaisPorCartela)}</p>
+              <p className="text-sm font-bold text-success">
+                {campanha.pontosReaisMaximo
+                  ? formatarMoeda(campanha.pontosReaisMaximo)
+                  : formatarMoeda(campanha.pontosReaisPorCartela || 0)}
+              </p>
             </div>
 
             {/* Percentual Gerente */}
-            <div className="glass-card rounded-lg p-3 border border-white/10">
+            <div className="glass rounded-lg p-3 border border-border/30">
               <div className="flex items-center gap-2 mb-1">
-                <div className="p-1 bg-purple-500/20 rounded">
-                  <Percent className="w-3 h-3 text-purple-400" />
+                <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                  <Percent className="w-4 h-4 text-purple-400" />
                 </div>
                 <p className="text-xs text-muted-foreground">Comissão</p>
               </div>
-              <p className="text-base font-bold text-purple-400">{formatarPercentual(campanha.percentualGerente)}</p>
+              <p className="text-sm font-bold text-purple-400">{formatarPercentual(campanha.percentualGerente)}</p>
             </div>
           </div>
 
           {/* Targeting */}
           {campanha.paraTodasOticas !== undefined && (
-            <div className="glass-card rounded-lg p-2.5 border border-white/10">
+            <div className="glass rounded-lg p-2.5 border border-border/30">
               <div className="flex items-center gap-2 text-xs">
                 <Target className="w-4 h-4 text-blue-400" />
                 <span className={`font-medium ${campanha.paraTodasOticas ? 'text-blue-400' : 'text-amber-400'}`}>
@@ -255,7 +261,7 @@ export default function AdminCampaignCard({
           )}
 
           {/* Período da Campanha */}
-          <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2 border-t border-white/5">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2 border-t border-border/30">
             <CalendarDays className="w-4 h-4 text-blue-400" />
             <span>
               {formatarDataBR(campanha.dataInicio, 'dd MMM yyyy')} até {formatarDataBR(campanha.dataFim, 'dd MMM yyyy')}
@@ -263,7 +269,7 @@ export default function AdminCampaignCard({
           </div>
 
           {/* Botões de Ação */}
-          <div className="flex items-center gap-2 pt-3 border-t border-white/10">
+          <div className="flex items-center gap-2 pt-3 border-t border-border/30">
             <button
               onClick={() => onEdit(campanha)}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 hover:border-blue-500/40 rounded-xl transition-all backdrop-blur-sm"
@@ -275,8 +281,8 @@ export default function AdminCampaignCard({
               onClick={() => onView(campanha.id)}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 hover:border-purple-500/40 rounded-xl transition-all backdrop-blur-sm"
             >
-              <Eye className="w-4 h-4" />
-              Ver Detalhes
+              <BarChart3 className="w-4 h-4" />
+              Ver Analytics
             </button>
             {onViewHistory && (
               <button

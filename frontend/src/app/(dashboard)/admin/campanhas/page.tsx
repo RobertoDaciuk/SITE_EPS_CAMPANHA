@@ -13,6 +13,7 @@ import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 import AdminCampaignCard from "@/components/admin/campanhas/AdminCampaignCard";
 import CriarCampanhaWizard from "@/components/admin/campanhas/CriarCampanhaWizard";
 import HistoricoModal from "@/components/admin/campanhas/HistoricoModal";
+import AnalyticsModal from "@/components/admin/campanhas/AnalyticsModal";
 import SkeletonCampaignCard from "@/components/campanhas/SkeletonCampaignCard";
 
 // ========================================
@@ -104,13 +105,17 @@ export default function CampanhasPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [filtroStatus, setFiltroStatus] = useState<FiltroStatus>("ATIVAS");
 
-  // Estados do Modal (wizard + histórico)
+  // Estados do Modal (wizard + histórico + analytics)
   const [modalWizardOpen, setModalWizardOpen] = useState(false);
   const [campanhaSelecionada, setCampanhaSelecionada] = useState<Campanha | null>(null);
-  
+
   // Estados do Modal de Histórico
   const [modalHistoricoOpen, setModalHistoricoOpen] = useState(false);
   const [historicoInfo, setHistoricoInfo] = useState<{ id: string; titulo: string } | null>(null);
+
+  // Estados do Modal de Analytics
+  const [modalAnalyticsOpen, setModalAnalyticsOpen] = useState(false);
+  const [analyticsInfo, setAnalyticsInfo] = useState<{ id: string; titulo: string } | null>(null);
 
   // ========================================
   // PROTEÇÃO DE ROTA
@@ -177,7 +182,11 @@ export default function CampanhasPage() {
   };
 
   const handleVisualizarCampanha = (campanhaId: string) => {
-    router.push(`/admin/campanhas/${campanhaId}`);
+    const campanha = campanhas.find(c => c.id === campanhaId);
+    if (campanha) {
+      setAnalyticsInfo({ id: campanhaId, titulo: campanha.titulo });
+      setModalAnalyticsOpen(true);
+    }
   };
 
   const handleVisualizarHistorico = (campanhaId: string, titulo: string) => {
@@ -499,6 +508,16 @@ export default function CampanhasPage() {
           onClose={() => setModalHistoricoOpen(false)}
           campanhaId={historicoInfo.id}
           tituloCampanha={historicoInfo.titulo}
+        />
+      )}
+
+      {/* Modal de Analytics */}
+      {analyticsInfo && (
+        <AnalyticsModal
+          isOpen={modalAnalyticsOpen}
+          onClose={() => setModalAnalyticsOpen(false)}
+          campanhaId={analyticsInfo.id}
+          tituloCampanha={analyticsInfo.titulo}
         />
       )}
     </div>

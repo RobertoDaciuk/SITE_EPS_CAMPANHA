@@ -527,7 +527,7 @@ export class RecompensaService {
       : 0;
 
     if (percentual > 0 && vendedor.gerente) {
-      const valorComissaoGerente = valorTotalOriginal * (percentual / 100); // ✅ Sobre valor ORIGINAL
+      const valorComissaoGerente = valorTotalOriginal * percentual; // ✅ Sobre valor ORIGINAL (percentual já está em formato decimal 0.1 = 10%)
 
       const saldoAnteriorGerente = await tx.usuario.findUnique({
         where: { id: vendedor.gerente.id },
@@ -549,7 +549,7 @@ export class RecompensaService {
 
       this.logger.log(`\n--- SALDO GERENTE ---`);
       this.logger.log(`  Gerente: ${vendedor.gerente.nome} (ID: ${vendedor.gerente.id})`);
-      this.logger.log(`  Percentual: ${percentual}%`);
+      this.logger.log(`  Percentual: ${(percentual * 100).toFixed(0)}%`);
       this.logger.log(`  Base de Cálculo: R$ ${valorTotalOriginal.toFixed(2)} (ORIGINAL, sem multiplicador)`);
       this.logger.log(`  Comissão: R$ ${valorComissaoGerente.toFixed(2)}`);
       this.logger.log(`  Saldo Anterior: R$ ${saldoAnteriorGerenteNum.toFixed(2)}`);
@@ -559,7 +559,7 @@ export class RecompensaService {
       if (!vendedor.gerente) {
         this.logger.log(`  Motivo: Vendedor não possui gerente associado`);
       } else {
-        this.logger.log(`  Motivo: Percentual de comissão = ${percentual}%`);
+        this.logger.log(`  Motivo: Percentual de comissão = ${(percentual * 100).toFixed(0)}%`);
       }
     }
 
