@@ -437,6 +437,7 @@ export class OticaService {
     const optica = await this.prisma.optica.create({
       data: {
         cnpj: cnpjLimpo,
+        codigoOtica: dto.codigoOtica,
         nome: dto.nome,
         endereco: dto.endereco,
         cidade: dto.cidade,
@@ -605,10 +606,56 @@ export class OticaService {
   }
 
   /**
+   * Importa múltiplas óticas de uma vez via planilha.
+   *
+   * Processa um array de óticas, tentando criar cada uma individualmente.
+   * Retorna estatísticas de sucesso/erro e detalhes de cada operação.
+   *
+   * @param oticas - Array de óticas para importar
+   * @returns Resultado da importação com sucessos e erros
+   */
+  async importarOticas(oticas: CriarOticaDto[]) {
+    this.logger.log(`[ADMIN] Iniciando importação de ${oticas.length} óticas`);
+
+    const resultado = {
+      sucesso: 0,
+      erros: 0,
+      detalhes: [] as { linha: number; sucesso: boolean; erro?: string }[],
+    };
+
+    for (let i = 0; i < oticas.length; i++) {
+      const otica = oticas[i];
+      const linha = i + 2; // +2 porque: +1 para linha 1, +1 para cabeçalho
+
+      try {
+        // Tentar criar a ótica
+        await this.criar(otica);
+        resultado.sucesso++;
+        resultado.detalhes.push({
+          linha,
+          sucesso: true,
+        });
+      } catch (error: any) {
+        this.logger.warn(`Erro ao importar linha ${linha}: ${error.message}`);
+        resultado.erros++;
+        resultado.detalhes.push({
+          linha,
+          sucesso: false,
+          erro: error.message || 'Erro desconhecido',
+        });
+      }
+    }
+
+    this.logger.log(`✅ Importação concluída: ${resultado.sucesso} sucessos, ${resultado.erros} erros`);
+
+    return resultado;
+  }
+
+  /**
    * ====================================================================
    * MÉTODO: Toggle Ranking para Vendedores
    * ====================================================================
-   * 
+   *
    * Permite que o gerente habilite ou desabilite a visualização do ranking
    * no menu dos vendedores da sua ótica.
    *

@@ -61,6 +61,18 @@ export class CriarOticaDto {
   cnpj: string;
 
   /**
+   * Código da ótica no sistema externo do administrador (opcional).
+   *
+   * Usado para identificação e referência cruzada com sistemas externos.
+   *
+   * @example "OPT-001"
+   * @example "MATRIZ-SP"
+   */
+  @IsOptional()
+  @IsString({ message: 'O código da ótica deve ser uma string' })
+  codigoOtica?: string;
+
+  /**
    * Nome fantasia ou razão social da ótica.
    *
    * @example "Ótica Central LTDA"

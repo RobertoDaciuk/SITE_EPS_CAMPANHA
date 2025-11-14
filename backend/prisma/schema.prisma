@@ -18,6 +18,8 @@ model Optica {
   id                           String     @id @default(uuid())
   /// CNPJ da ótica (único, obrigatório para identificação fiscal)
   cnpj                         String     @unique
+  /// Código da ótica no sistema externo do administrador (opcional, para identificação)
+  codigoOtica                  String?
   /// Nome fantasia ou razão social da ótica
   nome                         String
   /// Endereço completo da ótica (opcional)

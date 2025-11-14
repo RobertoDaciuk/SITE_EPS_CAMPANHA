@@ -34,6 +34,7 @@ interface Optica {
   id: string;
   nome: string;
   cnpj: string;
+  codigoOtica?: string | null;
   endereco?: string | null;
   cidade?: string | null;
   estado?: string | null;
@@ -97,6 +98,7 @@ export default function CriarEditarOticaModal({
 
   const [nome, setNome] = useState('');
   const [cnpj, setCnpj] = useState('');
+  const [codigoOtica, setCodigoOtica] = useState('');
   const [endereco, setEndereco] = useState('');
   const [cidade, setCidade] = useState('');
   const [estado, setEstado] = useState('');
@@ -134,6 +136,7 @@ export default function CriarEditarOticaModal({
     if (oticaToEdit) {
       setNome(oticaToEdit.nome);
       setCnpj(formatCNPJ(oticaToEdit.cnpj));
+      setCodigoOtica(oticaToEdit.codigoOtica || '');
       setEndereco(oticaToEdit.endereco || '');
       setCidade(oticaToEdit.cidade || '');
       setEstado(oticaToEdit.estado || '');
@@ -173,6 +176,7 @@ export default function CriarEditarOticaModal({
   const resetForm = () => {
     setNome('');
     setCnpj('');
+    setCodigoOtica('');
     setEndereco('');
     setCidade('');
     setEstado('');
@@ -224,6 +228,7 @@ export default function CriarEditarOticaModal({
     const payload = {
       nome: nome.trim(),
       cnpj: cnpjLimpo,
+      codigoOtica: codigoOtica.trim() || undefined,
       endereco: endereco.trim() || undefined,
       cidade: cidade.trim() || undefined,
       estado: estado.trim() || undefined,
@@ -351,6 +356,24 @@ export default function CriarEditarOticaModal({
                         disabled={isLoading}
                         className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed transition-all"
                       />
+                    </div>
+
+                    {/* Código da Ótica */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Código da Ótica
+                      </label>
+                      <input
+                        type="text"
+                        value={codigoOtica}
+                        onChange={(e) => setCodigoOtica(e.target.value)}
+                        placeholder="Ex: OPT-001, MATRIZ-SP"
+                        disabled={isLoading}
+                        className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed transition-all"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">
+                        Código de identificação no sistema externo (opcional)
+                      </p>
                     </div>
 
                     {/* Grid: Cidade e Estado */}

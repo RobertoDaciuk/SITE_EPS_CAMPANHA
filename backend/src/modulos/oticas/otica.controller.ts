@@ -210,6 +210,23 @@ export class OticaController {
   }
 
   /**
+   * Rota admin: Importar múltiplas óticas via planilha.
+   *
+   * Permite importação em massa de óticas através de planilha.
+   *
+   * @param dados - Array de óticas para importar
+   * @returns Resultado da importação com sucessos e erros
+   */
+  @Post('importar')
+  @UseGuards(JwtAuthGuard, PapeisGuard)
+  @Papeis(PapelUsuario.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  async importar(@Body('oticas') oticas: CriarOticaDto[]) {
+    this.logger.log(`ADMIN: Importando ${oticas.length} óticas`);
+    return await this.oticaService.importarOticas(oticas);
+  }
+
+  /**
    * Rota admin: Buscar ótica por ID.
    */
   @Get(':id')
