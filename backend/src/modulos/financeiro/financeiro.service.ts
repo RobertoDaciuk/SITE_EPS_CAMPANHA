@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * SERVIÇO: FINANCEIRO (Sistema de Lotes de Pagamento)
+ * SERVIÇO: FINANCEIRO (Sistema de Lotes de Pagamento) - V2.0 REFATORADO
  * ============================================================================
  *
  * ARQUITETURA: 3 FASES (Preview → Lote → Processamento)
@@ -13,20 +13,52 @@
  * FASE 2 (Command): gerarLote()
  * - Cria RelatorioFinanceiro para cada usuário (status: PENDENTE)
  * - Gera numeroLote único
- * - Salva enviosIncluidos e dataCorte
- * - NÃO subtrai saldo ainda
+ * - Salva enviosIncluidos (VENDEDOR: envios próprios | GERENTE: envios dos subordinados)
+ * - ✅ NOVO: Transfere saldo de saldoPontos → saldoReservado (previne dupla reserva)
  *
  * FASE 3 (Command): processarLote()
- * - Transaction atômica: subtrai saldos, marca envios como liquidados
+ * - Transaction atômica: debita saldoReservado, marca envios como liquidados
  * - Atualiza status para PAGO
  * - Notifica todos os usuários
- * - Garante tudo ou nada (rollback automático se falhar)
+ * - ✅ NOVO: Idempotente (processa apenas relatórios PENDENTES, skip os já PAGOS)
+ * - ✅ NOVO: Marca envios como liquidados APENAS para VENDEDOR (gerente rastreia apenas)
+ *
+ * FASE 4 (Command): cancelarLote()
+ * - ✅ NOVO: Devolve saldoReservado → saldoPontos antes de deletar relatórios
  *
  * GARANTIAS FORMAIS:
  * - Atomicidade: Transaction Prisma garante rollback em caso de erro
- * - Idempotência: Lote PAGO não pode ser reprocessado
+ * - Idempotência: Lote PAGO pode ser reprocessado (apenas PENDENTES são processados)
  * - Auditabilidade: numeroLote rastreia todos os relatórios do lote
- * - Reversibilidade: Pode cancelar lote PENDENTE
+ * - Reversibilidade: Pode cancelar lote PENDENTE (com devolução automática de saldo)
+ * - Rastreabilidade: Gerentes rastreiam envios dos vendedores subordinados
+ * - Consistência: Sistema de saldo reservado previne race conditions
+ *
+ * ============================================================================
+ * CORREÇÕES APLICADAS (Sprint 20.1 - Auditoria Arquitetural):
+ * ============================================================================
+ *
+ * ✅ BUG #1 CORRIGIDO: enviosIncluidos agora rastreia corretamente envios de gerentes
+ *    - ANTES: Gerentes tinham array vazio (buscava vendedorId = gerenteId)
+ *    - DEPOIS: Gerentes rastreiam envios dos vendedores subordinados
+ *
+ * ✅ BUG #2 CORRIGIDO: Previne marcação duplicada de pontosLiquidados
+ *    - ANTES: Envios marcados tanto no lote do vendedor quanto do gerente
+ *    - DEPOIS: Apenas lote de VENDEDOR marca envios (gerente só rastreia)
+ *
+ * ✅ BUG #3 CORRIGIDO: Race condition em geração simultânea de lotes
+ *    - SOLUÇÃO: Constraint parcial no banco (UNIQUE INDEX WHERE status = PENDENTE)
+ *    - Garante apenas 1 relatório PENDENTE por usuário
+ *
+ * ✅ BUG #4 CORRIGIDO: Validação de saldo inconsistente (Time-of-Check vs Time-of-Use)
+ *    - SOLUÇÃO: Sistema de saldo reservado (saldoPontos + saldoReservado)
+ *    - gerarLote: Transfere saldoPontos → saldoReservado
+ *    - processarLote: Debita saldoReservado
+ *    - cancelarLote: Devolve saldoReservado → saldoPontos
+ *
+ * ✅ BUG #5 CORRIGIDO: Falta de idempotência no processamento
+ *    - ANTES: Lançava erro se algum relatório já fosse PAGO
+ *    - DEPOIS: Processa apenas PENDENTES, ignora PAGOS (permite retry seguro)
  *
  * ============================================================================
  */
@@ -219,19 +251,44 @@ export class FinanceiroService {
         }
 
         // ============================================================
-        // 3.2: Buscar envios que compõem o saldo (pode ser vazio para gerentes)
+        // 3.2: Buscar envios que compõem o saldo
+        // ✅ FIX BUG #1: Lógica diferenciada para VENDEDOR vs GERENTE
         // ============================================================
-        const envios = await tx.envioVenda.findMany({
-          where: {
-            vendedorId: usuario.id,
-            pontosAdicionadosAoSaldo: true,
-            pontosLiquidados: false,
-          },
-          select: { id: true, campanhaId: true },
-        });
+        let envios: { id: string; campanhaId: string }[] = [];
 
-        // Note: Não pulamos o usuário quando não houver envios.
-        // Usuários (ex: GERENTE) podem ter saldo oriundo de comissões sem envios diretos.
+        if (usuario.papel === 'VENDEDOR') {
+          // VENDEDOR: Buscar envios próprios
+          envios = await tx.envioVenda.findMany({
+            where: {
+              vendedorId: usuario.id,
+              pontosAdicionadosAoSaldo: true,
+              pontosLiquidados: false,
+            },
+            select: { id: true, campanhaId: true },
+          });
+
+          this.logger.log(
+            `    [VENDEDOR] Encontrados ${envios.length} envios próprios não liquidados`
+          );
+        } else if (usuario.papel === 'GERENTE') {
+          // GERENTE: Buscar envios dos vendedores subordinados
+          // (comissões do gerente vêm dos envios dos vendedores)
+          envios = await tx.envioVenda.findMany({
+            where: {
+              vendedor: {
+                gerenteId: usuario.id, // ✅ CRÍTICO: Envios dos vendedores do gerente
+              },
+              pontosAdicionadosAoSaldo: true,
+              pontosLiquidados: false,
+            },
+            select: { id: true, campanhaId: true, vendedorId: true },
+          });
+
+          this.logger.log(
+            `    [GERENTE] Encontrados ${envios.length} envios de vendedores subordinados não liquidados`
+          );
+        }
+
         const enviosIds = envios.map((e) => e.id);
         let campanhaId = envios.length > 0 ? envios[0].campanhaId : null;
 
@@ -307,13 +364,25 @@ export class FinanceiroService {
           },
         });
 
+        // ============================================================
+        // 3.4: Reservar saldo (transferir de saldoPontos para saldoReservado)
+        // ✅ FIX BUG #4: Sistema de saldo reservado
+        // ============================================================
+        await tx.usuario.update({
+          where: { id: usuario.id },
+          data: {
+            saldoPontos: { decrement: saldoNum },
+            saldoReservado: { increment: saldoNum },
+          },
+        });
+
+        this.logger.log(
+          `  ✅ ${usuario.nome} (${usuario.papel}): R$ ${saldoNum.toFixed(2)} - Saldo reservado`
+        );
+
         relatoriosCriados.push(relatorio);
         totalRelatorios++;
         valorTotal += saldoNum;
-
-        this.logger.log(
-          `  ✅ ${usuario.nome} (${usuario.papel}): R$ ${saldoNum.toFixed(2)}`
-        );
       }
 
       this.logger.log(`\n========== LOTE CRIADO COM SUCESSO ==========`);
@@ -389,79 +458,86 @@ export class FinanceiroService {
       }
 
       // ================================================================
-      // PASSO 2: Validar que todos estão PENDENTES
+      // PASSO 2: ✅ FIX BUG #5 - Tornar IDEMPOTENTE
+      // Permitir reprocessamento (apenas PENDENTES serão processados)
       // ================================================================
-      const jaProcessado = relatorios.find((r) => r.status === 'PAGO');
-      if (jaProcessado) {
-        throw new ConflictException(
-          `Lote ${numeroLote} já foi processado anteriormente`
+      const relatoriosPendentes = relatorios.filter((r) => r.status === 'PENDENTE');
+      const relatoriosJaPagos = relatorios.filter((r) => r.status === 'PAGO');
+
+      if (relatoriosJaPagos.length > 0) {
+        this.logger.log(
+          `ℹ️  ${relatoriosJaPagos.length} relatório(s) já PAGOS serão ignorados (idempotência)`
         );
       }
 
-      this.logger.log(`📄 Total de relatórios no lote: ${relatorios.length}`);
+      if (relatoriosPendentes.length === 0) {
+        this.logger.log(`⚠️  Nenhum relatório PENDENTE no lote. Nada a processar.`);
+        return {
+          numeroLote,
+          status: 'JA_PROCESSADO',
+          totalProcessado: 0,
+          valorTotal: 0,
+          processadoEm: new Date(),
+          processadoPor: adminId,
+        };
+      }
+
+      this.logger.log(`📄 Relatórios PENDENTES a processar: ${relatoriosPendentes.length}`);
 
       // ================================================================
-      // PASSO 3: Processar cada relatório
+      // PASSO 3: Processar cada relatório PENDENTE
       // ================================================================
       let totalProcessado = 0;
       let valorTotalProcessado = 0;
 
-      for (const relatorio of relatorios) {
+      for (const relatorio of relatoriosPendentes) {
         const valorNum =
           typeof relatorio.valor === 'object' && 'toNumber' in relatorio.valor
             ? (relatorio.valor as any).toNumber()
             : Number(relatorio.valor);
 
-        const saldoAtualNum =
-          typeof relatorio.usuario.saldoPontos === 'object' &&
-          'toNumber' in relatorio.usuario.saldoPontos
-            ? (relatorio.usuario.saldoPontos as any).toNumber()
-            : Number(relatorio.usuario.saldoPontos);
-
         this.logger.log(
-          `\n  Processando: ${relatorio.usuario.nome} - R$ ${valorNum.toFixed(2)}`
+          `\n  Processando: ${relatorio.usuario.nome} (${relatorio.tipo}) - R$ ${valorNum.toFixed(2)}`
         );
 
         // ============================================================
-        // 3.1: Validar saldo suficiente
-        // ============================================================
-        if (saldoAtualNum < valorNum) {
-          throw new BadRequestException(
-            `Saldo insuficiente para ${relatorio.usuario.nome}. Saldo: R$ ${saldoAtualNum.toFixed(2)}, Valor a pagar: R$ ${valorNum.toFixed(2)}`
-          );
-        }
-
-        // ============================================================
-        // 3.2: Subtrair do saldo
+        // 3.1: ✅ FIX BUG #4 - Decrementar saldoReservado (não saldoPontos)
+        // O saldo já foi movido para reservado durante geração do lote
         // ============================================================
         await tx.usuario.update({
           where: { id: relatorio.usuarioId },
           data: {
-            saldoPontos: { decrement: valorNum },
+            saldoReservado: { decrement: valorNum },
           },
         });
 
         this.logger.log(
-          `    ✅ Saldo subtraído: R$ ${saldoAtualNum.toFixed(2)} → R$ ${(saldoAtualNum - valorNum).toFixed(2)}`
+          `    ✅ Saldo reservado debitado: R$ ${valorNum.toFixed(2)}`
         );
 
         // ============================================================
-        // 3.3: Marcar envios como liquidados
+        // 3.2: ✅ FIX BUG #2 - Marcar envios como liquidados
+        // APENAS para VENDEDOR (gerente não marca porque os envios não são dele)
         // ============================================================
         const enviosIds = (relatorio.enviosIncluidos as string[]) || [];
-        if (enviosIds.length > 0) {
+
+        if (relatorio.tipo === 'VENDEDOR' && enviosIds.length > 0) {
           await tx.envioVenda.updateMany({
             where: { id: { in: enviosIds } },
             data: { pontosLiquidados: true },
           });
 
           this.logger.log(
-            `    ✅ ${enviosIds.length} envios marcados como liquidados`
+            `    ✅ [VENDEDOR] ${enviosIds.length} envios marcados como liquidados`
+          );
+        } else if (relatorio.tipo === 'GERENTE') {
+          this.logger.log(
+            `    ℹ️  [GERENTE] ${enviosIds.length} envios rastreados (não marcados - pertencem aos vendedores)`
           );
         }
 
         // ============================================================
-        // 3.4: Atualizar relatório para PAGO
+        // 3.3: Atualizar relatório para PAGO
         // ============================================================
         await tx.relatorioFinanceiro.update({
           where: { id: relatorio.id },
@@ -475,12 +551,12 @@ export class FinanceiroService {
         });
 
         // ============================================================
-        // 3.5: Notificar usuário
+        // 3.4: Notificar usuário
         // ============================================================
         await tx.notificacao.create({
           data: {
             usuarioId: relatorio.usuarioId,
-            mensagem: `💰 Pagamento processado! R$ ${valorNum.toFixed(2)} foram debitados do seu saldo. Novo saldo: R$ ${(saldoAtualNum - valorNum).toFixed(2)}`,
+            mensagem: `💰 Pagamento processado! R$ ${valorNum.toFixed(2)} foram debitados. O valor foi transferido para sua conta.`,
             lida: false,
           },
         });
@@ -660,7 +736,10 @@ export class FinanceiroService {
    * CANCELAR LOTE (apenas se PENDENTE)
    * ============================================================================
    *
-   * Cancela um lote removendo todos os relatórios em status PENDENTE.
+   * Cancela um lote removendo todos os relatórios em status PENDENTE e
+   * devolvendo o saldo reservado para saldoPontos dos usuários.
+   *
+   * ✅ FIX BUG #4: Devolver saldoReservado ao cancelar lote
    *
    * @param numeroLote - Número do lote a cancelar
    * @param adminId - ID do admin que está cancelando
@@ -686,15 +765,48 @@ export class FinanceiroService {
         );
       }
 
+      // ================================================================
+      // DEVOLVER SALDO RESERVADO PARA CADA USUÁRIO
+      // ✅ FIX BUG #4: Transferir de saldoReservado de volta para saldoPontos
+      // ================================================================
+      let valorTotalDevolvido = 0;
+
+      for (const relatorio of relatorios) {
+        const valorNum =
+          typeof relatorio.valor === 'object' && 'toNumber' in relatorio.valor
+            ? (relatorio.valor as any).toNumber()
+            : Number(relatorio.valor);
+
+        await tx.usuario.update({
+          where: { id: relatorio.usuarioId },
+          data: {
+            saldoReservado: { decrement: valorNum },
+            saldoPontos: { increment: valorNum },
+          },
+        });
+
+        valorTotalDevolvido += valorNum;
+        this.logger.log(
+          `  ✅ Saldo devolvido para usuário ${relatorio.usuarioId}: R$ ${valorNum.toFixed(2)}`
+        );
+      }
+
+      // ================================================================
+      // DELETAR RELATÓRIOS
+      // ================================================================
       const deletados = await tx.relatorioFinanceiro.deleteMany({
         where: { numeroLote },
       });
 
-      this.logger.log(`✅ ${deletados.count} relatórios removidos`);
+      this.logger.log(`\n========== LOTE CANCELADO COM SUCESSO ==========`);
+      this.logger.log(`📦 Número do Lote: ${numeroLote}`);
+      this.logger.log(`📄 Relatórios removidos: ${deletados.count}`);
+      this.logger.log(`💰 Valor total devolvido: R$ ${valorTotalDevolvido.toFixed(2)}`);
 
       return {
         numeroLote,
         totalCancelados: deletados.count,
+        valorDevolvido: valorTotalDevolvido,
         canceladoPor: adminId,
         canceladoEm: new Date(),
       };

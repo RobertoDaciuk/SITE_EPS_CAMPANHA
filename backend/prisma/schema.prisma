@@ -92,6 +92,9 @@ model Usuario {
   /// Saldo de pontos em R$ acumulado pelo vendedor/gerente (atualizado quando cartela completa)
   /// Quando o financeiro processa pagamentos, este valor é subtraído
   saldoPontos             Decimal               @default(0) @db.Decimal(10, 2)
+  /// Saldo reservado em lotes de pagamento PENDENTES (congelado até processamento ou cancelamento)
+  /// Usado para prevenir dupla reserva e garantir consistência em lotes simultâneos
+  saldoReservado          Decimal               @default(0) @db.Decimal(10, 2)
   /// Hash do token de reset de senha (SHA-256).
   /// REMOVIDA restrição @unique para permitir múltiplos valores NULL (Princípio 5.5).
   tokenResetarSenha       String?
@@ -503,6 +506,7 @@ model RelatorioFinanceiro {
   @@index([dataCorte])
   @@index([numeroLote])
   @@index([processadoPorId])
+  @@index([usuarioId, status])
   @@map("relatorios_financeiros")
 }
 
