@@ -242,8 +242,9 @@ const Step2_PersonalData = ({ goToNextStep, goToPrevStep, formData, setFormData 
                 else if (value.replace(/\D/g, '').length < 10) error = 'Telefone inválido.';
                 break;
             case 'dataNascimento':
-                // Data de nascimento é opcional, mas vamos validar se fornecida
-                if (value && new Date(value) > new Date()) {
+                if (!value) {
+                    error = 'Data de nascimento é obrigatória.';
+                } else if (new Date(value) > new Date()) {
                     error = 'Data não pode ser futura.';
                 }
                 break;
@@ -278,7 +279,7 @@ const Step2_PersonalData = ({ goToNextStep, goToPrevStep, formData, setFormData 
         }
     };
 
-    const isStepValid = formData.nome && formData.email && formData.cpf.replace(/\D/g, '').length === 11 && formData.whatsapp.replace(/\D/g, '').length >= 10 && Object.values(errors).every(e => !e);
+    const isStepValid = formData.nome && formData.email && formData.cpf.replace(/\D/g, '').length === 11 && formData.whatsapp.replace(/\D/g, '').length >= 10 && formData.dataNascimento && Object.values(errors).every(e => !e);
 
     return (
         <motion.div variants={stepVariants} initial="hidden" animate="visible" exit="exit" className="space-y-4">
@@ -304,7 +305,7 @@ const Step2_PersonalData = ({ goToNextStep, goToPrevStep, formData, setFormData 
                 <InputField id="whatsapp" icon={<Smartphone size={16} />} name="whatsapp" placeholder="(99) 99999-9999" value={formData.whatsapp} onChange={handleChange} onBlur={handleBlur} error={errors.whatsapp} maxLength={16} />
             </div>
             <div className="space-y-2">
-                <label htmlFor="dataNascimento" className="block text-xs font-semibold text-foreground ml-1">Data de Nascimento (opcional)</label>
+                <label htmlFor="dataNascimento" className="block text-xs font-semibold text-foreground ml-1">Data de Nascimento</label>
                 <InputField
                     id="dataNascimento"
                     name="dataNascimento"
