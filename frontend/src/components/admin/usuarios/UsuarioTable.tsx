@@ -31,6 +31,7 @@ interface Usuario {
   email: string;
   cpf?: string | null;
   whatsapp?: string | null;
+  dataNascimento?: string | null;
   papel: 'ADMIN' | 'GERENTE' | 'VENDEDOR';
   status: 'PENDENTE' | 'ATIVO' | 'BLOQUEADO';
   opticaId?: string | null;

@@ -102,6 +102,30 @@ const cleanNumbers = (value: string): string => {
   return value.replace(/\D/g, '');
 };
 
+/**
+ * Formata data ISO para formato de input date (YYYY-MM-DD)
+ */
+const formatDateForInput = (dateString: string | null | undefined): string => {
+  if (!dateString) return '';
+  
+  // Se já está no formato YYYY-MM-DD, retorna direto
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    return dateString;
+  }
+  
+  // Se está no formato ISO completo, extrai apenas a data
+  try {
+    const date = new Date(dateString);
+    if (!isNaN(date.getTime())) {
+      return date.toISOString().split('T')[0];
+    }
+  } catch (error) {
+    console.error('Erro ao formatar data:', error);
+  }
+  
+  return '';
+};
+
 // ============================================================================
 // COMPONENTE PRINCIPAL
 // ============================================================================
@@ -160,7 +184,7 @@ export default function CriarEditarUsuarioModal({
       setEmail(userToEdit.email);
       setCpf(userToEdit.cpf ? formatCPF(userToEdit.cpf) : '');
       setWhatsapp(userToEdit.whatsapp ? formatWhatsApp(userToEdit.whatsapp) : '');
-      setDataNascimento(userToEdit.dataNascimento || '');
+      setDataNascimento(formatDateForInput(userToEdit.dataNascimento));
       setPapel(userToEdit.papel);
       setStatus(userToEdit.status);
       setOpticaId(userToEdit.opticaId || '');
@@ -210,7 +234,7 @@ export default function CriarEditarUsuarioModal({
         toast.success(`Gerente ${response.data[0].nome} selecionado automaticamente`);
       } else if (response.data.length === 0) {
         setGerenteId('');
-        toast.info('Esta ótica não possui gerentes cadastrados');
+        toast('Esta ótica não possui gerentes cadastrados', { icon: 'ℹ️' });
       }
     } catch (error: any) {
       console.error('Erro ao buscar gerentes:', error);

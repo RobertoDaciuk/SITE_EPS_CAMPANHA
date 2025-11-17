@@ -78,6 +78,30 @@ const fetcherPerfil = async (url: string): Promise<DadosPerfilSWR> => {
 };
 
 /**
+ * Formata data ISO para formato de input date (YYYY-MM-DD)
+ */
+const formatDateForInput = (dateString: string | null | undefined): string => {
+  if (!dateString) return '';
+  
+  // Se já está no formato YYYY-MM-DD, retorna direto
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    return dateString;
+  }
+  
+  // Se está no formato ISO completo, extrai apenas a data
+  try {
+    const date = new Date(dateString);
+    if (!isNaN(date.getTime())) {
+      return date.toISOString().split('T')[0];
+    }
+  } catch (error) {
+    console.error('Erro ao formatar data:', error);
+  }
+  
+  return '';
+};
+
+/**
  * Card de Informações do Perfil.
  */
 export function InformacoesPerfilCard() {
@@ -119,7 +143,7 @@ export function InformacoesPerfilCard() {
       reset({
         nome: dadosPerfil.nome,
         whatsapp: dadosPerfil.whatsapp ?? "",
-        dataNascimento: dadosPerfil.dataNascimento ?? "",
+        dataNascimento: formatDateForInput(dadosPerfil.dataNascimento),
       });
     }
   }, [dadosPerfil, reset]);

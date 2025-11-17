@@ -41,6 +41,33 @@ import { motion, AnimatePresence } from 'framer-motion';
 import axios from '@/lib/axios';
 import toast from 'react-hot-toast';
 import { Badge } from '@/components/ui/badge';
+
+/**
+ * ============================================================================
+ * HELPER: Converter data local para ISO com timezone de São Paulo
+ * ============================================================================
+ * Corrige o problema de timezone ao enviar data para o backend.
+ * Input: "2025-11-17" (string do input date)
+ * Output: "2025-11-17T00:00:00-03:00" (ISO com timezone SP)
+ */
+const dateToSaoPauloISO = (dateString: string): string => {
+  // Cria data no timezone local (SP) às 00:00:00
+  const [year, month, day] = dateString.split('-').map(Number);
+  const date = new Date(year, month - 1, day, 0, 0, 0, 0);
+  
+  // Pega o offset do timezone (SP = UTC-3)
+  const offset = -date.getTimezoneOffset();
+  const offsetHours = Math.floor(Math.abs(offset) / 60);
+  const offsetMinutes = Math.abs(offset) % 60;
+  const offsetSign = offset >= 0 ? '+' : '-';
+  
+  // Formata para ISO com timezone
+  const isoDate = date.toISOString().split('T')[0];
+  const isoTime = '00:00:00';
+  const isoOffset = `${offsetSign}${String(offsetHours).padStart(2, '0')}:${String(offsetMinutes).padStart(2, '0')}`;
+  
+  return `${isoDate}T${isoTime}${isoOffset}`;
+};
 import {
   Eye,
   FileDown,
@@ -119,7 +146,7 @@ export default function FinanceiroPage() {
     try {
       setLoading(true);
       const response = await axios.get('/financeiro/saldos', {
-        params: { dataFim: new Date(dataFim).toISOString() },
+        params: { dataFim: dateToSaoPauloISO(dataFim) },
       });
 
       setUsuarios(response.data.usuarios);
@@ -149,8 +176,13 @@ export default function FinanceiroPage() {
   const handleGerarLote = async () => {
     try {
       setLoading(true);
+      
+      const dataCorteISO = dateToSaoPauloISO(dataFim);
+      console.log('📅 Data selecionada:', dataFim);
+      console.log('📅 Data ISO (São Paulo):', dataCorteISO);
+      
       const response = await axios.post('/financeiro/lotes', {
-        dataCorte: new Date(dataFim).toISOString(),
+        dataCorte: dataCorteISO,
         observacoes: `Lote gerado em ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: ptBR })}`,
       });
 
@@ -180,9 +212,12 @@ export default function FinanceiroPage() {
     try {
       setLoading(true);
       const response = await axios.get('/financeiro/lotes');
-      setLotes(response.data);
+      // Backend retorna { lotes: [...], paginacao: {...} }
+      const lotesData = response.data?.lotes || response.data;
+      setLotes(Array.isArray(lotesData) ? lotesData : []);
     } catch (error: any) {
       toast.error('Erro ao carregar lotes');
+      setLotes([]); // Define como array vazio em caso de erro
     } finally {
       setLoading(false);
     }

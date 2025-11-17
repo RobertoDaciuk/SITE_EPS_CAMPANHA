@@ -90,4 +90,36 @@ export class DashboardController {
       // ele receberá 403 Forbidden do PapeisGuard.
     }
   }
+
+  /**
+   * GET /dashboard/vendedor/completo
+   *
+   * Endpoint enriquecido para o dashboard do vendedor.
+   * Retorna dados completos para uma experiência premium:
+   * - Saldo detalhado (disponível, reservado, histórico)
+   * - Campanhas ativas com progresso de cartelas
+   * - Histórico recente de vendas
+   * - Notificações não lidas
+   * - Mini-ranking (Top 5 + posição do usuário)
+   * - Metas e objetivos atuais
+   * - Eventos especiais ativos
+   * - Estatísticas do mês
+   *
+   * @param req - Objeto Request com usuário autenticado
+   * @returns Objeto completo com todos os dados do dashboard
+   */
+  @UseGuards(JwtAuthGuard, PapeisGuard)
+  @Papeis(PapelUsuario.VENDEDOR)
+  @Get('vendedor/completo')
+  async getDashboardVendedorCompleto(@Request() req: { user: UsuarioAutenticado }) {
+    const usuario = req.user;
+
+    if (process.env.NODE_ENV === 'development') {
+      this.logger.log(
+        `Buscando dashboard completo para vendedor: ${usuario.email}`,
+      );
+    }
+
+    return this.dashboardService.getDashboardVendedorCompleto(usuario.id);
+  }
 }

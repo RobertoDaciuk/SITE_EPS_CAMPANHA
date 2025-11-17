@@ -306,11 +306,14 @@ export default function ImportarOticasModal({
                               className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             >
                               <option value="">Não mapear</option>
-                              {cabecalhos.map((header) => (
-                                <option key={header} value={header}>
-                                  {header}
-                                </option>
-                              ))}
+                              {cabecalhos
+                                .filter((header) => header && header.trim() !== '')
+                                .filter((header, index, self) => self.indexOf(header) === index)
+                                .map((header, index) => (
+                                  <option key={`${header}-${index}`} value={header}>
+                                    {header}
+                                  </option>
+                                ))}
                             </select>
                           </div>
                         ))}

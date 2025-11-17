@@ -643,9 +643,9 @@ export default function AnalyticsModal({
                                     <span className="font-bold text-xs text-green-600 dark:text-green-400">
                                       {formatarMoeda(envio.valorPontosReaisRecebido)}
                                     </span>
-                                    {envio.multiplicadorAplicado && envio.multiplicadorAplicado > 1 && (
+                                    {envio.multiplicadorAplicado && Number(envio.multiplicadorAplicado) > 1 && (
                                       <span className="text-[10px] text-purple-600 dark:text-purple-400">
-                                        ×{envio.multiplicadorAplicado.toFixed(1)}
+                                        ×{Number(envio.multiplicadorAplicado).toFixed(1)}
                                       </span>
                                     )}
                                   </div>

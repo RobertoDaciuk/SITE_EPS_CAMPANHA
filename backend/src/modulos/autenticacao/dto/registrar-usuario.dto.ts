@@ -114,25 +114,6 @@ export class RegistrarUsuarioDto {
   senha: string;
 
   /**
-   * WhatsApp do vendedor (com ou sem pontuação).
-   * * O service removerá pontuação antes de salvar.
-   * * @example "(11) 98765-4321"
-   * @example "11987654321"
-   */
-  @IsString({ message: 'O WhatsApp deve ser uma string' })
-  @IsOptional()
-  whatsapp?: string;
-
-  /**
-   * Data de nascimento do vendedor.
-   * * Formato: YYYY-MM-DD (ISO 8601)
-   * * @example "1990-01-15"
-   */
-  @IsDateString({}, { message: 'A data de nascimento deve ser uma data válida' })
-  @IsOptional()
-  dataNascimento?: string;
-
-  /**
    * ID da ótica à qual o vendedor pertence.
    * * Deve ser um UUID válido de uma ótica existente e ativa.
    * O vendedor obtém este ID após verificar o CNPJ da ótica dele

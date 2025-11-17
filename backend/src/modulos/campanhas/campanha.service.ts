@@ -407,6 +407,9 @@ export class CampanhaService {
           infoConflito: true,
           valorPontosReaisRecebido: true,
           codigoReferenciaUsado: true,
+          multiplicadorAplicado: true, // CRÍTICO: Multiplicador de evento (1x, 2x, 3x)
+          valorFinalComEvento: true, // CRÍTICO: Valor com multiplicador aplicado
+          pontosAdicionadosAoSaldo: true, // Indica se pontos já foram adicionados ao saldo
           vendedor: { select: { id: true, nome: true, email: true } },
         },
       }),
@@ -415,10 +418,15 @@ export class CampanhaService {
     // Totais monetários/virtuais
     // Funcionalidade de moedinhas descontinuada: manter totalMoedinhasDistribuidas = 0
     const totalMoedinhasDistribuidas = 0;
-    // NOTA: Soma os valores REAIS pagos por referência (não o máximo)
+    
+    // CORRIGIDO: Soma os valores FINAIS com eventos (valorFinalComEvento) para refletir o total real distribuído
+    // Usa valorFinalComEvento quando disponível, senão usa valorPontosReaisRecebido (fallback)
     const totalPontosReaisDistribuidos = enviosDetalhados
       .filter(e => e.status === 'VALIDADO')
-      .reduce((acc, e: any) => acc + Number(e.valorPontosReaisRecebido || 0), 0);
+      .reduce((acc, e: any) => {
+        const valorFinal = Number(e.valorFinalComEvento || e.valorPontosReaisRecebido || 0);
+        return acc + valorFinal;
+      }, 0);
     const taxaConversao = totalEnvios > 0 ? (totalValidados / totalEnvios) * 100 : 0;
 
     // Ranking por vendedor
@@ -444,9 +452,10 @@ export class CampanhaService {
       switch (e.status) {
         case 'VALIDADO':
           r.totalValidados += 1;
-          // Moedinhas descontinuadas: não acumulamos mais moedinhas.
-          // Continua somando os pontos reais recebidos.
-          r.totalPontosReaisGanhos += Number((e as any).valorPontosReaisRecebido || 0);
+          // CORRIGIDO: Soma valorFinalComEvento (com multiplicador) em vez de apenas valorPontosReaisRecebido
+          // Isso garante que o ranking reflita os valores reais ganhos pelos vendedores (com bônus de eventos)
+          const valorComEvento = Number((e as any).valorFinalComEvento || (e as any).valorPontosReaisRecebido || 0);
+          r.totalPontosReaisGanhos += valorComEvento;
           break;
         case 'REJEITADO':
           r.totalRejeitados += 1;
@@ -501,8 +510,14 @@ export class CampanhaService {
         vendedor: e.vendedor,
         numeroCartelaAtendida: e.numeroCartelaAtendida,
         motivoRejeicao: e.motivoRejeicao,
+        motivoRejeicaoVendedor: (e as any).motivoRejeicaoVendedor, // CORRIGIDO: Retornar mensagem para vendedor
         infoConflito: e.infoConflito,
         dadosValidacao: null,
+        valorPontosReaisRecebido: (e as any).valorPontosReaisRecebido, // CORRIGIDO: Incluir valor base
+        codigoReferenciaUsado: (e as any).codigoReferenciaUsado, // CORRIGIDO: Incluir código de referência
+        multiplicadorAplicado: (e as any).multiplicadorAplicado, // CORRIGIDO: Incluir multiplicador (1x, 2x, 3x)
+        valorFinalComEvento: (e as any).valorFinalComEvento, // CORRIGIDO: Incluir valor com multiplicador
+        pontosAdicionadosAoSaldo: (e as any).pontosAdicionadosAoSaldo, // CORRIGIDO: Incluir flag de adição ao saldo
       })),
     };
   }

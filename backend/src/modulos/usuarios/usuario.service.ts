@@ -507,6 +507,11 @@ export class UsuarioService {
     if (whatsappLimpo) {
       dadosAtualizacao.whatsapp = whatsappLimpo;
     }
+    
+    // Converte dataNascimento para Date se fornecida
+    if (dados.dataNascimento !== undefined) {
+      dadosAtualizacao.dataNascimento = dados.dataNascimento ? new Date(dados.dataNascimento) : null;
+    }
 
     return this.prisma.usuario.update({
       where: { id },

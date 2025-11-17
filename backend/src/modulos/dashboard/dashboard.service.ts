@@ -206,4 +206,415 @@ export class DashboardService {
       posicaoRanking,
     };
   }
+
+  /**
+   * Obtém o dashboard completo e enriquecido para o vendedor.
+   * Consolida dados de múltiplas fontes para uma experiência premium.
+   *
+   * @param usuarioId - ID do vendedor autenticado
+   * @returns Objeto completo com todos os dados do dashboard
+   */
+  async getDashboardVendedorCompleto(usuarioId: string) {
+    // Buscar usuário com dados completos
+    const usuario = await this.prisma.usuario.findUnique({
+      where: { id: usuarioId },
+      select: {
+        id: true,
+        nome: true,
+        email: true,
+        nivel: true,
+        avatarUrl: true,
+        saldoPontos: true,
+        criadoEm: true,
+      },
+    });
+
+    if (!usuario) {
+      throw new Error('Usuário não encontrado');
+    }
+
+    // 1. SALDO DETALHADO
+    const saldoDisponivel = this.toNumber(usuario.saldoPontos);
+    const saldoReservado = 0; // Removido do schema, manter como 0
+    const saldoTotal = saldoDisponivel + saldoReservado;
+
+    // Calcular pontos ganhos no mês atual
+    const inicioMes = new Date();
+    inicioMes.setDate(1);
+    inicioMes.setHours(0, 0, 0, 0);
+
+    const pontosGanhosMes = await this.sumValorProcessado({
+      vendedorId: usuarioId,
+      status: StatusEnvioVenda.VALIDADO,
+      numeroCartelaAtendida: { not: null },
+      pontosAdicionadosAoSaldo: true,
+      dataValidacao: { gte: inicioMes },
+    });
+
+    // 2. CAMPANHAS ATIVAS COM PROGRESSO
+    const agora = new Date();
+    const campanhasAtivas = await this.prisma.campanha.findMany({
+      where: {
+        dataInicio: { lte: agora },
+        dataFim: { gte: agora },
+        OR: [
+          { paraTodasOticas: true },
+          {
+            oticasAlvo: {
+              some: {
+                usuarios: {
+                  some: { id: usuarioId },
+                },
+              },
+            },
+          },
+        ],
+      },
+      select: {
+        id: true,
+        titulo: true,
+        descricao: true,
+        dataInicio: true,
+        dataFim: true,
+        imagemCampanha16x9Url: true,
+        pontosReaisMaximo: true,
+        tags: true,
+        cartelas: {
+          select: {
+            id: true,
+            numeroCartela: true,
+            descricao: true,
+            requisitos: {
+              select: {
+                id: true,
+                descricao: true,
+                quantidade: true,
+                tipoUnidade: true,
+                ordem: true,
+              },
+              orderBy: { ordem: 'asc' },
+            },
+          },
+          orderBy: { numeroCartela: 'asc' },
+        },
+        eventosEspeciais: {
+          where: {
+            ativo: true,
+            dataInicio: { lte: agora },
+            dataFim: { gte: agora },
+          },
+          select: {
+            id: true,
+            nome: true,
+            multiplicador: true,
+            corDestaque: true,
+            dataInicio: true,
+            dataFim: true,
+          },
+        },
+      },
+      orderBy: { dataFim: 'asc' },
+      take: 10,
+    });
+
+    // Para cada campanha, calcular progresso das cartelas
+    const campanhasComProgresso = await Promise.all(
+      campanhasAtivas.map(async (campanha) => {
+        // Buscar cartelas concluídas pelo vendedor nesta campanha
+        const cartelasConcluidas = await this.prisma.cartelaConcluida.findMany({
+          where: {
+            vendedorId: usuarioId,
+            campanhaId: campanha.id,
+          },
+          select: { numeroCartela: true },
+        });
+
+        const numerosCompletos = cartelasConcluidas.map((c) => c.numeroCartela);
+
+        // Para cada cartela, calcular progresso dos requisitos
+        const cartelasComProgresso = await Promise.all(
+          campanha.cartelas.map(async (cartela) => {
+            const completa = numerosCompletos.includes(cartela.numeroCartela);
+
+            // Se já está completa, retornar 100%
+            if (completa) {
+              return {
+                ...cartela,
+                completa: true,
+                progresso: 100,
+                requisitosProgresso: cartela.requisitos.map((req) => ({
+                  ...req,
+                  quantidadeAtual: req.quantidade,
+                  completo: true,
+                })),
+              };
+            }
+
+            // Calcular progresso de cada requisito
+            const requisitosProgresso = await Promise.all(
+              cartela.requisitos.map(async (requisito) => {
+                const vendasValidadas = await this.prisma.envioVenda.count({
+                  where: {
+                    vendedorId: usuarioId,
+                    campanhaId: campanha.id,
+                    requisitoId: requisito.id,
+                    status: StatusEnvioVenda.VALIDADO,
+                  },
+                });
+
+                const quantidadeAtual = Math.min(vendasValidadas, requisito.quantidade);
+                const completo = quantidadeAtual >= requisito.quantidade;
+
+                return {
+                  ...requisito,
+                  quantidadeAtual,
+                  completo,
+                };
+              }),
+            );
+
+            // Calcular progresso total da cartela
+            const totalRequisitos = requisitosProgresso.length;
+            const requisitosCompletos = requisitosProgresso.filter((r) => r.completo).length;
+            const progresso = totalRequisitos > 0 ? Math.round((requisitosCompletos / totalRequisitos) * 100) : 0;
+
+            return {
+              ...cartela,
+              completa: false,
+              progresso,
+              requisitosProgresso,
+            };
+          }),
+        );
+
+        return {
+          ...campanha,
+          cartelas: cartelasComProgresso,
+        };
+      }),
+    );
+
+    // 3. HISTÓRICO RECENTE DE VENDAS (últimas 10)
+    const historicoVendas = await this.prisma.envioVenda.findMany({
+      where: { vendedorId: usuarioId },
+      select: {
+        id: true,
+        numeroPedido: true,
+        status: true,
+        dataEnvio: true,
+        dataValidacao: true,
+        valorPontosReaisRecebido: true,
+        valorFinalComEvento: true,
+        multiplicadorAplicado: true,
+        numeroCartelaAtendida: true,
+        motivoRejeicaoVendedor: true,
+        campanha: {
+          select: {
+            titulo: true,
+            imagemCampanha16x9Url: true,
+          },
+        },
+        requisito: {
+          select: {
+            descricao: true,
+          },
+        },
+      },
+      orderBy: { dataEnvio: 'desc' },
+      take: 10,
+    });
+
+    const historicoFormatado = historicoVendas.map((venda) => ({
+      ...venda,
+      valorFinal: this.resolveValorEnvio(venda),
+    }));
+
+    // 4. NOTIFICAÇÕES NÃO LIDAS (últimas 5)
+    const notificacoesNaoLidas = await this.prisma.notificacao.findMany({
+      where: {
+        usuarioId: usuarioId,
+        lida: false,
+      },
+      select: {
+        id: true,
+        mensagem: true,
+        dataCriacao: true,
+        linkUrl: true,
+      },
+      orderBy: { dataCriacao: 'desc' },
+      take: 5,
+    });
+
+    const totalNotificacoesNaoLidas = await this.prisma.notificacao.count({
+      where: {
+        usuarioId: usuarioId,
+        lida: false,
+      },
+    });
+
+    // 5. MINI-RANKING (Top 5 + Posição do Usuário)
+    const topVendedores = await this.prisma.$queryRaw<any[]>(
+      Prisma.sql`
+        WITH RankingCompleto AS (
+          SELECT
+            u.id,
+            u.nome,
+            u."avatarUrl",
+            u.nivel,
+            COALESCE(SUM(COALESCE(ev."valorFinalComEvento", ev."valorPontosReaisRecebido")), 0) as "totalPontos",
+            ROW_NUMBER() OVER (
+              ORDER BY COALESCE(SUM(COALESCE(ev."valorFinalComEvento", ev."valorPontosReaisRecebido")), 0) DESC,
+              u."criadoEm" ASC
+            ) as posicao
+          FROM "usuarios" u
+          LEFT JOIN "envios_vendas" ev ON ev."vendedorId" = u.id
+            AND ev."status" = 'VALIDADO'
+            AND ev."numeroCartelaAtendida" IS NOT NULL
+            AND ev."pontosAdicionadosAoSaldo" = true
+          WHERE u.papel = 'VENDEDOR' AND u.status = 'ATIVO'
+          GROUP BY u.id
+        )
+        SELECT * FROM RankingCompleto
+        WHERE posicao <= 5 OR id = ${usuarioId}
+        ORDER BY posicao ASC
+      `,
+    );
+
+    const miniRanking = topVendedores.map((v) => ({
+      id: v.id,
+      nome: v.nome,
+      avatarUrl: v.avatarUrl,
+      nivel: v.nivel,
+      totalPontos: this.toNumber(v.totalPontos),
+      posicao: Number(v.posicao),
+      ehUsuarioAtual: v.id === usuarioId,
+    }));
+
+    // 6. METAS E OBJETIVOS
+    // Encontrar a cartela mais próxima de ser completada
+    let proximaMeta = null;
+
+    for (const campanha of campanhasComProgresso) {
+      for (const cartela of campanha.cartelas) {
+        if (!cartela.completa && cartela.progresso > 0) {
+          const requisitosIncompletos = cartela.requisitosProgresso.filter((r: any) => !r.completo);
+          const vendasNecessarias = requisitosIncompletos.reduce(
+            (total: number, req: any) => total + (req.quantidade - req.quantidadeAtual),
+            0,
+          );
+
+          if (!proximaMeta || cartela.progresso > proximaMeta.progresso) {
+            proximaMeta = {
+              campanhaTitulo: campanha.titulo,
+              campanhaId: campanha.id,
+              numeroCartela: cartela.numeroCartela,
+              descricaoCartela: cartela.descricao,
+              progresso: cartela.progresso,
+              vendasNecessarias,
+              requisitosIncompletos: requisitosIncompletos.map((r: any) => ({
+                descricao: r.descricao,
+                quantidadeAtual: r.quantidadeAtual,
+                quantidadeTotal: r.quantidade,
+                faltam: r.quantidade - r.quantidadeAtual,
+              })),
+            };
+          }
+        }
+      }
+    }
+
+    // Eventos especiais ativos globais
+    const eventosAtivos = campanhasComProgresso
+      .flatMap((c) => c.eventosEspeciais)
+      .filter((e, index, self) => self.findIndex((evento) => evento.id === e.id) === index);
+
+    // 7. ESTATÍSTICAS DO MÊS
+    const vendasAprovadasMes = await this.prisma.envioVenda.count({
+      where: {
+        vendedorId: usuarioId,
+        status: StatusEnvioVenda.VALIDADO,
+        dataValidacao: { gte: inicioMes },
+      },
+    });
+
+    const cartelasCompletasMes = await this.prisma.cartelaConcluida.count({
+      where: {
+        vendedorId: usuarioId,
+        dataConclusao: { gte: inicioMes },
+      },
+    });
+
+    // Posição atual no ranking
+    const posicaoRankingResult = await this.prisma.$queryRaw<PosicaoRanking[]>(
+      Prisma.sql`
+        WITH Ranking AS (
+          SELECT
+            id,
+            ROW_NUMBER() OVER (
+              ORDER BY (
+                SELECT COALESCE(SUM(COALESCE(ev."valorFinalComEvento", ev."valorPontosReaisRecebido")), 0)
+                FROM "envios_vendas" ev
+                WHERE ev."vendedorId" = usuarios.id
+                  AND ev."status" = 'VALIDADO'
+                  AND ev."numeroCartelaAtendida" IS NOT NULL
+                  AND ev."pontosAdicionadosAoSaldo" = true
+              ) DESC,
+              "criadoEm" ASC
+            ) as posicao
+          FROM
+            "usuarios"
+          WHERE
+            papel = ${PapelUsuario.VENDEDOR}::"PapelUsuario"
+            AND status = ${StatusUsuario.ATIVO}::"StatusUsuario"
+        )
+        SELECT
+          posicao
+        FROM
+          Ranking
+        WHERE
+          id = ${usuarioId}
+      `,
+    );
+
+    const posicaoRanking = posicaoRankingResult.length > 0 ? Number(posicaoRankingResult[0].posicao) : 0;
+
+    // RETORNO CONSOLIDADO
+    return {
+      usuario: {
+        id: usuario.id,
+        nome: usuario.nome,
+        email: usuario.email,
+        nivel: usuario.nivel,
+        avatarUrl: usuario.avatarUrl,
+        membroDesde: usuario.criadoEm,
+      },
+      saldo: {
+        disponivel: saldoDisponivel,
+        reservado: saldoReservado,
+        total: saldoTotal,
+        ganhosMes: pontosGanhosMes,
+      },
+      campanhas: campanhasComProgresso,
+      historico: historicoFormatado,
+      notificacoes: {
+        itens: notificacoesNaoLidas,
+        totalNaoLidas: totalNotificacoesNaoLidas,
+      },
+      ranking: {
+        topVendedores: miniRanking,
+        posicaoAtual: posicaoRanking,
+      },
+      metas: {
+        proximaCartela: proximaMeta,
+        eventosAtivos,
+      },
+      estatisticas: {
+        mes: {
+          vendasAprovadas: vendasAprovadasMes,
+          cartelasCompletas: cartelasCompletasMes,
+          pontosGanhos: pontosGanhosMes,
+        },
+      },
+    };
+  }
 }

@@ -12,6 +12,8 @@ import { PerfilService } from './perfil.service';
 import { AtualizarPerfilDto } from './dto/atualizar-perfil.dto';
 import { AtualizarSenhaDto } from './dto/atualizar-senha.dto';
 import { JwtAuthGuard } from './../comum/guards/jwt-auth.guard';
+import { PapeisGuard } from '../comum/guards/papeis.guard';
+import { Papeis } from '../comum/decorators/papeis.decorator';
 
 /**
  * Controller protegido, todas as rotas exigem identificação JWT.
@@ -58,5 +60,16 @@ export class PerfilController {
       this.getUsuarioId(req),
       dto,
     );
+  }
+
+  /**
+   * Retorna a visão 360º da equipe do gerente logado (GET /api/perfil/minha-equipe)
+   */
+  @Get('minha-equipe')
+  @UseGuards(PapeisGuard)
+  @Papeis('GERENTE')
+  @HttpCode(HttpStatus.OK)
+  async minhaEquipe(@Req() req) {
+    return await this.perfilService.minhaEquipeGerente(this.getUsuarioId(req));
   }
 }

@@ -1,15 +1,18 @@
 /**
  * ============================================================================
- * PÁGINA DASHBOARD (Refatorada) - Princípios 1, 2, 3
+ * PÁGINA DASHBOARD (Refatorada V2 - Dashboard Premium para Vendedor)
  * ============================================================================
  *
- * REFATORAÇÃO (Q.I. 170):
- * - Contexto: Atualizado para `useAuth` de `ContextoAutenticacao` (Princípio 2).
- * - Busca de Dados: Implementado `useSWR` para buscar KPIs do novo
- * endpoint unificado `/api/dashboard/kpis`.
- * - Renderização: Renderiza condicionalmente `KpisAdmin`, `KpisGerente`,
- * ou `KpisVendedor` com base no `usuario.papel`.
- * - Skeletons: Adicionado estado de carregamento (Princípio 1).
+ * REFATORAÇÃO V2 (Sprint 21 - Dashboard Magnífico):
+ * - Contexto: Mantém useAuth de ContextoAutenticacao
+ * - Busca de Dados: Dual-endpoint strategy:
+ *   * /dashboard/kpis - KPIs básicos (compatibilidade com Admin/Gerente)
+ *   * /dashboard/vendedor/completo - Dados enriquecidos (apenas Vendedor)
+ * - Renderização Condicional: 
+ *   * Admin/Gerente: KpisAdmin/KpisGerente (existentes)
+ *   * Vendedor: Dashboard Premium com componentes especializados
+ * - Design: Layout responsivo com grid moderno, componentes glassmorphism
+ * - Animações: Framer Motion com entrada escalonada e micro-interações
  *
  * @module DashboardPage
  * ============================================================================
@@ -17,12 +20,18 @@
 "use client";
 
 import useSWR from "swr";
-import { useAuth } from "@/contexts/ContextoAutenticacao"; // Corrigido (Princípio 2)
+import { useAuth } from "@/contexts/ContextoAutenticacao";
 import { KpisAdmin } from "@/components/dashboard/KpisAdmin";
 import { KpisGerente } from "@/components/dashboard/KpisGerente";
 import { KpisVendedor } from "@/components/dashboard/KpisVendedor";
+import { SaldoCard } from "@/components/dashboard/vendedor/saldo-card";
+import { CampanhasAtivasCarousel } from "@/components/dashboard/vendedor/campanhas-ativas-carousel";
+import { MiniRanking } from "@/components/dashboard/vendedor/mini-ranking";
+import { MetasAtuais } from "@/components/dashboard/vendedor/metas-atuais";
+import { FeedDeAtividades } from "@/components/dashboard/vendedor/feed-de-atividades";
 import api from "@/lib/axios";
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { AlertTriangle, Loader2, Sparkles } from "lucide-react";
+import { motion } from "framer-motion";
 
 /**
  * Função 'fetcher' para o SWR usar com o Axios.
@@ -36,7 +45,7 @@ const fetcher = (url: string) =>
   });
 
 /**
- * Componente Skeleton para estado de carregamento (Princípio 4).
+ * Componente Skeleton para estado de carregamento.
  */
 const SkeletonKpis = () => (
   <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
@@ -58,33 +67,51 @@ const SkeletonKpis = () => (
 );
 
 /**
+ * Skeleton para Dashboard Vendedor Completo
+ */
+const SkeletonDashboardVendedor = () => (
+  <div className="space-y-6">
+    <div className="h-64 bg-card/50 rounded-3xl animate-pulse" />
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="lg:col-span-2 h-96 bg-card/50 rounded-3xl animate-pulse" />
+      <div className="h-96 bg-card/50 rounded-3xl animate-pulse" />
+    </div>
+  </div>
+);
+
+/**
  * Página principal do Dashboard.
  */
 export default function DashboardPage() {
   /**
-   * Hook de Autenticação (Princípio 2).
+   * Hook de Autenticação.
    */
   const { usuario } = useAuth();
 
   /**
-   * Hook de busca de dados (SWR).
-   * Busca dados do endpoint unificado.
-   * A rota é protegida, então o SWR (via Axios) enviará o token JWT.
+   * Hook de busca de dados (SWR) - KPIs Básicos
    */
   const { data: dadosKpis, error: erroKpis } = useSWR(
-    usuario ? "/dashboard/kpis" : null, // Só busca se o usuário existir
+    usuario ? "/dashboard/kpis" : null,
     fetcher,
-    {
-      revalidateOnFocus: false, // Evita buscas desnecessárias
-    },
+    { revalidateOnFocus: false }
   );
 
   /**
-   * Renderiza o componente de KPI correto com base no papel do usuário.
+   * Hook de busca de dados (SWR) - Dashboard Completo (apenas Vendedor)
    */
-  const renderizarKpisPorPapel = () => {
+  const { data: dashboardCompleto, error: erroDashboard } = useSWR(
+    usuario?.papel === "VENDEDOR" ? "/dashboard/vendedor/completo" : null,
+    fetcher,
+    { revalidateOnFocus: false }
+  );
+
+  /**
+   * Renderiza o dashboard específico por papel
+   */
+  const renderizarDashboard = () => {
     // 1. Estado de Erro
-    if (erroKpis) {
+    if (erroKpis || erroDashboard) {
       return (
         <div
           className="bg-destructive/10 border border-destructive/30 
@@ -95,7 +122,7 @@ export default function DashboardPage() {
           <div>
             <h4 className="font-semibold">Erro ao carregar dados</h4>
             <p className="text-sm">
-              Não foi possível buscar os KPIs: {erroKpis.message}
+              {(erroKpis || erroDashboard)?.message || "Erro desconhecido"}
             </p>
           </div>
         </div>
@@ -103,20 +130,91 @@ export default function DashboardPage() {
     }
 
     // 2. Estado de Carregamento
-    if (!dadosKpis && !erroKpis) {
+    if (!usuario || !dadosKpis) {
       return <SkeletonKpis />;
     }
 
-    // 3. Estado de Sucesso
-    if (!usuario || !dadosKpis) return null;
-
+    // 3. Renderização por Papel
     switch (usuario.papel) {
       case "ADMIN":
         return <KpisAdmin dados={dadosKpis} />;
+      
       case "GERENTE":
         return <KpisGerente dados={dadosKpis} />;
+      
       case "VENDEDOR":
-        return <KpisVendedor dados={dadosKpis} />;
+        // Dashboard Premium para Vendedor
+        if (!dashboardCompleto) {
+          return <SkeletonDashboardVendedor />;
+        }
+
+        return (
+          <div className="space-y-8">
+            {/* KPIs Principais */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <KpisVendedor dados={dadosKpis} />
+            </motion.div>
+
+            {/* Saldo Card - Destaque */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+            >
+              <SaldoCard saldo={dashboardCompleto.saldo} />
+            </motion.div>
+
+            {/* Campanhas Ativas Carousel */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
+              <CampanhasAtivasCarousel campanhas={dashboardCompleto.campanhas} />
+            </motion.div>
+
+            {/* Grid 2 Colunas: Metas + Ranking + Feed */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Coluna 1: Metas Atuais */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.5, delay: 0.3 }}
+                className="lg:col-span-1"
+              >
+                <MetasAtuais metas={dashboardCompleto.metas} />
+              </motion.div>
+
+              {/* Coluna 2: Mini Ranking */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.5, delay: 0.4 }}
+                className="lg:col-span-1"
+              >
+                <MiniRanking ranking={dashboardCompleto.ranking} />
+              </motion.div>
+
+              {/* Coluna 3: Feed de Atividades */}
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.5, delay: 0.5 }}
+                className="lg:col-span-1"
+              >
+                <FeedDeAtividades
+                  historico={dashboardCompleto.historico}
+                  notificacoes={dashboardCompleto.notificacoes}
+                />
+              </motion.div>
+            </div>
+          </div>
+        );
+      
       default:
         return (
           <p className="text-muted-foreground">
@@ -129,25 +227,69 @@ export default function DashboardPage() {
   /**
    * Obtém a saudação com base no nome do usuário.
    */
-  const saudacao = usuario
-    ? `Bem-vindo de volta, ${usuario.nome.split(" ")[0]}!`
-    : "Carregando...";
-  const subsaudacao = usuario
-    ? `Aqui está o resumo das atividades para seu perfil de ${usuario.papel.toLowerCase()}.`
-    : "Aguarde enquanto buscamos suas informações...";
+  const getSaudacao = () => {
+    if (!usuario) return "Carregando...";
+    
+    const hora = new Date().getHours();
+    let periodo = "Bom dia";
+    if (hora >= 12 && hora < 18) periodo = "Boa tarde";
+    if (hora >= 18) periodo = "Boa noite";
+
+    const primeiroNome = usuario.nome.split(" ")[0];
+    return `${periodo}, ${primeiroNome}!`;
+  };
+
+  const getSubsaudacao = () => {
+    if (!usuario) return "Aguarde enquanto buscamos suas informações...";
+    
+    switch (usuario.papel) {
+      case "VENDEDOR":
+        return "Aqui está o resumo completo das suas atividades e metas.";
+      case "GERENTE":
+        return "Acompanhe o desempenho da sua equipe em tempo real.";
+      case "ADMIN":
+        return "Visão geral do sistema e métricas administrativas.";
+      default:
+        return "";
+    }
+  };
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8 pt-6">
-      {/* Cabeçalho */}
-      <div className="flex items-center justify-between space-y-2">
+      {/* Cabeçalho com Animação */}
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="flex items-center justify-between space-y-2"
+      >
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">{saudacao}</h2>
-          <p className="text-muted-foreground">{subsaudacao}</p>
+          <h2 className="text-3xl md:text-4xl font-bold tracking-tight bg-gradient-to-r 
+                       from-primary to-primary/60 bg-clip-text text-transparent">
+            {getSaudacao()}
+          </h2>
+          <p className="text-muted-foreground mt-1">{getSubsaudacao()}</p>
         </div>
-      </div>
+        
+        {/* Badge de Nível (apenas Vendedor) */}
+        {usuario?.papel === "VENDEDOR" && dashboardCompleto && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="hidden md:flex items-center gap-2 px-4 py-2 rounded-full 
+                     bg-primary/10 border border-primary/20"
+          >
+            <Sparkles className="w-5 h-5 text-primary" />
+            <span className="font-semibold text-primary">
+              Nível {dashboardCompleto.usuario.nivel}
+            </span>
+          </motion.div>
+        )}
+      </motion.div>
 
-      {/* Renderização Condicional dos KPIs */}
-      {renderizarKpisPorPapel()}
+      {/* Renderização Condicional dos Dashboards */}
+      {renderizarDashboard()}
     </div>
   );
 }
