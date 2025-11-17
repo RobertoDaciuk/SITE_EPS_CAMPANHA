@@ -92,6 +92,9 @@ model Usuario {
   /// Saldo de pontos em R$ acumulado pelo vendedor/gerente (atualizado quando cartela completa)
   /// Quando o financeiro processa pagamentos, este valor é subtraído
   saldoPontos             Decimal               @default(0) @db.Decimal(10, 2)
+  /// Saldo reservado em lotes de pagamento PENDENTES (congelado até processamento ou cancelamento)
+  /// Usado para prevenir dupla reserva e garantir consistência em lotes simultâneos
+  saldoReservado          Decimal               @default(0) @db.Decimal(10, 2)
   /// Hash do token de reset de senha (SHA-256).
   /// REMOVIDA restrição @unique para permitir múltiplos valores NULL (Princípio 5.5).
   tokenResetarSenha       String?
@@ -125,6 +128,7 @@ model Usuario {
   relatoriosProcessados   RelatorioFinanceiro[] @relation("RelatoriosProcessados")
   historicosValidacao     HistoricoValidacao[]  @relation("HistoricosValidacao")
   historicosCampanha      HistoricoCampanha[]   @relation("HistoricosCampanha")
+  auditoriasFinanceiras   AuditoriaFinanceira[] @relation("AuditoriasFinanceiras")
   // Campo resgatesPremios removido (prêmios/resgates descontinuados)
   gerente                 Usuario?              @relation("GerenteVendedores", fields: [gerenteId], references: [id])
   vendedores              Usuario[]             @relation("GerenteVendedores")
@@ -503,6 +507,7 @@ model RelatorioFinanceiro {
   @@index([dataCorte])
   @@index([numeroLote])
   @@index([processadoPorId])
+  @@index([usuarioId, status])
   @@map("relatorios_financeiros")
 }
 
@@ -760,3 +765,68 @@ model ProductImportStaging {
 // o recurso de prêmios/resgates foi descontinuado. Se for necessário
 // manter valores históricos, considere criar tipos ou colunas
 // específicas antes de dropar a tabela em uma migration.
+
+/// ============================================================================
+/// AUDITORIA FINANCEIRA (Sprint 20.2 - Melhoria M4)
+/// ============================================================================
+/// Registra todas as operações administrativas no módulo financeiro para
+/// compliance, rastreabilidade e análise de segurança.
+///
+/// Casos de uso:
+/// - Descobrir quem gerou/processou/cancelou um lote específico
+/// - Rastrear tentativas de acesso não autorizado
+/// - Análise forense de incidentes de segurança
+/// - Relatórios de auditoria para compliance
+model AuditoriaFinanceira {
+  /// ID único do registro de auditoria (UUID v4)
+  id String @id @default(uuid())
+
+  /// Ação executada pelo admin
+  acao AcaoFinanceira
+
+  /// Número do lote relacionado (se aplicável)
+  numeroLote String?
+
+  /// ID do admin que executou a ação
+  adminId String
+  admin   Usuario @relation("AuditoriasFinanceiras", fields: [adminId], references: [id], onDelete: Cascade)
+
+  /// Estado ANTES da ação (snapshot JSON)
+  /// Estrutura: depende da ação (ex: lista de relatórios do lote)
+  dadosAntes Json?
+
+  /// Estado DEPOIS da ação (snapshot JSON)
+  /// Estrutura: resultado da operação
+  dadosDepois Json?
+
+  /// Endereço IP do admin
+  ipAddress String
+
+  /// User-Agent do navegador
+  userAgent String?
+
+  /// Metadata adicional (ex: tempo de execução, erros)
+  metadata Json?
+
+  /// Data e hora da ação
+  criadoEm DateTime @default(now())
+
+  /// Índices para consultas rápidas
+  @@index([adminId])
+  @@index([acao])
+  @@index([numeroLote])
+  @@index([criadoEm])
+  @@index([adminId, criadoEm])
+  @@map("auditoria_financeira")
+}
+
+/// Enum de ações auditáveis no módulo financeiro
+enum AcaoFinanceira {
+  VISUALIZAR_SALDOS
+  GERAR_LOTE
+  PROCESSAR_LOTE
+  CANCELAR_LOTE
+  EXPORTAR_EXCEL
+  BUSCAR_LOTE
+  LISTAR_LOTES
+}
