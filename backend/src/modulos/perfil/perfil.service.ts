@@ -69,6 +69,7 @@ export class PerfilService {
         // CAMPOS DE CONTATO
         // ====================================
         whatsapp: true,
+        dataNascimento: true,
 
         // ====================================
         // CAMPOS DE PREFERÊNCIAS
@@ -123,6 +124,10 @@ export class PerfilService {
       data.whatsapp = dto.whatsapp;
     }
 
+    if (dto.dataNascimento !== undefined) {
+      data.dataNascimento = dto.dataNascimento ? new Date(dto.dataNascimento) : null;
+    }
+
     if (dto.mapeamentoPlanilhaSalvo !== undefined) {
       data.mapeamentoPlanilhaSalvo = dto.mapeamentoPlanilhaSalvo;
     }
@@ -146,6 +151,7 @@ export class PerfilService {
         status: true,
   nivel: true,
         whatsapp: true,
+        dataNascimento: true,
         mapeamentoPlanilhaSalvo: true,
         criadoEm: true,
         atualizadoEm: true,

@@ -4,6 +4,7 @@ import {
   IsNotEmpty,
   Matches,
   IsObject,
+  IsDateString,
 } from 'class-validator';
 
 /**
@@ -85,6 +86,21 @@ export class AtualizarPerfilDto {
       'WhatsApp deve conter DDD e número, totalizando 11 ou 12 dígitos (apenas números).',
   })
   whatsapp?: string;
+
+  /**
+   * Data de nascimento do usuário.
+   *
+   * Validações:
+   * - Deve ser uma data válida no formato ISO 8601 (YYYY-MM-DD).
+   * - Campo opcional (apenas se o usuário quiser atualizar).
+   *
+   * Formato esperado: YYYY-MM-DD
+   *
+   * @example "1990-01-15"
+   */
+  @IsDateString({}, { message: 'A data de nascimento deve ser uma data válida.' })
+  @IsOptional()
+  dataNascimento?: string;
 
   /**
    * Preferências de mapeamento de colunas da planilha salvas pelo Admin.

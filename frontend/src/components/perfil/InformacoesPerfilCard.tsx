@@ -26,7 +26,7 @@ import toast from "react-hot-toast";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { User, Mail, Phone, Loader2, AlertCircle, Save } from "lucide-react";
+import { User, Mail, Phone, Calendar, Loader2, AlertCircle, Save } from "lucide-react";
 
 /**
  * Schema de validação (Zod) para o formulário de perfil.
@@ -46,6 +46,14 @@ const perfilSchema = z.object({
         /^\d{11,12}$/.test(val.replace(/\D/g, "")),
       "WhatsApp deve conter 12 ou 13 dígitos (Ex: 41987654321).",
     ),
+  dataNascimento: z
+    .string()
+    .transform((val) => (val === null || val === "" ? undefined : val))
+    .optional()
+    .refine(
+      (val) => val === undefined || !isNaN(Date.parse(val)),
+      "Data de nascimento inválida.",
+    ),
 });
 
 // Define o tipo dos dados do formulário baseado no schema
@@ -58,6 +66,7 @@ interface DadosPerfilSWR {
   nome: string;
   email: string;
   whatsapp?: string;
+  dataNascimento?: string;
 }
 
 /**
@@ -99,6 +108,7 @@ export function InformacoesPerfilCard() {
     defaultValues: {
       nome: "",
       whatsapp: "",
+      dataNascimento: "",
     },
   });
 
@@ -109,6 +119,7 @@ export function InformacoesPerfilCard() {
       reset({
         nome: dadosPerfil.nome,
         whatsapp: dadosPerfil.whatsapp ?? "",
+        dataNascimento: dadosPerfil.dataNascimento ?? "",
       });
     }
   }, [dadosPerfil, reset]);
@@ -296,8 +307,8 @@ export function InformacoesPerfilCard() {
                          transition-all duration-300
                          focus:outline-none focus:ring-4 focus:ring-success/20
                          disabled:opacity-60 disabled:cursor-not-allowed
-                         ${errors.whatsapp 
-                           ? "border-destructive focus:border-destructive" 
+                         ${errors.whatsapp
+                           ? "border-destructive focus:border-destructive"
                            : "border-border/50 focus:border-success hover:border-border"
                          }`}
             />
@@ -313,6 +324,45 @@ export function InformacoesPerfilCard() {
           <p className="text-xs text-muted-foreground leading-relaxed pl-1">
             Digite apenas números com DDD. Exemplo: <span className="font-mono font-semibold text-foreground">41987654321</span>
           </p>
+        </div>
+
+        {/* Campo Data de Nascimento */}
+        <div className="space-y-2.5">
+          <label
+            htmlFor="dataNascimento"
+            className="block text-sm font-bold text-foreground tracking-wide uppercase"
+          >
+            Data de Nascimento <span className="text-muted-foreground font-normal text-xs">(Opcional)</span>
+          </label>
+          <div className="relative group">
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-blue-400/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+            <Calendar className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-hover:text-blue-500 transition-colors duration-300 z-10" />
+            <input
+              id="dataNascimento"
+              type="date"
+              {...register("dataNascimento")}
+              disabled={estaSalvando}
+              className={`relative w-full h-14 pl-14 pr-4 text-base font-medium
+                         bg-background/60 dark:bg-background/40
+                         border-2 rounded-xl
+                         text-foreground placeholder:text-muted-foreground/50
+                         transition-all duration-300
+                         focus:outline-none focus:ring-4 focus:ring-blue-500/20
+                         disabled:opacity-60 disabled:cursor-not-allowed
+                         ${errors.dataNascimento
+                           ? "border-destructive focus:border-destructive"
+                           : "border-border/50 focus:border-blue-500 hover:border-border"
+                         }`}
+            />
+          </div>
+          {errors.dataNascimento && (
+            <div className="flex items-center gap-2 text-destructive animate-in slide-in-from-top-2 duration-300">
+              <AlertCircle className="w-4 h-4" />
+              <p className="text-sm font-medium">
+                {errors.dataNascimento.message}
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
