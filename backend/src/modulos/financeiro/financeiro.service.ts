@@ -686,26 +686,98 @@ export class FinanceiroService {
 
   /**
    * ============================================================================
-   * LISTAR LOTES
+   * LISTAR LOTES (M6: COM PAGINAÇÃO E FILTROS AVANÇADOS)
    * ============================================================================
    *
-   * Lista todos os lotes criados, com possibilidade de filtrar por status.
+   * Lista lotes criados com paginação e filtros opcionais.
    *
-   * @param status - Filtrar por status (PENDENTE ou PAGO)
-   * @returns Lista de lotes agrupados por numeroLote
+   * M6 MELHORIAS:
+   * - Paginação com skip/take
+   * - Filtro por status (PENDENTE ou PAGO)
+   * - Filtro por período (dataInicio/dataFim)
+   * - Retorno com metadata de paginação
+   *
+   * @param dto - Filtros e parâmetros de paginação
+   * @returns Objeto com lotes paginados e metadata
    */
-  async listarLotes(status?: 'PENDENTE' | 'PAGO') {
-    this.logger.log(`\n========== LISTANDO LOTES ==========`);
-    this.logger.log(`Status: ${status || 'TODOS'}`);
+  async listarLotes(dto: {
+    pagina?: number;
+    porPagina?: number;
+    status?: 'PENDENTE' | 'PAGO';
+    dataInicio?: string;
+    dataFim?: string;
+  } = {}) {
+    // ================================================================
+    // PASSO 1: Aplicar valores padrão (regra de negócio)
+    // ================================================================
+    const pagina = dto.pagina || 1;
+    const porPagina = dto.porPagina || 20;
+    const skip = (pagina - 1) * porPagina;
 
+    this.logger.log(`\n========== LISTANDO LOTES (M6 PAGINADO) ==========`);
+    this.logger.log(`Página: ${pagina} | Por página: ${porPagina}`);
+    this.logger.log(`Status: ${dto.status || 'TODOS'}`);
+    if (dto.dataInicio) this.logger.log(`Data início: ${dto.dataInicio}`);
+    if (dto.dataFim) this.logger.log(`Data fim: ${dto.dataFim}`);
+
+    // ================================================================
+    // PASSO 2: Construir filtros
+    // ================================================================
     const where: Prisma.RelatorioFinanceiroWhereInput = {
       numeroLote: { not: null },
     };
 
-    if (status) where.status = status;
+    if (dto.status) where.status = dto.status;
+
+    // Filtro por período de criação
+    if (dto.dataInicio || dto.dataFim) {
+      where.criadoEm = {};
+      if (dto.dataInicio) {
+        where.criadoEm.gte = new Date(dto.dataInicio);
+      }
+      if (dto.dataFim) {
+        where.criadoEm.lte = new Date(dto.dataFim);
+      }
+    }
+
+    // ================================================================
+    // PASSO 3: Buscar lotes únicos (distinct numeroLote)
+    // ================================================================
+    const lotesUnicos = await this.prisma.relatorioFinanceiro.findMany({
+      where,
+      select: { numeroLote: true },
+      distinct: ['numeroLote'],
+      orderBy: { criadoEm: 'desc' },
+    });
+
+    const totalLotes = lotesUnicos.length;
+    const totalPaginas = Math.ceil(totalLotes / porPagina);
+
+    // Aplicar paginação manual no array de lotes únicos
+    const lotesPaginados = lotesUnicos.slice(skip, skip + porPagina);
+    const numerosLotes = lotesPaginados.map((l) => l.numeroLote!);
+
+    this.logger.log(`Total de lotes: ${totalLotes} | Página atual: ${pagina}/${totalPaginas}`);
+
+    // ================================================================
+    // PASSO 4: Buscar detalhes dos lotes paginados
+    // ================================================================
+    if (numerosLotes.length === 0) {
+      return {
+        lotes: [],
+        paginacao: {
+          pagina,
+          porPagina,
+          total: 0,
+          totalPaginas: 0,
+        },
+      };
+    }
 
     const relatorios = await this.prisma.relatorioFinanceiro.findMany({
-      where,
+      where: {
+        numeroLote: { in: numerosLotes },
+      },
       include: {
         usuario: {
           select: {
@@ -724,7 +796,9 @@ export class FinanceiroService {
       orderBy: { criadoEm: 'desc' },
     });
 
-    // Agrupar por numeroLote
+    // ================================================================
+    // PASSO 5: Agrupar por numeroLote
+    // ================================================================
     const lotesMap = new Map();
     for (const rel of relatorios) {
       if (!rel.numeroLote) continue;
@@ -736,6 +810,7 @@ export class FinanceiroService {
           status: rel.status,
           relatorios: [],
           valorTotal: 0,
+          totalRelatorios: 0,
           criadoEm: rel.criadoEm,
           dataPagamento: rel.dataPagamento,
           processadoPor: rel.processadoPor,
@@ -744,6 +819,7 @@ export class FinanceiroService {
 
       const lote = lotesMap.get(rel.numeroLote);
       lote.relatorios.push(rel);
+      lote.totalRelatorios += 1;
 
       const valorNum =
         typeof rel.valor === 'object' && 'toNumber' in rel.valor
@@ -753,9 +829,17 @@ export class FinanceiroService {
     }
 
     const lotes = Array.from(lotesMap.values());
-    this.logger.log(`✅ Total de lotes: ${lotes.length}`);
+    this.logger.log(`✅ Retornando ${lotes.length} lotes da página ${pagina}`);
 
-    return lotes;
+    return {
+      lotes,
+      paginacao: {
+        pagina,
+        porPagina,
+        total: totalLotes,
+        totalPaginas,
+      },
+    };
   }
 
   /**
