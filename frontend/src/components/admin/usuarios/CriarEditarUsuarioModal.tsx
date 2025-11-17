@@ -36,6 +36,7 @@ interface Usuario {
   email: string;
   cpf?: string | null;
   whatsapp?: string | null;
+  dataNascimento?: string | null;
   papel: 'ADMIN' | 'GERENTE' | 'VENDEDOR';
   status: 'PENDENTE' | 'ATIVO' | 'BLOQUEADO';
   opticaId?: string | null;
@@ -119,6 +120,7 @@ export default function CriarEditarUsuarioModal({
   const [email, setEmail] = useState('');
   const [cpf, setCpf] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
+  const [dataNascimento, setDataNascimento] = useState('');
   const [papel, setPapel] = useState<'ADMIN' | 'GERENTE' | 'VENDEDOR'>('VENDEDOR');
   const [status, setStatus] = useState<'PENDENTE' | 'ATIVO' | 'BLOQUEADO'>('ATIVO');
   const [opticaId, setOpticaId] = useState<string>('');
@@ -158,10 +160,16 @@ export default function CriarEditarUsuarioModal({
       setEmail(userToEdit.email);
       setCpf(userToEdit.cpf ? formatCPF(userToEdit.cpf) : '');
       setWhatsapp(userToEdit.whatsapp ? formatWhatsApp(userToEdit.whatsapp) : '');
+      setDataNascimento(userToEdit.dataNascimento || '');
       setPapel(userToEdit.papel);
       setStatus(userToEdit.status);
       setOpticaId(userToEdit.opticaId || '');
       setGerenteId(userToEdit.gerenteId || '');
+
+      // Se for vendedor e tem ótica, buscar gerentes
+      if (userToEdit.papel === 'VENDEDOR' && userToEdit.opticaId) {
+        fetchGerentesPorOtica(userToEdit.opticaId);
+      }
     } else {
       // Modo criar - limpar formulário
       resetForm();
@@ -176,18 +184,38 @@ export default function CriarEditarUsuarioModal({
     try {
       setIsFetchingData(true);
 
-      const [oticasResponse, gerentesResponse] = await Promise.all([
-        api.get('/oticas'),
-        api.get('/usuarios', { params: { papel: 'GERENTE' } }),
-      ]);
-
+      // Buscar apenas óticas (gerentes serão buscados por ótica)
+      const oticasResponse = await api.get('/oticas');
       setListaOticas(oticasResponse.data);
-      setListaGerentes(gerentesResponse.data);
     } catch (error: any) {
       console.error('Erro ao buscar dados:', error);
       toast.error('Erro ao carregar dados do formulário');
     } finally {
       setIsFetchingData(false);
+    }
+  };
+
+  // ==========================================================================
+  // FUNÇÃO: Buscar Gerentes por Ótica (NOVA LÓGICA)
+  // ==========================================================================
+
+  const fetchGerentesPorOtica = async (opticaId: string) => {
+    try {
+      const response = await api.get(`/usuarios/gerentes-por-otica/${opticaId}`);
+      setListaGerentes(response.data);
+
+      // LÓGICA INTELIGENTE: Se apenas 1 gerente, selecionar automaticamente
+      if (response.data.length === 1 && papel === 'VENDEDOR') {
+        setGerenteId(response.data[0].id);
+        toast.success(`Gerente ${response.data[0].nome} selecionado automaticamente`);
+      } else if (response.data.length === 0) {
+        setGerenteId('');
+        toast.info('Esta ótica não possui gerentes cadastrados');
+      }
+    } catch (error: any) {
+      console.error('Erro ao buscar gerentes:', error);
+      setListaGerentes([]);
+      setGerenteId('');
     }
   };
 
@@ -200,6 +228,7 @@ export default function CriarEditarUsuarioModal({
     setEmail('');
     setCpf('');
     setWhatsapp('');
+    setDataNascimento('');
     setPapel('VENDEDOR');
     setStatus('ATIVO');
     setOpticaId('');
@@ -243,6 +272,7 @@ export default function CriarEditarUsuarioModal({
       email: email.trim(),
       cpf: cpf ? cleanNumbers(cpf) : undefined,
       whatsapp: whatsapp ? cleanNumbers(whatsapp) : undefined,
+      dataNascimento: dataNascimento || undefined,
       papel,
       status,
       opticaId: opticaId || undefined,
@@ -406,20 +436,37 @@ export default function CriarEditarUsuarioModal({
                             </div>
                           </div>
 
-                          {/* WhatsApp */}
-                          <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">
-                              WhatsApp
-                            </label>
-                            <input
-                              type="text"
-                              value={whatsapp}
-                              onChange={(e) => setWhatsapp(formatWhatsApp(e.target.value))}
-                              placeholder="(11) 98765-4321"
-                              maxLength={15}
-                              disabled={isLoading}
-                              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed transition-all"
-                            />
+                          {/* Grid: WhatsApp e Data Nascimento */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                WhatsApp
+                              </label>
+                              <input
+                                type="text"
+                                value={whatsapp}
+                                onChange={(e) => setWhatsapp(formatWhatsApp(e.target.value))}
+                                placeholder="(11) 98765-4321"
+                                maxLength={15}
+                                disabled={isLoading}
+                                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed transition-all"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                Data de Nascimento
+                              </label>
+                              <input
+                                type="date"
+                                value={dataNascimento}
+                                onChange={(e) => setDataNascimento(e.target.value)}
+                                disabled={isLoading}
+                                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed transition-all"
+                              />
+                              <p className="mt-1 text-xs text-gray-500">
+                                Obrigatório para gerentes e vendedores
+                              </p>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -482,7 +529,18 @@ export default function CriarEditarUsuarioModal({
                               </label>
                               <select
                                 value={opticaId}
-                                onChange={(e) => setOpticaId(e.target.value)}
+                                onChange={(e) => {
+                                  const novaOpticaId = e.target.value;
+                                  setOpticaId(novaOpticaId);
+
+                                  // Se for vendedor e selecionou uma ótica, buscar gerentes
+                                  if (papel === 'VENDEDOR' && novaOpticaId) {
+                                    fetchGerentesPorOtica(novaOpticaId);
+                                  } else {
+                                    setListaGerentes([]);
+                                    setGerenteId('');
+                                  }
+                                }}
                                 disabled={isLoading}
                                 className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed transition-all"
                               >
