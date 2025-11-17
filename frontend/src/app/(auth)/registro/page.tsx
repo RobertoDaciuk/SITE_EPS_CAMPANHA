@@ -18,6 +18,7 @@ const initialFormData = {
   email: "",
   cpf: "",
   whatsapp: "",
+  dataNascimento: "",
 };
 
 // Etapas do Wizard
@@ -215,6 +216,7 @@ const Step2_PersonalData = ({ goToNextStep, goToPrevStep, formData, setFormData 
         email: '',
         cpf: '',
         whatsapp: '',
+        dataNascimento: '',
     });
 
     const validateField = (name: string, value: string) => {
@@ -238,6 +240,12 @@ const Step2_PersonalData = ({ goToNextStep, goToPrevStep, formData, setFormData 
             case 'whatsapp':
                 if (!value) error = 'WhatsApp é obrigatório.';
                 else if (value.replace(/\D/g, '').length < 10) error = 'Telefone inválido.';
+                break;
+            case 'dataNascimento':
+                // Data de nascimento é opcional, mas vamos validar se fornecida
+                if (value && new Date(value) > new Date()) {
+                    error = 'Data não pode ser futura.';
+                }
                 break;
         }
         setErrors(prev => ({ ...prev, [name]: error }));
@@ -295,6 +303,18 @@ const Step2_PersonalData = ({ goToNextStep, goToPrevStep, formData, setFormData 
                 <label htmlFor="whatsapp" className="block text-xs font-semibold text-foreground ml-1">WhatsApp</label>
                 <InputField id="whatsapp" icon={<Smartphone size={16} />} name="whatsapp" placeholder="(99) 99999-9999" value={formData.whatsapp} onChange={handleChange} onBlur={handleBlur} error={errors.whatsapp} maxLength={16} />
             </div>
+            <div className="space-y-2">
+                <label htmlFor="dataNascimento" className="block text-xs font-semibold text-foreground ml-1">Data de Nascimento (opcional)</label>
+                <InputField
+                    id="dataNascimento"
+                    name="dataNascimento"
+                    type="date"
+                    value={formData.dataNascimento}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData(prev => ({ ...prev, dataNascimento: e.target.value }))}
+                    onBlur={handleBlur}
+                    error={errors.dataNascimento}
+                />
+            </div>
 
             <div className="flex items-center gap-4 pt-2">
                 <button onClick={goToPrevStep} className="w-full py-3 rounded-xl font-semibold text-sm bg-muted text-muted-foreground transition-all hover:scale-[1.02] active:scale-[0.98]">
@@ -336,6 +356,8 @@ const Step3_Password = ({ goToNextStep, goToPrevStep, formData }: { goToNextStep
                 nome: formData.nome,
                 email: formData.email,
                 cpf: formData.cpf.replace(/\D/g, ''),
+                whatsapp: formData.whatsapp.replace(/\D/g, ''),
+                dataNascimento: formData.dataNascimento || undefined,
                 opticaId: formData.opticaId,
                 senha: password,
             };
