@@ -84,6 +84,19 @@ export class AutenticacaoService {
      * Sanitiza e valida o CPF (Princípio 5.2 - Validação).
      */
     const cpfLimpo = this._limparCpf(dados.cpf);
+
+    /**
+     * Sanitiza WhatsApp se fornecido.
+     */
+    let whatsappLimpo: string | undefined;
+    if (dados.whatsapp) {
+      whatsappLimpo = dados.whatsapp.replace(/\D/g, '');
+      if (whatsappLimpo.length < 10 || whatsappLimpo.length > 13) {
+        throw new BadRequestException(
+          'WhatsApp inválido. Deve conter entre 10 e 13 dígitos (com DDD).'
+        );
+      }
+    }
     
     // Validação robusta de lógica de negócio (ex: dígitos repetidos, módulo 11)
     if (!this._validarCpf(cpfLimpo)) {
@@ -161,6 +174,8 @@ export class AutenticacaoService {
           email: dados.email,
           senhaHash,
           cpf: cpfLimpo,
+          whatsapp: whatsappLimpo,
+          dataNascimento: dados.dataNascimento ? new Date(dados.dataNascimento) : null,
           papel: 'VENDEDOR',
           status: 'PENDENTE',
           opticaId: dados.opticaId,
