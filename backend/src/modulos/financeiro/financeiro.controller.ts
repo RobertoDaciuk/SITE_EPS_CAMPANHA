@@ -35,6 +35,7 @@ import { FinanceiroService } from './financeiro.service';
 import { VisualizarSaldosDto } from './dto/visualizar-saldos.dto';
 import { GerarLoteDto } from './dto/gerar-lote.dto';
 import { ProcessarLoteDto } from './dto/processar-lote.dto';
+import { ListarLotesDto } from './dto/listar-lotes.dto'; // ✅ M6
 import { Response } from 'express';
 import * as ExcelJS from 'exceljs';
 import { JwtAuthGuard } from '../comum/guards/jwt-auth.guard';
@@ -77,13 +78,14 @@ export class FinanceiroController {
 
   /**
    * ========================================================================
-   * GET /api/financeiro/lotes - LISTAR TODOS OS LOTES
+   * GET /api/financeiro/lotes - LISTAR LOTES (M6: COM PAGINAÇÃO)
    * ========================================================================
-   * Lista todos os lotes criados, com filtro opcional por status.
+   * Lista lotes criados com paginação e filtros opcionais.
+   * Query params: ?pagina=1&porPagina=10&status=PENDENTE&dataInicio=2025-01-01
    */
   @Get('lotes')
-  async listarLotes(@Query('status') status?: 'PENDENTE' | 'PAGO') {
-    return this.financeiroService.listarLotes(status);
+  async listarLotes(@Query() dto: ListarLotesDto) {
+    return this.financeiroService.listarLotes(dto);
   }
 
   /**

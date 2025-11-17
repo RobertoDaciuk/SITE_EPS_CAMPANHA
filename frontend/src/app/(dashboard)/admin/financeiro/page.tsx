@@ -41,11 +41,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import axios from '@/lib/axios';
 import toast from 'react-hot-toast';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Eye, 
-  FileDown, 
-  CheckCircle, 
-  XCircle, 
+import {
+  Eye,
+  FileDown,
+  CheckCircle,
+  XCircle,
   Clock,
   Loader2,
   DollarSign,
@@ -60,7 +60,8 @@ import {
   Zap,
   CreditCard,
   Download,
-  RefreshCw
+  RefreshCw,
+  Lock // ✅ M2: Ícone para saldo reservado
 } from 'lucide-react';
 
 interface Usuario {
@@ -71,6 +72,7 @@ interface Usuario {
   whatsapp: string | null;
   papel: string;
   saldoPontos: number;
+  saldoReservado: number; // ✅ M2: Saldo reservado em lotes PENDENTES
   optica?: {
     id: string;
     nome: string;
@@ -101,7 +103,8 @@ export default function FinanceiroPage() {
   
   // Estado FASE 1: Preview
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
-  const [valorTotal, setValorTotal] = useState(0);
+  const [valorTotalDisponivel, setValorTotalDisponivel] = useState(0); // ✅ M2: Saldo disponível
+  const [valorTotalReservado, setValorTotalReservado] = useState(0);   // ✅ M2: Saldo reservado
   
   // Estado FASE 2/3: Lotes
   const [lotes, setLotes] = useState<Lote[]>([]);
@@ -120,9 +123,10 @@ export default function FinanceiroPage() {
       });
 
       setUsuarios(response.data.usuarios);
-      setValorTotal(response.data.valorTotal);
+      setValorTotalDisponivel(response.data.valorTotalDisponivel || 0); // ✅ M2
+      setValorTotalReservado(response.data.valorTotalReservado || 0);   // ✅ M2
       setFase('preview');
-      
+
       toast.success(
         `${response.data.totalUsuarios} usuários com saldo encontrados`,
         {
@@ -485,7 +489,7 @@ export default function FinanceiroPage() {
             transition={{ duration: 0.4 }}
             className="space-y-6"
           >
-            {/* Card de Resumo */}
+            {/* Card de Resumo - M2: Breakdown de saldos */}
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -493,10 +497,34 @@ export default function FinanceiroPage() {
               className="bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl p-6 text-white shadow-xl"
             >
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-emerald-100 text-sm font-medium mb-1">Valor Total Disponível</p>
-                  <p className="text-4xl font-black">R$ {valorTotal.toFixed(2)}</p>
+                <div className="space-y-4">
+                  {/* Valor Total */}
+                  <div>
+                    <p className="text-emerald-100 text-sm font-medium mb-1">Valor Total</p>
+                    <p className="text-4xl font-black">
+                      R$ {(valorTotalDisponivel + valorTotalReservado).toFixed(2)}
+                    </p>
+                  </div>
+
+                  {/* Breakdown */}
+                  <div className="flex gap-6">
+                    <div className="bg-white/10 backdrop-blur-sm rounded-xl px-4 py-2 border border-white/20">
+                      <p className="text-emerald-100 text-xs font-medium mb-0.5">Disponível</p>
+                      <p className="text-xl font-bold">R$ {valorTotalDisponivel.toFixed(2)}</p>
+                    </div>
+
+                    {valorTotalReservado > 0 && (
+                      <div className="bg-yellow-400/20 backdrop-blur-sm rounded-xl px-4 py-2 border border-yellow-300/30">
+                        <p className="text-yellow-100 text-xs font-medium mb-0.5 flex items-center gap-1">
+                          <Lock className="w-3 h-3" />
+                          Reservado
+                        </p>
+                        <p className="text-xl font-bold text-yellow-50">R$ {valorTotalReservado.toFixed(2)}</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
+
                 <div className="flex items-center gap-6">
                   <div className="text-right">
                     <p className="text-emerald-100 text-sm font-medium">Total de Usuários</p>
@@ -559,12 +587,30 @@ export default function FinanceiroPage() {
                       </div>
                     </div>
 
-                    {/* Valor */}
-                    <div className="text-right">
-                      <p className="text-sm text-muted-foreground mb-1">Saldo Disponível</p>
-                      <p className="text-3xl font-black text-emerald-600 dark:text-emerald-400">
-                        R$ {Number(usuario.saldoPontos).toFixed(2)}
-                      </p>
+                    {/* Valor - M2: Mostrar saldo disponível e reservado */}
+                    <div className="text-right space-y-2">
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-1">Saldo Disponível</p>
+                        <p className="text-3xl font-black text-emerald-600 dark:text-emerald-400">
+                          R$ {Number(usuario.saldoPontos).toFixed(2)}
+                        </p>
+                      </div>
+
+                      {/* Indicador de saldo reservado */}
+                      {usuario.saldoReservado > 0 && (
+                        <div className="bg-yellow-50 dark:bg-yellow-900/20 px-3 py-2 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-xs text-yellow-700 dark:text-yellow-400 flex items-center gap-1 font-medium">
+                              <Lock className="w-3 h-3" />
+                              Reservado
+                            </span>
+                            <span className="text-sm font-bold text-yellow-700 dark:text-yellow-300">
+                              R$ {Number(usuario.saldoReservado).toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
                       {usuario.optica && (
                         <p className="text-xs text-muted-foreground mt-1">
                           {usuario.optica.cidade}/{usuario.optica.estado}
