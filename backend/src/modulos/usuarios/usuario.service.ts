@@ -388,6 +388,7 @@ export class UsuarioService {
         status: dados.status || 'ATIVO', // Padrão: ATIVO
         cpf: cpfLimpo,
         whatsapp: whatsappLimpo,
+        dataNascimento: dados.dataNascimento ? new Date(dados.dataNascimento) : null,
         opticaId: dados.opticaId,
         gerenteId: dados.gerenteId,
         // Campos de token (preenchidos apenas se senha não fornecida)
@@ -642,5 +643,52 @@ export class UsuarioService {
     );
 
     return { tokenOriginal };
+  }
+
+  /**
+   * Busca todos os gerentes ativos de uma ótica específica.
+   *
+   * Nova regra de negócio:
+   * - Uma ótica pode ter MÚLTIPLOS gerentes
+   * - Vendedores são vinculados a UM gerente específico
+   *
+   * @param opticaId - ID da ótica
+   * @returns Array de gerentes (id, nome, email)
+   */
+  async buscarGerentesPorOtica(opticaId: string) {
+    this.logger.log(`Buscando gerentes da ótica: ${opticaId}`);
+
+    // Validar se ótica existe
+    const optica = await this.prisma.optica.findUnique({
+      where: { id: opticaId },
+    });
+
+    if (!optica) {
+      throw new NotFoundException('Ótica não encontrada');
+    }
+
+    // Buscar todos os gerentes ativos desta ótica
+    const gerentes = await this.prisma.usuario.findMany({
+      where: {
+        opticaId,
+        papel: 'GERENTE',
+        status: 'ATIVO', // Apenas gerentes ativos
+      },
+      select: {
+        id: true,
+        nome: true,
+        email: true,
+        whatsapp: true,
+      },
+      orderBy: {
+        nome: 'asc',
+      },
+    });
+
+    this.logger.log(
+      `✅ Encontrados ${gerentes.length} gerente(s) na ótica "${optica.nome}"`,
+    );
+
+    return gerentes;
   }
 }

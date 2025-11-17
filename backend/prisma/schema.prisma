@@ -76,6 +76,8 @@ model Usuario {
   /// Nome completo do usuário
   nome                    String
   whatsapp                String?
+  /// Data de nascimento (apenas para GERENTE e VENDEDOR)
+  dataNascimento          DateTime?
   /// Hash da senha (bcrypt, argon2, etc.) - NUNCA armazene senha em texto puro
   senhaHash               String
   /// URL do avatar (opcional, para perfil)

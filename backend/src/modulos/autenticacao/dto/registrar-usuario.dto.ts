@@ -28,6 +28,8 @@ import {
   MinLength,
   Matches,
   IsUUID,
+  IsOptional,
+  IsDateString,
 } from 'class-validator';
 
 /**
@@ -62,6 +64,32 @@ export class RegistrarUsuarioDto {
   @IsString({ message: 'O CPF deve ser uma string' })
   @IsNotEmpty({ message: 'O CPF é obrigatório' })
   cpf: string;
+
+  /**
+   * WhatsApp do vendedor (opcional).
+   *
+   * Aceita formatos:
+   * - Com pontuação: "(11) 98765-4321"
+   * - Sem pontuação: "11987654321"
+   *
+   * @example "11987654321"
+   * @example "(11) 98765-4321"
+   */
+  @IsOptional()
+  @IsString({ message: 'O WhatsApp deve ser uma string' })
+  whatsapp?: string;
+
+  /**
+   * Data de nascimento do vendedor (opcional).
+   *
+   * Formato ISO 8601: YYYY-MM-DD
+   *
+   * @example "1990-05-15"
+   * @example "1985-12-30"
+   */
+  @IsOptional()
+  @IsDateString({}, { message: 'A data de nascimento deve ser uma data válida (YYYY-MM-DD)' })
+  dataNascimento?: string;
 
   /**
    * Senha do vendedor.

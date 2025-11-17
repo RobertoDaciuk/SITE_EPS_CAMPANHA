@@ -34,6 +34,7 @@ import {
   IsUUID,
   Matches,
   Length,
+  IsDateString,
 } from 'class-validator';
 import { PapelUsuario, StatusUsuario } from '@prisma/client';
 
@@ -116,6 +117,19 @@ export class CriarUsuarioAdminDto {
   @IsOptional()
   @IsString({ message: 'O WhatsApp deve ser uma string' })
   whatsapp?: string;
+
+  /**
+   * Data de nascimento do usuário (opcional).
+   *
+   * Usado principalmente para GERENTE e VENDEDOR.
+   * Formato ISO 8601: YYYY-MM-DD
+   *
+   * @example "1990-05-15"
+   * @example "1985-12-30"
+   */
+  @IsOptional()
+  @IsDateString({}, { message: 'A data de nascimento deve ser uma data válida (YYYY-MM-DD)' })
+  dataNascimento?: string;
 
   /**
    * Status do usuário.

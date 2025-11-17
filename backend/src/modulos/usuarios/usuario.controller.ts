@@ -83,6 +83,22 @@ export class UsuarioController {
   }
 
   /**
+   * Busca gerentes por ótica.
+   * Rota: GET /api/usuarios/gerentes-por-otica/:opticaId
+   *
+   * Retorna todos os gerentes ativos vinculados a uma ótica específica.
+   * Usado para popular dropdown de seleção de gerente ao criar/editar vendedor.
+   *
+   * Suporta múltiplos gerentes por ótica (nova regra de negócio).
+   */
+  @Get('gerentes-por-otica/:opticaId')
+  @HttpCode(HttpStatus.OK)
+  async buscarGerentesPorOtica(@Param('opticaId') opticaId: string) {
+    this.logger.log(`[ADMIN] Buscando gerentes da ótica: ${opticaId}`);
+    return await this.usuarioService.buscarGerentesPorOtica(opticaId);
+  }
+
+  /**
    * Cria um novo usuário (Admin).
    * Rota: POST /api/usuarios
    *
