@@ -291,13 +291,24 @@ export class ValidacaoService {
         },
         requisito: {
           include: {
-            condicoes: true,          // Necessário para validação de regras
+            condicoes: true,          // DEPRECADO (Sprint 21): Mantido para compatibilidade
+            produtos: true,           // Sprint 21: Produtos do requisito específico
             // CRUCIAL: Include profundo até a Campanha
             regraCartela: {
               include: {
                 campanha: {
                   include: {
-                    produtosCampanha: true as any,  // <-- NOVO (Sprint 18): Include produtos para validação CODIGO_DA_REFERENCIA
+                    produtosCampanha: true as any,  // DEPRECADO (Sprint 18): Manter para compatibilidade
+                    // Sprint 21: Para busca por ordem, precisamos de todos os requisitos da campanha
+                    cartelas: {
+                      include: {
+                        requisitos: {
+                          include: {
+                            produtos: true,
+                          },
+                        },
+                      },
+                    },
                   },
                 },
               },
@@ -768,22 +779,62 @@ export class ValidacaoService {
           }
 
           // ===============================================================
-          // BUSCAR PRODUTO NA CAMPANHA (Sprint 18 - Produtos da Campanha)
+          // BUSCAR PRODUTO NO REQUISITO (Sprint 21 - Produtos por Requisito)
           // ===============================================================
-          // Agora buscamos o produto diretamente na tabela ProdutoCampanha
-          // associada a esta campanha (não mais na tabela global ValorReferencia)
-          this.logger.log(`Buscando código '${codigoReferencia}' nos produtos da campanha...`);
-          const campanha = envio.requisito.regraCartela.campanha;
-          const produtoCampanha = campanha.produtosCampanha?.find(
-            (p: any) => p.codigoRef === codigoReferencia
-          );
+          // Nova lógica: Buscar produto em requisitos de MESMA ORDEM na campanha
+          // Isso permite spillover automático entre cartelas auto-replicantes
+          this.logger.log(`Buscando código '${codigoReferencia}' nos produtos dos requisitos (ordem=${envio.requisito.ordem})...`);
 
-          if (!produtoCampanha) {
+          const campanha = envio.requisito.regraCartela.campanha;
+          const ordemRequisito = envio.requisito.ordem;
+
+          // Buscar produto em TODOS os requisitos de mesma ordem (spillover)
+          let produtoEncontrado: { codigoRef: string; pontosReais: any } | null = null;
+
+          // Primeiro, tenta encontrar no requisito específico do envio
+          produtoEncontrado = envio.requisito.produtos?.find(
+            (p: any) => p.codigoRef === codigoReferencia
+          ) || null;
+
+          // Se não encontrou, busca em outros requisitos de mesma ordem (spillover)
+          if (!produtoEncontrado && campanha.cartelas) {
+            for (const cartela of campanha.cartelas) {
+              for (const req of cartela.requisitos || []) {
+                if (req.ordem === ordemRequisito) {
+                  const produto = req.produtos?.find(
+                    (p: any) => p.codigoRef === codigoReferencia
+                  );
+                  if (produto) {
+                    produtoEncontrado = produto;
+                    this.logger.log(
+                      `Produto encontrado via spillover na Cartela ${cartela.numeroCartela}, Requisito ordem=${req.ordem}`,
+                    );
+                    break;
+                  }
+                }
+              }
+              if (produtoEncontrado) break;
+            }
+          }
+
+          // Fallback: buscar em produtos globais da campanha (compatibilidade legado)
+          if (!produtoEncontrado && campanha.produtosCampanha) {
+            produtoEncontrado = campanha.produtosCampanha.find(
+              (p: any) => p.codigoRef === codigoReferencia
+            ) || null;
+            if (produtoEncontrado) {
+              this.logger.log(`Produto encontrado em produtos globais da campanha (legado)`);
+            }
+          }
+
+          if (!produtoEncontrado) {
             const mensagens = this._gerarMensagensDuais('CODIGO_REFERENCIA_NAO_CADASTRADO', {
               campanhaTitulo,
               codigoReferencia,
               numeroPedido: envio.numeroPedido,
               campanhaId: envio.campanhaId,
+              tipoRequisito: envio.requisito.tipoUnidade,
+              quantidadeLinhas: linhasEncontradas.length,
             });
             resultadoValidacao = {
               status: 'CONFLITO_MANUAL',
@@ -791,7 +842,7 @@ export class ValidacaoService {
               motivoVendedor: mensagens.vendedor,
             };
             this.logger.warn(
-              `⚠ Código de referência '${codigoReferencia}' não cadastrado nesta campanha. Pedido ${envio.numeroPedido} marcado como conflito manual.`,
+              `⚠ Código de referência '${codigoReferencia}' não cadastrado para ordem=${ordemRequisito}. Pedido ${envio.numeroPedido} marcado como conflito manual.`,
             );
             envio['resultado'] = resultadoValidacao;
             relatorio[resultadoValidacao.status.toLowerCase()]++;
@@ -799,12 +850,12 @@ export class ValidacaoService {
           }
 
           this.logger.log(
-            `✓ Código de referência encontrado: ${codigoReferencia} = R$ ${Number(produtoCampanha.pontosReais).toFixed(2)}`,
+            `✓ Código de referência encontrado: ${codigoReferencia} = R$ ${Number(produtoEncontrado.pontosReais).toFixed(2)}`,
           );
 
           // Armazenar dados para persistir depois
           envio['codigoReferenciaUsado'] = codigoReferencia;
-          envio['valorPontosReaisRecebido'] = produtoCampanha.pontosReais;
+          envio['valorPontosReaisRecebido'] = produtoEncontrado.pontosReais;
           this.logger.log(
             `[3/3] Verificando conflito entre vendedores para Pedido: ${envio.numeroPedido}...`,
           );

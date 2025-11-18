@@ -225,6 +225,29 @@ export class CampanhaController {
   }
 
   /**
+   * Atualiza produtos de um requisito específico (Sprint 21).
+   *
+   * Rota: PATCH /api/campanhas/requisitos/:requisitoId/produtos
+   * Acesso: Admin apenas
+   *
+   * @param requisitoId - UUID do requisito
+   * @param dto - Dados dos produtos (importSessionId ou produtos[])
+   * @param req - Request com dados do usuário
+   * @returns Requisito atualizado com novos produtos
+   */
+  @UseGuards(JwtAuthGuard, PapeisGuard)
+  @Papeis('ADMIN')
+  @Patch('requisitos/:requisitoId/produtos')
+  async atualizarProdutosRequisito(
+    @Param('requisitoId') requisitoId: string,
+    @Body() dto: { importSessionId?: string; produtos?: Array<{ codigoRef: string; pontosReais: number }> },
+    @Req() req,
+  ) {
+    this.logger.log(`[PATCH] [ADMIN] Atualizando produtos do requisito: ${requisitoId} (Admin: ${req.user.email})`);
+    return this.campanhaService.atualizarProdutosRequisito(requisitoId, dto, req.user);
+  }
+
+  /**
    * Remove uma campanha do sistema.
    * * Rota: DELETE /api/campanhas/:id
    * Acesso: Admin apenas
