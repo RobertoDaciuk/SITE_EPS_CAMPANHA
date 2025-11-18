@@ -21,6 +21,7 @@ import { useEffect, useMemo, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
 import api from '@/lib/axios';
 import type { WizardState, CondicaoFormData } from '../CriarCampanhaWizard';
+import GerenciarProdutosModal from '../GerenciarProdutosModal';
 
 interface Props {
   state: WizardState;
@@ -41,6 +42,13 @@ export default function Step3Cartelas({ state, setState, modoEdicao = false, car
   
   // Estados para controle de filtro por requisito (chave: `${cartelaIndex}-${requisitoIndex}`)
   const [filtrosRequisito, setFiltrosRequisito] = useState<Record<string, string>>({});
+
+  // Sprint 21: Estado para modal de gerenciamento de produtos por requisito
+  const [modalProdutosAberto, setModalProdutosAberto] = useState(false);
+  const [requisitoModalAtivo, setRequisitoModalAtivo] = useState<{
+    cartelaIndex: number;
+    requisitoIndex: number;
+  } | null>(null);
   
   // Estados removidos (agora produtos vêm do staging):
   // - novoCodigoRef, novoPontosReais, produtoEditando
@@ -643,6 +651,33 @@ export default function Step3Cartelas({ state, setState, modoEdicao = false, car
                     />
                   </div>
 
+                  {/* Sprint 21: Botão Gerenciar Produtos */}
+                  <button
+                    onClick={() => {
+                      setRequisitoModalAtivo({ cartelaIndex, requisitoIndex });
+                      setModalProdutosAberto(true);
+                    }}
+                    disabled={isBloqueada}
+                    className={`w-full mt-2 p-3 border border-dashed rounded-lg flex items-center justify-center gap-2 transition-colors ${
+                      isBloqueada
+                        ? 'border-gray-300 dark:border-gray-600 text-gray-400 cursor-not-allowed'
+                        : 'border-blue-300 dark:border-blue-600 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+                    }`}
+                  >
+                    <Package className="w-4 h-4" />
+                    Gerenciar Produtos
+                    {requisito.produtos && requisito.produtos.length > 0 && (
+                      <span className="bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 px-2 py-0.5 rounded-full text-xs ml-2">
+                        {requisito.produtos.length.toLocaleString()}
+                      </span>
+                    )}
+                    {requisito.importSessionId && !requisito.produtos?.length && (
+                      <span className="bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-300 px-2 py-0.5 rounded-full text-xs ml-2">
+                        Staging
+                      </span>
+                    )}
+                  </button>
+
                   {/* Condições - FIXO: Apenas CODIGO_DA_REFERENCIA */}
                   <div className="bg-accent/30 rounded-lg p-3">
                     <p className="text-xs font-medium text-muted-foreground mb-2">
@@ -891,6 +926,53 @@ export default function Step3Cartelas({ state, setState, modoEdicao = false, car
           <Lock className="h-5 w-5" />
           <span className="font-medium">Adicionar/remover cartelas desabilitado em modo edição</span>
         </div>
+      )}
+
+      {/* Sprint 21: Modal de Gerenciamento de Produtos */}
+      {modalProdutosAberto && requisitoModalAtivo && (
+        <GerenciarProdutosModal
+          isOpen={modalProdutosAberto}
+          onClose={() => {
+            setModalProdutosAberto(false);
+            setRequisitoModalAtivo(null);
+          }}
+          onSave={(produtos, sessionId) => {
+            const { cartelaIndex, requisitoIndex } = requisitoModalAtivo;
+
+            // Atualizar state com os novos produtos
+            setState(prev => {
+              const newCartelas = [...prev.cartelas];
+              if (sessionId) {
+                newCartelas[cartelaIndex].requisitos[requisitoIndex].importSessionId = sessionId;
+                newCartelas[cartelaIndex].requisitos[requisitoIndex].produtos = [];
+              } else {
+                newCartelas[cartelaIndex].requisitos[requisitoIndex].produtos = produtos;
+                newCartelas[cartelaIndex].requisitos[requisitoIndex].importSessionId = undefined;
+              }
+              return { ...prev, cartelas: newCartelas };
+            });
+
+            setModalProdutosAberto(false);
+            setRequisitoModalAtivo(null);
+            toast.success('Produtos atualizados!');
+          }}
+          produtosAtuais={state.cartelas[requisitoModalAtivo.cartelaIndex].requisitos[requisitoModalAtivo.requisitoIndex].produtos || []}
+          outrosRequisitos={
+            // Passar todos os outros requisitos para poder copiar
+            state.cartelas.flatMap((cartela, cIdx) =>
+              cartela.requisitos
+                .filter((_, rIdx) => !(cIdx === requisitoModalAtivo.cartelaIndex && rIdx === requisitoModalAtivo.requisitoIndex))
+                .map(req => ({
+                  descricao: req.descricao,
+                  ordem: req.ordem,
+                  produtos: req.produtos || [],
+                  importSessionId: req.importSessionId,
+                }))
+            )
+          }
+          cartelaNumero={state.cartelas[requisitoModalAtivo.cartelaIndex].numeroCartela}
+          requisitoOrdem={state.cartelas[requisitoModalAtivo.cartelaIndex].requisitos[requisitoModalAtivo.requisitoIndex].ordem}
+        />
       )}
     </motion.div>
   );

@@ -19,10 +19,12 @@ import {
   IsArray,
   Min,
   IsNotEmpty,
+  IsOptional,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer'; // Importado Transform
 import { TipoUnidade } from '@prisma/client';
 import { CriarCondicaoRequisitoDto } from './criar-condicao-requisito.dto';
+import { ProdutoRequisitoDto } from './produto-requisito.dto';
 
 /**
  * DTO para criação de um requisito de cartela.
@@ -82,11 +84,38 @@ export class CriarRequisitoCartelaDto {
   /**
    * Lista de condições de validação (Rule Builder).
    *
-   * Mínimo: 1 condição (requisito precisa ter pelo menos uma regra)
+   * DEPRECADO (Sprint 21): Condições estão sendo removidas.
+   * A validação agora é 100% baseada em produtos.
+   * Mantido como opcional para compatibilidade durante transição.
    */
   @IsArray({ message: 'As condições devem ser um array' })
   @ValidateNested({ each: true })
   @Type(() => CriarCondicaoRequisitoDto)
-  @IsNotEmpty({ message: 'O requisito deve ter pelo menos uma condição' })
-  condicoes: CriarCondicaoRequisitoDto[];
+  @IsOptional()
+  condicoes?: CriarCondicaoRequisitoDto[];
+
+  // ========================================================================
+  // NOVOS CAMPOS (Sprint 21 - Produtos por Requisito)
+  // ========================================================================
+
+  /**
+   * Lista de produtos específicos vinculados a este requisito.
+   * Cada produto tem um código de referência e valor em R$.
+   *
+   * Obrigatório SOMENTE se importSessionId não for fornecido.
+   */
+  @IsArray({ message: 'Produtos deve ser um array' })
+  @ValidateNested({ each: true })
+  @Type(() => ProdutoRequisitoDto)
+  @IsOptional()
+  produtos?: ProdutoRequisitoDto[];
+
+  /**
+   * ID da sessão de importação de produtos no staging.
+   * Se fornecido, os produtos serão importados diretamente da tabela de staging
+   * ao invés de usar o campo produtos.
+   */
+  @IsString({ message: 'O ID da sessão deve ser uma string' })
+  @IsOptional()
+  importSessionId?: string;
 }

@@ -136,13 +136,17 @@ export class CampanhaService {
       this.logger.log(`Campanha base criada: ${campanha.id}`);
 
       /**
-       * PASSO 1.5: Criar Produtos da Campanha (Sprint 18)
-       * 
-       * Sprint 20: Suporta duas formas de importação:
-       * 1. Via staging (importSessionId) - Para grandes volumes (40k+ linhas)
-       * 2. Via array produtosCampanha - Para importação direta (legado/compatibilidade)
+       * PASSO 1.5: DEPRECADO - Produtos Globais (Sprint 18)
+       *
+       * Sprint 21 - Refatoração: Produtos agora são por REQUISITO.
+       * A lógica abaixo é mantida apenas para compatibilidade com dados legados.
+       * Novas campanhas devem usar produtos em cada requisito (cartelas[].requisitos[].produtos).
        */
+      // @deprecated - Manter apenas para compatibilidade
       if (dto.importSessionId) {
+        this.logger.warn(
+          `[DEPRECADO] Usando importSessionId global. Prefira usar produtos por requisito.`,
+        );
         // OPÇÃO 1: Importar do staging via INSERT SELECT (muito mais eficiente)
         this.logger.log(
           `Importando produtos do staging (sessionId: ${dto.importSessionId}) para campanha ${campanha.id}`,
@@ -151,7 +155,7 @@ export class CampanhaService {
         // Usar raw query para INSERT SELECT otimizado
         await tx.$executeRaw`
           INSERT INTO "produtos_campanha" ("id", "campanhaId", "codigoRef", "pontosReais", "criadoEm", "atualizadoEm")
-          SELECT 
+          SELECT
             gen_random_uuid(),
             ${campanha.id}::uuid,
             "codigoRef",
@@ -176,6 +180,9 @@ export class CampanhaService {
 
         this.logger.log(`🧹 Staging limpo (sessionId: ${dto.importSessionId})`);
       } else if (dto.produtosCampanha && dto.produtosCampanha.length > 0) {
+        this.logger.warn(
+          `[DEPRECADO] Usando produtosCampanha global. Prefira usar produtos por requisito.`,
+        );
         // OPÇÃO 2: Importação direta via array (legado/compatibilidade)
         this.logger.log(
           `Criando ${dto.produtosCampanha.length} produto(s) para campanha ${campanha.id}`,
@@ -223,19 +230,75 @@ export class CampanhaService {
             },
           });
 
-          for (const condicaoDto of requisitoDto.condicoes) {
+          // =====================================================================
+          // NOVO (Sprint 21): Criar Produtos do Requisito
+          // =====================================================================
+          if (requisitoDto.importSessionId) {
+            // OPÇÃO 1: Importar do staging via INSERT SELECT (otimizado para 10k+ produtos)
             this.logger.log(
-              `Criando condição ${condicaoDto.campo} ${condicaoDto.operador} "${condicaoDto.valor}" para requisito ${requisito.id}`,
+              `Importando produtos do staging (sessionId: ${requisitoDto.importSessionId}) para requisito ${requisito.id}`,
             );
 
-            await tx.condicaoRequisito.create({
-              data: {
-                campo: condicaoDto.campo,
-                operador: condicaoDto.operador,
-                valor: condicaoDto.valor,
-                requisitoId: requisito.id,
-              },
+            await tx.$executeRaw`
+              INSERT INTO "produtos_requisitos" ("id", "requisitoId", "codigoRef", "pontosReais", "criadoEm")
+              SELECT
+                gen_random_uuid(),
+                ${requisito.id}::uuid,
+                "codigoRef",
+                "pontosReais",
+                NOW()
+              FROM "product_import_staging"
+              WHERE "sessionId" = ${requisitoDto.importSessionId}
+            `;
+
+            // Contar quantos foram importados
+            const countImportados = await tx.produtoRequisito.count({
+              where: { requisitoId: requisito.id },
             });
+
+            this.logger.log(`✅ ${countImportados} produto(s) importado(s) para requisito ${requisito.id}`);
+
+            // Limpar staging após sucesso
+            await tx.productImportStaging.deleteMany({
+              where: { sessionId: requisitoDto.importSessionId },
+            });
+
+            this.logger.log(`🧹 Staging limpo (sessionId: ${requisitoDto.importSessionId})`);
+          } else if (requisitoDto.produtos && requisitoDto.produtos.length > 0) {
+            // OPÇÃO 2: Importação direta via array (para poucos produtos)
+            this.logger.log(
+              `Criando ${requisitoDto.produtos.length} produto(s) para requisito ${requisito.id}`,
+            );
+
+            await tx.produtoRequisito.createMany({
+              data: requisitoDto.produtos.map((produto) => ({
+                requisitoId: requisito.id,
+                codigoRef: produto.codigoRef,
+                pontosReais: produto.pontosReais,
+              })),
+            });
+
+            this.logger.log(`✅ ${requisitoDto.produtos.length} produto(s) criado(s) para requisito`);
+          }
+
+          // =====================================================================
+          // Criar Condições (DEPRECADO - mantido para compatibilidade)
+          // =====================================================================
+          if (requisitoDto.condicoes && requisitoDto.condicoes.length > 0) {
+            for (const condicaoDto of requisitoDto.condicoes) {
+              this.logger.log(
+                `[DEPRECADO] Criando condição ${condicaoDto.campo} ${condicaoDto.operador} "${condicaoDto.valor}" para requisito ${requisito.id}`,
+              );
+
+              await tx.condicaoRequisito.create({
+                data: {
+                  campo: condicaoDto.campo,
+                  operador: condicaoDto.operador,
+                  valor: condicaoDto.valor,
+                  requisitoId: requisito.id,
+                },
+              });
+            }
           }
         }
       }
@@ -274,6 +337,11 @@ export class CampanhaService {
 
       // Registrar criação no histórico (Sprint 19.5)
       if (usuario?.id) {
+        // Contar produtos de todos os requisitos (Sprint 21)
+        const totalProdutos = dto.cartelas.reduce((acc, cartela) =>
+          acc + cartela.requisitos.reduce((reqAcc, req) =>
+            reqAcc + (req.produtos?.length || 0), 0), 0) || dto.produtosCampanha?.length || 0;
+
         await tx.historicoCampanha.create({
           data: {
             campanhaId: campanha.id,
@@ -283,7 +351,7 @@ export class CampanhaService {
               titulo: campanha.titulo,
               descricao: campanha.descricao,
               totalCartelas: dto.cartelas.length,
-              totalProdutos: dto.produtosCampanha.length,
+              totalProdutos,
               totalEventos: dto.eventosEspeciais?.length || 0,
             },
           },
@@ -544,8 +612,10 @@ export class CampanhaService {
           orderBy: { numeroCartela: 'asc' },
           include: {
             requisitos: {
+              orderBy: { ordem: 'asc' },
               include: {
                 condicoes: true,
+                produtos: true, // Sprint 21: Incluir produtos do requisito
               },
             },
           },
@@ -554,7 +624,7 @@ export class CampanhaService {
           select: { id: true, nome: true },
         },
         eventosEspeciais: true,
-        produtosCampanha: true, // ADICIONADO: Incluir produtos da campanha
+        produtosCampanha: true, // DEPRECADO: Manter para compatibilidade
       },
     });
 
@@ -791,7 +861,7 @@ export class CampanhaService {
         produtosCampanha: true,
         oticasAlvo: true,
         eventosEspeciais: true,
-        cartelas: { include: { requisitos: { include: { condicoes: true } } } },
+        cartelas: { include: { requisitos: { include: { condicoes: true, produtos: true } } } },
       },
     });
 
@@ -1213,7 +1283,7 @@ export class CampanhaService {
         include: {
           cartelas: {
             orderBy: { numeroCartela: 'asc' },
-            include: { requisitos: { include: { condicoes: true } } },
+            include: { requisitos: { orderBy: { ordem: 'asc' }, include: { condicoes: true, produtos: true } } },
           },
           oticasAlvo: { select: { id: true, nome: true } },
           eventosEspeciais: true,
@@ -1266,5 +1336,142 @@ export class CampanhaService {
     }
 
     return { podeEditar: true };
+  }
+
+  /**
+   * Atualiza produtos de um requisito específico (Sprint 21).
+   *
+   * Permite ao Admin adicionar/remover produtos de um requisito existente.
+   * Valida se não há vendas validadas usando os produtos atuais.
+   *
+   * @param requisitoId - UUID do requisito
+   * @param dto - Dados dos produtos (importSessionId ou produtos[])
+   * @param usuario - Dados do admin que está fazendo a edição
+   * @returns Requisito atualizado com novos produtos
+   *
+   * @throws {NotFoundException} Se requisito não encontrado
+   * @throws {BadRequestException} Se validações falharem
+   */
+  async atualizarProdutosRequisito(
+    requisitoId: string,
+    dto: { importSessionId?: string; produtos?: Array<{ codigoRef: string; pontosReais: number }> },
+    usuario: { id: string; email: string },
+  ): Promise<any> {
+    this.logger.log(`Atualizando produtos do requisito ${requisitoId} (Admin: ${usuario.email})`);
+
+    // Buscar requisito com campanha
+    const requisito = await this.prisma.requisitoCartela.findUnique({
+      where: { id: requisitoId },
+      include: {
+        produtos: true,
+        regraCartela: {
+          include: {
+            campanha: true,
+          },
+        },
+      },
+    });
+
+    if (!requisito) {
+      throw new NotFoundException(`Requisito com ID ${requisitoId} não encontrado`);
+    }
+
+    const campanhaId = requisito.regraCartela.campanhaId;
+
+    // Verificar se algum produto atual tem vendas validadas
+    const produtosAtuais = requisito.produtos.map(p => p.codigoRef);
+
+    if (produtosAtuais.length > 0) {
+      const countVendasValidadas = await this.prisma.envioVenda.count({
+        where: {
+          campanhaId,
+          codigoReferenciaUsado: { in: produtosAtuais },
+          status: 'VALIDADO',
+        },
+      });
+
+      if (countVendasValidadas > 0) {
+        throw new BadRequestException(
+          `Não é possível atualizar produtos deste requisito pois existem ${countVendasValidadas} venda(s) validada(s) usando os produtos atuais.`,
+        );
+      }
+    }
+
+    // Executar em transação
+    return this.prisma.$transaction(async (tx) => {
+      // Deletar produtos antigos
+      await tx.produtoRequisito.deleteMany({
+        where: { requisitoId },
+      });
+
+      this.logger.log(`🗑️ Produtos antigos removidos (${produtosAtuais.length})`);
+
+      // Inserir novos produtos
+      let countNovos = 0;
+
+      if (dto.importSessionId) {
+        // Via staging
+        await tx.$executeRaw`
+          INSERT INTO "produtos_requisitos" ("id", "requisitoId", "codigoRef", "pontosReais", "criadoEm")
+          SELECT
+            gen_random_uuid(),
+            ${requisitoId}::uuid,
+            "codigoRef",
+            "pontosReais",
+            NOW()
+          FROM "product_import_staging"
+          WHERE "sessionId" = ${dto.importSessionId}
+        `;
+
+        countNovos = await tx.produtoRequisito.count({
+          where: { requisitoId },
+        });
+
+        // Limpar staging
+        await tx.productImportStaging.deleteMany({
+          where: { sessionId: dto.importSessionId },
+        });
+
+        this.logger.log(`🧹 Staging limpo (sessionId: ${dto.importSessionId})`);
+      } else if (dto.produtos && dto.produtos.length > 0) {
+        // Via array
+        await tx.produtoRequisito.createMany({
+          data: dto.produtos.map((produto) => ({
+            requisitoId,
+            codigoRef: produto.codigoRef,
+            pontosReais: produto.pontosReais,
+          })),
+        });
+
+        countNovos = dto.produtos.length;
+      }
+
+      this.logger.log(`✅ ${countNovos} novo(s) produto(s) adicionado(s) ao requisito ${requisitoId}`);
+
+      // Registrar no histórico
+      await tx.historicoCampanha.create({
+        data: {
+          campanhaId,
+          adminId: usuario.id,
+          tipo: 'EDICAO',
+          alteracoes: [{
+            campo: 'produtosRequisito',
+            requisitoId,
+            tipo: 'substituicao',
+            produtosAnteriores: produtosAtuais.length,
+            produtosNovos: countNovos,
+          }],
+        },
+      });
+
+      // Retornar requisito atualizado
+      return tx.requisitoCartela.findUnique({
+        where: { id: requisitoId },
+        include: {
+          produtos: true,
+          condicoes: true,
+        },
+      });
+    });
   }
 }

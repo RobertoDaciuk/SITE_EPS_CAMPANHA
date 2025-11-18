@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight, Check, Info, Zap, Calendar, Building2, Layers, FileText, Target, Monitor, Smartphone, AlertTriangle, Package } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Check, Info, Zap, Calendar, Building2, Layers, FileText, Target, Monitor, Smartphone, AlertTriangle } from 'lucide-react';
+// Package removido pois Step3Produtos foi removido (Sprint 21)
 import toast from 'react-hot-toast';
 import api from '@/lib/axios';
 // Tipagem local para evitar acoplamento com a página
@@ -31,7 +32,7 @@ import { startOfDay, endOfDay, parseISO } from 'date-fns';
 // Importar steps individuais
 import Step1DadosBasicos from './wizard-steps/Step1DadosBasicos';
 import Step2Targeting from './wizard-steps/Step2Targeting';
-import Step3Produtos from './wizard-steps/Step3Produtos';
+// Step3Produtos REMOVIDO (Sprint 21): Produtos agora são configurados por requisito no Step3Cartelas
 import Step3Cartelas from './wizard-steps/Step3Cartelas';
 import Step4EventosEspeciais from './wizard-steps/Step4EventosEspeciais';
 import Step5Regras from './wizard-steps/Step5Regras';
@@ -97,7 +98,11 @@ export interface RequisitoFormData {
   quantidade: number;
   tipoUnidade: 'PAR' | 'UNIDADE';
   ordem: number;
-  condicoes: CondicaoFormData[];
+  // Sprint 21: Produtos por requisito
+  produtos?: Array<{ codigoRef: string; pontosReais: number }>;
+  importSessionId?: string; // ID da sessão de staging para este requisito
+  // DEPRECADO: Condições removidas (validação agora é 100% por produtos)
+  condicoes?: CondicaoFormData[];
 }
 
 export interface CondicaoFormData {
@@ -144,20 +149,18 @@ const initialState: WizardState = {
   cartelas: [
     {
       numeroCartela: 1,
-  descricao: 'Cartela',
+      descricao: 'Cartela',
       requisitos: [
         {
           descricao: '',
           quantidade: 1,
           tipoUnidade: 'PAR',
           ordem: 1,
-          condicoes: [
-            {
-              campo: 'NOME_PRODUTO',
-              operador: 'CONTEM',
-              valor: '',
-            },
-          ],
+          // Sprint 21: Produtos por requisito (vazio inicialmente)
+          produtos: [],
+          importSessionId: undefined,
+          // DEPRECADO: Condições removidas
+          condicoes: [],
         },
       ],
     },
@@ -171,7 +174,7 @@ export default function CriarCampanhaWizard({ isOpen, onClose, onSuccess, campan
   const [isLoading, setIsLoading] = useState(false);
   const [isSmallScreen, setIsSmallScreen] = useState(false);
 
-  const totalSteps = 7; // Atualizado: Step3 (Produtos) + Step4 (Cartelas) = +1
+  const totalSteps = 6; // Sprint 21: Removido Step3Produtos (agora produtos são por requisito)
   const isEdicao = !!campanhaParaEditar;
 
   // Detectar tamanho da tela
@@ -415,16 +418,26 @@ export default function CriarCampanhaWizard({ isOpen, onClose, onSuccess, campan
           corDestaque: evento.corDestaque,
         }));
 
+        // Sprint 21: Mapear cartelas com produtos por requisito
         const cartelasParaEnvio = state.cartelas.map((cartela) => ({
           ...cartela,
           requisitos: cartela.requisitos.map((requisito) => ({
-            ...requisito,
-            condicoes: requisito.condicoes.map((condicao) => ({
-              ...condicao,
-              valor: Array.isArray(condicao.valor)
-                ? condicao.valor.join(',')
-                : condicao.valor,
-            })),
+            descricao: requisito.descricao,
+            quantidade: requisito.quantidade,
+            tipoUnidade: requisito.tipoUnidade,
+            ordem: requisito.ordem,
+            // Sprint 21: Produtos por requisito
+            ...(requisito.importSessionId ? { importSessionId: requisito.importSessionId } : {}),
+            ...(requisito.produtos && requisito.produtos.length > 0 ? { produtos: requisito.produtos } : {}),
+            // DEPRECADO: Condições (mantido para compatibilidade)
+            ...(requisito.condicoes && requisito.condicoes.length > 0 ? {
+              condicoes: requisito.condicoes.map((condicao) => ({
+                ...condicao,
+                valor: Array.isArray(condicao.valor)
+                  ? condicao.valor.join(',')
+                  : condicao.valor,
+              })),
+            } : {}),
           })),
         }));
 
@@ -534,14 +547,14 @@ export default function CriarCampanhaWizard({ isOpen, onClose, onSuccess, campan
     );
   }
 
+  // Sprint 21: Removido step "Produtos" - agora produtos são configurados por requisito nas Cartelas
   const steps = [
     { number: 1, title: 'Informações Gerais', icon: Info },
     { number: 2, title: 'Óticas Vinculadas', icon: Building2 },
-    { number: 3, title: 'Produtos', icon: Package },
-    { number: 4, title: 'Cartelas', icon: Layers },
-    { number: 5, title: 'Eventos Multiplicadores', icon: Zap },
-    { number: 6, title: 'Regras', icon: FileText },
-    { number: 7, title: 'Revisão', icon: Check },
+    { number: 3, title: 'Cartelas e Produtos', icon: Layers }, // Renomeado: inclui produtos por requisito
+    { number: 4, title: 'Eventos Multiplicadores', icon: Zap },
+    { number: 5, title: 'Regras', icon: FileText },
+    { number: 6, title: 'Revisão', icon: Check },
   ];
 
   return (
@@ -636,9 +649,9 @@ export default function CriarCampanhaWizard({ isOpen, onClose, onSuccess, campan
                 <div className="flex-1 overflow-y-auto p-6 xl:p-8">
                   <AnimatePresence mode="wait">
                     {currentStep === 1 && (
-                      <Step1DadosBasicos 
-                        key="step1" 
-                        state={state} 
+                      <Step1DadosBasicos
+                        key="step1"
+                        state={state}
                         setState={setState}
                         modoEdicao={!!campanhaParaEditar}
                       />
@@ -646,27 +659,25 @@ export default function CriarCampanhaWizard({ isOpen, onClose, onSuccess, campan
                     {currentStep === 2 && (
                       <Step2Targeting key="step2" state={state} setState={setState} />
                     )}
+                    {/* Sprint 21: Step3Produtos REMOVIDO - produtos agora são configurados por requisito */}
                     {currentStep === 3 && (
-                      <Step3Produtos key="step3" state={state} setState={setState} />
-                    )}
-                    {currentStep === 4 && (
-                      <Step3Cartelas 
-                        key="step4" 
-                        state={state} 
+                      <Step3Cartelas
+                        key="step3"
+                        state={state}
                         setState={setState}
                         modoEdicao={!!campanhaParaEditar}
                         cartelasOriginais={campanhaParaEditar?.cartelas || []}
                         campanhaId={campanhaParaEditar?.id}
                       />
                     )}
+                    {currentStep === 4 && (
+                      <Step4EventosEspeciais key="step4" state={state} setState={setState} />
+                    )}
                     {currentStep === 5 && (
-                      <Step4EventosEspeciais key="step5" state={state} setState={setState} />
+                      <Step5Regras key="step5" state={state} setState={setState} />
                     )}
                     {currentStep === 6 && (
-                      <Step5Regras key="step6" state={state} setState={setState} />
-                    )}
-                    {currentStep === 7 && (
-                      <Step6Revisao key="step7" state={state} />
+                      <Step6Revisao key="step6" state={state} />
                     )}
                   </AnimatePresence>
                 </div>

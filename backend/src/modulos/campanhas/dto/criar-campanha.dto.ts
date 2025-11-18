@@ -271,11 +271,14 @@ export class CriarCampanhaDto {
   // ========================================================================
 
   /**
-   * Lista de produtos que participam desta campanha.
-   * Cada produto tem um código de referência e valor em R$.
-   * Extraído da planilha de produtos enviada pelo admin.
-   * Obrigatório SOMENTE se importSessionId não for fornecido.
-   * 
+   * DEPRECADO (Sprint 21): Produtos agora são por requisito.
+   *
+   * Lista de produtos que participam desta campanha (GLOBAL).
+   * Mantido para compatibilidade temporária.
+   * Use produtos em cada requisito (cartelas[].requisitos[].produtos).
+   *
+   * @deprecated Use cartelas[].requisitos[].produtos ou cartelas[].requisitos[].importSessionId
+   *
    * @example
    * ```
    * [
@@ -284,18 +287,21 @@ export class CriarCampanhaDto {
    * ]
    * ```
    */
-  @ValidateIf(o => !o.importSessionId)
   @IsArray({ message: 'produtosCampanha deve ser um array' })
   @ValidateNested({ each: true })
   @Type(() => ProdutoCampanhaDto)
-  @ArrayNotEmpty({ message: 'A campanha deve ter pelo menos um produto (ou forneça importSessionId)' })
+  @IsOptional()
   produtosCampanha?: ProdutoCampanhaDto[];
 
   /**
-   * ID da sessão de importação de produtos no staging (Sprint 20).
-   * Se fornecido, os produtos serão importados diretamente da tabela de staging
-   * ao invés de usar o campo produtosCampanha.
-   * 
+   * DEPRECADO (Sprint 21): Produtos agora são por requisito.
+   *
+   * ID da sessão de importação de produtos no staging (GLOBAL).
+   * Mantido para compatibilidade temporária.
+   * Use cartelas[].requisitos[].importSessionId para importação por requisito.
+   *
+   * @deprecated Use cartelas[].requisitos[].importSessionId
+   *
    * @example "550e8400-e29b-41d4-a716-446655440000"
    */
   @IsString({ message: 'O ID da sessão deve ser uma string' })
