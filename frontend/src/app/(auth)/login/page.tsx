@@ -56,7 +56,6 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   // ========================================
@@ -147,7 +146,7 @@ export default function LoginPage() {
       // 4. CHAMAR O CONTEXTO (FLUXO CORRETO)
       // ========================================
       
-      login(token, usuario, rememberMe); //
+  login(token, usuario, false); // não existe mais rememberMe
 
       // [REMOVIDO] Armazenamento manual no localStorage
       // [REMOVIDO] Redirecionamento manual via window.location.href
@@ -190,30 +189,29 @@ export default function LoginPage() {
   // ========================================
 
   return (
-    <div className="relative w-full">
-      {/* Toggle de Tema */}
-      <motion.div
-        className="absolute -top-16 right-0 z-50"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3, duration: 0.5 }}
-      >
-        <ThemeToggle />
-      </motion.div>
-
+    <div className="relative w-full min-h-screen flex items-center justify-center py-4 px-4">
       {/* Card Principal (Glassmorphism) */}
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className="relative"
+        className="relative w-full max-w-md"
       >
+        {/* Toggle de Tema */}
+        <motion.div
+          className="absolute -top-16 right-0 z-50"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.5 }}
+        >
+          <ThemeToggle />
+        </motion.div>
         {/*
           NOTA: Usando as classes `bg-card/70 backdrop-blur-lg rounded-3xl`
           conforme o Princípio 4 (Design Magnífico - Glassmorphism e Bordas).
         */}
         <div
-          className="bg-card/70 backdrop-blur-lg rounded-3xl p-6 md:p-9 
+          className="bg-card/70 backdrop-blur-lg rounded-3xl p-4 md:p-6 
                        shadow-xl shadow-black/10
                        border border-white/20
                        relative overflow-hidden"
@@ -233,9 +231,9 @@ export default function LoginPage() {
             }}
           />
 
-          <div className="relative z-10 space-y-6">
+          <div className="relative z-10 space-y-4">
             {/* Logo e Título */}
-            <div className="text-center space-y-3">
+            <div className="text-center space-y-2">
               <motion.div
                 className="inline-flex items-center justify-center mb-1"
                 initial={{ opacity: 0, scale: 0.8 }}
@@ -251,22 +249,19 @@ export default function LoginPage() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2, duration: 0.6 }}
-                className="space-y-1.5"
+                className="space-y-1"
               >
-                <h2 className="text-xl md:text-2xl font-bold tracking-tight text-foreground">
-                  Bem-vindo de volta
-                </h2>
-                <p className="text-muted-foreground text-xs md:text-sm">
-                  Entre com suas credenciais para continuar
+                <p className="text-muted-foreground text-xs">
+                  Insira suas credenciais para acessar a plataforma
                 </p>
               </motion.div>
             </div>
 
             {/* Formulário */}
-            <form className="space-y-4" onSubmit={handleSubmit} noValidate>
+            <form className="space-y-3" onSubmit={handleSubmit} noValidate>
               {/* Campo Email */}
               <motion.div
-                className="space-y-1.5"
+                className="space-y-1"
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.3, duration: 0.5 }}
@@ -303,7 +298,7 @@ export default function LoginPage() {
 
               {/* Campo Senha */}
               <motion.div
-                className="space-y-1.5"
+                className="space-y-1"
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.4, duration: 0.5 }}
@@ -365,30 +360,7 @@ export default function LoginPage() {
               </motion.div>
 
               {/* Lembrar-me */}
-              <motion.div
-                className="flex items-center"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.5, duration: 0.5 }}
-              >
-                <input
-                  id="remember"
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  disabled={isLoading}
-                  className="w-3.5 h-3.5 rounded border-2 border-border text-primary 
-                           focus:ring-2 focus:ring-primary/20 focus:ring-offset-0
-                           transition-all cursor-pointer
-                           disabled:opacity-50 disabled:cursor-not-allowed"
-                />
-                <label
-                  htmlFor="remember"
-                  className="ml-2.5 text-xs text-foreground/80 cursor-pointer select-none"
-                >
-                  Manter-me conectado
-                </label>
-              </motion.div>
+              {/* Lembrar-me removido */}
 
               {/* Botão de Entrada */}
               <motion.button
@@ -425,7 +397,7 @@ export default function LoginPage() {
 
             {/* Link de Cadastro */}
             <motion.div
-              className="pt-4 border-t border-border/50"
+              className="pt-3 border-t border-border/50"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.7, duration: 0.5 }}
@@ -446,16 +418,16 @@ export default function LoginPage() {
             </motion.div>
           </div>
         </div>
-      </motion.div>
 
-      {/* Footer */}
-      <motion.div
-        className="text-center mt-6 text-xs text-muted-foreground"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1, duration: 0.5 }}
-      >
-        © 2025 EPS Campanhas. Todos os direitos reservados.
+        {/* Footer */}
+        <motion.div
+          className="text-center mt-4 text-xs text-muted-foreground"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1, duration: 0.5 }}
+        >
+          © 2025 EPS Campanhas. Todos os direitos reservados.
+        </motion.div>
       </motion.div>
     </div>
   );

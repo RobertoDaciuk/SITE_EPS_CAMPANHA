@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import React, { useState, FormEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mail, KeyRound, Lock, Eye, EyeOff, Info, Loader2, CheckCircle, XCircle, ArrowLeft } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
@@ -22,23 +22,23 @@ export default function EsqueciSenhaPage() {
   const goToPrevStep = () => setCurrentStep((prev) => prev - 1);
 
   return (
-    <div className="relative w-full">
-      <motion.div
-        className="absolute -top-16 right-0 z-50"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3, duration: 0.5 }}
-      >
-        <ThemeToggle />
-      </motion.div>
-
+    <div className="relative w-full min-h-screen flex items-center justify-center py-4 px-4">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className="relative"
+        className="relative w-full max-w-md"
       >
-        <div className="glass rounded-3xl p-6 md:p-9 shadow-glass-lg border border-border/40 backdrop-blur-2xl relative overflow-hidden">
+        <motion.div
+          className="absolute -top-16 right-0 z-50"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.5 }}
+        >
+          <ThemeToggle />
+        </motion.div>
+
+        <div className="glass rounded-3xl p-4 md:p-6 shadow-glass-lg border border-border/40 backdrop-blur-2xl relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary-light/5 opacity-50" />
           
           <motion.div
@@ -54,7 +54,7 @@ export default function EsqueciSenhaPage() {
             }}
           />
 
-          <div className="relative z-10 space-y-6">
+          <div className="relative z-10 space-y-4">
             <StepIndicator currentStep={currentStep} />
             <AnimatePresence mode="wait">
               {currentStep === 1 && (
@@ -72,26 +72,26 @@ export default function EsqueciSenhaPage() {
 }
 
 const StepIndicator = ({ currentStep }: { currentStep: number }) => (
-  <div className="flex items-center justify-between mb-8">
+  <div className="flex items-center justify-between mb-4">
       {steps.map((step, index) => (
-          <>
-              <div className="flex flex-col items-center text-center w-24">
+          <React.Fragment key={step.id}>
+              <div className="flex flex-col items-center text-center w-20">
                   <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
+                      className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300 ${
                           currentStep > step.id ? "bg-primary text-primary-foreground" :
                           currentStep === step.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                       }`}
                   >
-                      {currentStep > step.id ? <CheckCircle className="w-5 h-5" /> : step.id}
+                      {currentStep > step.id ? <CheckCircle className="w-4 h-4" /> : step.id}
                   </div>
-                  <p className={`mt-2 text-xs font-semibold transition-all duration-300 ${
+                  <p className={`mt-1.5 text-xs font-semibold transition-all duration-300 ${
                       currentStep === step.id ? "text-primary" : "text-muted-foreground"
                   }`}>{step.name}</p>
               </div>
               {index < steps.length - 1 && (
-                  <div className="flex-1 h-0.5 bg-border mx-2 md:mx-4" />
+                  <div className="flex-1 h-0.5 bg-border mx-2 md:mx-3" />
               )}
-          </>
+          </React.Fragment>
       ))}
   </div>
 );
@@ -130,44 +130,42 @@ const Step1_Token = ({ goToNextStep, formData, setFormData }: { goToNextStep: ()
   };
 
   return (
-    <motion.div variants={stepVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
-      <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 space-y-3">
+    <motion.div variants={stepVariants} initial="hidden" animate="visible" exit="exit" className="space-y-3">
+      <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 space-y-2">
         <div className="flex items-center gap-2">
-          <Info className="w-5 h-5 text-blue-400" />
-          <h3 className="font-semibold text-base text-foreground">Como Redefinir sua Senha</h3>
+          <Info className="w-4 h-4 text-blue-400" />
+          <h3 className="font-semibold text-sm text-foreground">Como Redefinir sua Senha</h3>
         </div>
         <p className="text-xs text-muted-foreground">
-          Para redefinir sua senha, entre em contato com a Equipe EPS (através do seu gerente ou canal de suporte) e solicite seu token de redefinição. Com o token em mãos, preencha os campos abaixo.
+          Entre em contato com a Equipe EPS e solicite seu token de redefinição. Com o token em mãos, preencha os campos abaixo.
         </p>
       </div>
 
-      <hr className="border-border/50" />
-
       <div className="text-center">
-        <h2 className="text-xl md:text-2xl font-bold tracking-tight">Redefinir sua Senha</h2>
+        <h2 className="text-lg font-bold tracking-tight">Redefinir sua Senha</h2>
       </div>
 
-      <div className="space-y-4">
-        <div className="space-y-1.5">
+      <div className="space-y-2">
+        <div className="space-y-1">
           <label htmlFor="email" className="block text-xs font-semibold text-foreground">Seu Email</label>
           <div className="relative group">
             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary" />
-            <input id="email" name="email" type="email" value={formData.email} onChange={handleChange} placeholder="seu@email.com" disabled={isLoading} className="w-full pl-10 pr-3 py-2.5 rounded-xl border-2 border-border bg-background/50 text-sm focus:outline-none focus:border-primary" />
+            <input id="email" name="email" type="email" value={formData.email} onChange={handleChange} placeholder="seu@email.com" disabled={isLoading} className="w-full pl-10 pr-3 py-2 rounded-xl border-2 border-border bg-background/50 text-sm focus:outline-none focus:border-primary" />
           </div>
         </div>
 
-        <div className="space-y-1.5">
+        <div className="space-y-1">
           <label htmlFor="token" className="block text-xs font-semibold text-foreground">Token de Redefinição</label>
           <div className="relative group">
             <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary" />
-            <input id="token" name="token" type="text" value={formData.token} onChange={handleChange} placeholder="Cole o token fornecido pela Equipe EPS" disabled={isLoading} className="w-full pl-10 pr-3 py-2.5 rounded-xl border-2 border-border bg-background/50 text-sm focus:outline-none focus:border-primary" />
+            <input id="token" name="token" type="text" value={formData.token} onChange={handleChange} placeholder="Cole o token fornecido pela Equipe EPS" disabled={isLoading} className="w-full pl-10 pr-3 py-2 rounded-xl border-2 border-border bg-background/50 text-sm focus:outline-none focus:border-primary" />
           </div>
         </div>
 
         <motion.button
           onClick={handleNext}
           disabled={!isStepValid || isLoading}
-          className="w-full py-3 rounded-xl font-semibold text-sm bg-primary text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full py-2.5 rounded-xl font-semibold text-sm bg-primary text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed"
           whileHover={!isLoading ? { scale: 1.02 } : {}}
           whileTap={!isLoading ? { scale: 0.98 } : {}}
         >
@@ -178,7 +176,7 @@ const Step1_Token = ({ goToNextStep, formData, setFormData }: { goToNextStep: ()
           )}
         </motion.button>
       </div>
-      <div className="pt-4 border-t border-border/50 text-center text-xs">
+      <div className="pt-2 border-t border-border/50 text-center text-xs">
           <Link href="/login" className="text-muted-foreground hover:text-primary transition-colors">
               Lembrou a senha? Voltar para o login
           </Link>
@@ -235,52 +233,52 @@ const Step2_Password = ({ goToPrevStep, formData }: { goToPrevStep: () => void, 
   };
 
   return (
-    <motion.form variants={stepVariants} initial="hidden" animate="visible" exit="exit" className="space-y-4" onSubmit={handleSubmit} noValidate>
+    <motion.form variants={stepVariants} initial="hidden" animate="visible" exit="exit" className="space-y-3" onSubmit={handleSubmit} noValidate>
       <div className="text-center">
-        <h2 className="text-xl font-bold">Crie sua nova senha</h2>
+        <h2 className="text-lg font-bold">Crie sua nova senha</h2>
       </div>
-      <div className="space-y-1.5">
+      <div className="space-y-1">
         <label htmlFor="nova-senha"  className="block text-xs font-semibold text-foreground">Crie sua Nova Senha</label>
         <div className="relative group">
           <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary" />
-          <input id="nova-senha" type={showPassword ? "text" : "password"} value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} disabled={isLoading} className="w-full pl-10 pr-10 py-2.5 rounded-xl border-2 border-border bg-background/50 text-sm focus:outline-none focus:border-primary" />
+          <input id="nova-senha" type={showPassword ? "text" : "password"} value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} disabled={isLoading} className="w-full pl-10 pr-10 py-2 rounded-xl border-2 border-border bg-background/50 text-sm focus:outline-none focus:border-primary" />
           <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary">
             {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
           </button>
         </div>
       </div>
       
-      <ul className="text-xs space-y-1.5 pt-2">
+      <ul className="text-xs space-y-1 pt-1">
         {passwordRequirements.map((req, i) => (
             <li key={i} className={`flex items-center transition-colors duration-300 ${req.regex.test(novaSenha) ? 'text-green-500' : 'text-muted-foreground'}`}>
-                {req.regex.test(novaSenha) ? <CheckCircle className="w-4 h-4 mr-2" /> : <XCircle className="w-4 h-4 mr-2 text-muted-foreground/50" />}
+                {req.regex.test(novaSenha) ? <CheckCircle className="w-3.5 h-3.5 mr-2" /> : <XCircle className="w-3.5 h-3.5 mr-2 text-muted-foreground/50" />}
                 {req.text}
             </li>
         ))}
       </ul>
 
-      <div className="space-y-1.5">
+      <div className="space-y-1">
         <label htmlFor="confirmar-senha"  className="block text-xs font-semibold text-foreground">Confirme sua Nova Senha</label>
         <div className="relative group">
           <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary" />
-          <input id="confirmar-senha" type={showConfirmPassword ? "text" : "password"} value={confirmarSenha} onChange={(e) => setConfirmarSenha(e.target.value)} disabled={isLoading} className="w-full pl-10 pr-10 py-2.5 rounded-xl border-2 border-border bg-background/50 text-sm focus:outline-none focus:border-primary" />
+          <input id="confirmar-senha" type={showConfirmPassword ? "text" : "password"} value={confirmarSenha} onChange={(e) => setConfirmarSenha(e.target.value)} disabled={isLoading} className="w-full pl-10 pr-10 py-2 rounded-xl border-2 border-border bg-background/50 text-sm focus:outline-none focus:border-primary" />
           <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary">
             {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
           </button>
         </div>
-        {confirmarSenha && !doPasswordsMatch && <p className="text-xs text-destructive mt-1">As senhas não conferem.</p>}
-        {confirmarSenha && doPasswordsMatch && <p className="text-xs text-green-500 mt-1">Senhas conferem.</p>}
+        {confirmarSenha && !doPasswordsMatch && <p className="text-xs text-destructive mt-0.5">As senhas não conferem.</p>}
+        {confirmarSenha && doPasswordsMatch && <p className="text-xs text-green-500 mt-0.5">Senhas conferem.</p>}
       </div>
 
-      <div className="flex items-center gap-4 pt-2">
-          <button type="button" onClick={goToPrevStep} className="w-full py-3 rounded-xl font-semibold text-sm bg-muted text-muted-foreground transition-all hover:scale-[1.02] active:scale-[0.98]">
+      <div className="flex items-center gap-3 pt-1">
+          <button type="button" onClick={goToPrevStep} className="w-full py-2.5 rounded-xl font-semibold text-sm bg-muted text-muted-foreground transition-all hover:scale-[1.02] active:scale-[0.98]">
               <ArrowLeft className="inline-block w-4 h-4 mr-2" />
               Voltar
           </button>
           <motion.button
             type="submit"
             disabled={!isStepValid || isLoading}
-            className="w-full py-3 rounded-xl font-semibold text-sm bg-primary text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-2.5 rounded-xl font-semibold text-sm bg-primary text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed"
             whileHover={!isLoading ? { scale: 1.02 } : {}}
             whileTap={!isLoading ? { scale: 0.98 } : {}}
           >
@@ -291,7 +289,7 @@ const Step2_Password = ({ goToPrevStep, formData }: { goToPrevStep: () => void, 
                   <span>Salvando...</span>
                 </>
               ) : (
-                "Salvar Nova Senha"
+                "Salvar"
               )}
             </span>
           </motion.button>

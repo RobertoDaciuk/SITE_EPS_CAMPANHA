@@ -36,23 +36,23 @@ export default function RegisterPage() {
   const goToPrevStep = () => setCurrentStep((prev) => (prev > 1 ? prev - 1 : prev));
 
   return (
-    <div className="relative w-full">
-      <motion.div
-        className="absolute -top-16 right-0 z-50"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3, duration: 0.5 }}
-      >
-        <ThemeToggle />
-      </motion.div>
-
+    <div className="relative w-full min-h-screen flex items-center justify-center py-4 px-4">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className="relative"
+        className="relative w-full max-w-md"
       >
-        <div className="glass rounded-3xl p-6 md:p-9 shadow-glass-lg border border-border/40 backdrop-blur-2xl relative overflow-hidden">
+        <motion.div
+          className="absolute -top-16 right-0 z-50"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.5 }}
+        >
+          <ThemeToggle />
+        </motion.div>
+
+        <div className="glass rounded-3xl p-4 md:p-6 shadow-glass-lg border border-border/40 backdrop-blur-2xl relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary-light/5 opacity-50" />
           
           <motion.div
@@ -61,7 +61,7 @@ export default function RegisterPage() {
             transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
           />
 
-          <div className="relative z-10 space-y-6">
+          <div className="relative z-10 space-y-4">
             {currentStep <= 3 && (
               <StepIndicator currentStep={currentStep} />
             )}
@@ -88,19 +88,19 @@ export default function RegisterPage() {
 }
 
 const StepIndicator = ({ currentStep }: { currentStep: number }) => (
-    <div className="flex items-center justify-between mb-8">
+    <div className="flex items-center justify-between mb-4">
         {steps.map((step, index) => (
             <React.Fragment key={step.id}>
-                <div className="flex flex-col items-center text-center w-24">
+                <div className="flex flex-col items-center text-center w-20">
                     <div
-                        className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
+                        className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300 ${
                             currentStep > step.id ? "bg-primary text-primary-foreground" :
                             currentStep === step.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                         }`}
                     >
-                        {currentStep > step.id ? <CheckCircle className="w-5 h-5" /> : step.id}
+                        {currentStep > step.id ? <CheckCircle className="w-4 h-4" /> : step.id}
                     </div>
-                    <p className={`mt-2 text-xs font-semibold transition-all duration-300 ${
+                    <p className={`mt-1.5 text-xs font-semibold transition-all duration-300 ${
                         currentStep === step.id ? "text-primary" : "text-muted-foreground"
                     }`}>{step.name}</p>
                 </div>
@@ -120,12 +120,12 @@ const stepVariants = {
 
 // Componente de Input reutilizável
 const InputField = ({ icon, name, error, appendIcon, ...props }: any) => (
-    <div className="space-y-1">
+    <div className="space-y-0.5">
         <div className="relative">
             {icon && <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">{icon}</div>}
             <input
                 name={name}
-                className={`w-full py-2.5 rounded-xl border-2 bg-background/50 transition-all duration-300 ${error ? 'border-destructive' : 'border-border focus:border-primary'} focus:outline-none focus:bg-background ${icon ? 'pl-10' : 'pl-4'} ${appendIcon ? 'pr-10' : 'pr-3'}`}
+                className={`w-full py-2 rounded-xl border-2 bg-background/50 transition-all duration-300 ${error ? 'border-destructive' : 'border-border focus:border-primary'} focus:outline-none focus:bg-background ${icon ? 'pl-10' : 'pl-4'} ${appendIcon ? 'pr-10' : 'pr-3'} text-sm`}
                 {...props}
             />
             {appendIcon && <div className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">{appendIcon}</div>}
@@ -173,12 +173,12 @@ const Step1_Otica = ({ goToNextStep, setFormData }: { goToNextStep: () => void, 
     };
 
     return (
-        <motion.div variants={stepVariants} initial="hidden" animate="visible" exit="exit" className="space-y-6">
+        <motion.div variants={stepVariants} initial="hidden" animate="visible" exit="exit" className="space-y-3">
             <div className="text-center">
-                <h2 className="text-xl font-bold">Bem-vindo! Vamos começar.</h2>
-                <p className="text-muted-foreground text-sm">Primeiro, identifique sua ótica parceira.</p>
+                <h2 className="text-lg font-bold">Bem-vindo! Vamos começar.</h2>
+                <p className="text-muted-foreground text-xs">Primeiro, identifique sua ótica parceira.</p>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
                 <label htmlFor="cnpj" className="block text-xs font-semibold text-foreground">CNPJ da sua Ótica</label>
                 <InputField 
                     id="cnpj"
@@ -194,10 +194,10 @@ const Step1_Otica = ({ goToNextStep, setFormData }: { goToNextStep: () => void, 
                         status === 'error' ? <XCircle className="w-5 h-5 text-destructive" /> : null
                     }
                 />
-                {status === 'success' && <p className="text-sm text-green-500 mt-1">✓ Ótica {oticaName}</p>}
+                {status === 'success' && <p className="text-xs text-green-500 mt-1">✓ Ótica {oticaName}</p>}
             </div>
-            <div className="space-y-4 pt-2">
-                <button onClick={goToNextStep} disabled={status !== 'success'} className="w-full py-3 rounded-xl font-semibold text-sm bg-primary text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:scale-[1.02] active:scale-[0.98]">
+            <div className="space-y-2 pt-1">
+                <button onClick={goToNextStep} disabled={status !== 'success'} className="w-full py-2.5 rounded-xl font-semibold text-sm bg-primary text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:scale-[1.02] active:scale-[0.98]">
                     Próximo
                 </button>
                 <div className="text-center">
@@ -282,29 +282,29 @@ const Step2_PersonalData = ({ goToNextStep, goToPrevStep, formData, setFormData 
     const isStepValid = formData.nome && formData.email && formData.cpf.replace(/\D/g, '').length === 11 && formData.whatsapp.replace(/\D/g, '').length >= 10 && formData.dataNascimento && Object.values(errors).every(e => !e);
 
     return (
-        <motion.div variants={stepVariants} initial="hidden" animate="visible" exit="exit" className="space-y-4">
+        <motion.div variants={stepVariants} initial="hidden" animate="visible" exit="exit" className="space-y-2">
             <div className="text-center">
-                <h2 className="text-xl font-bold">Ótimo! Encontramos a {formData.opticaNome}.</h2>
-                <p className="text-muted-foreground text-sm">Agora, precisamos dos seus dados pessoais.</p>
+                <h2 className="text-base font-bold">Encontramos a {formData.opticaNome}!</h2>
+                <p className="text-muted-foreground text-xs">Seus dados pessoais:</p>
             </div>
             
-            <div className="space-y-2">
+            <div className="space-y-1">
                 <label htmlFor="nome" className="block text-xs font-semibold text-foreground ml-1">Nome Completo</label>
                 <InputField id="nome" icon={<User size={16} />} name="nome" placeholder="Ex: João Silva" value={formData.nome} onChange={handleChange} onBlur={handleBlur} error={errors.nome} />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1">
                 <label htmlFor="email" className="block text-xs font-semibold text-foreground ml-1">E-mail</label>
                 <InputField id="email" icon={<Mail size={16} />} name="email" type="email" placeholder="seu.email@gmail.com" value={formData.email} onChange={handleChange} onBlur={handleBlur} error={errors.email} />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1">
                 <label htmlFor="cpf" className="block text-xs font-semibold text-foreground ml-1">CPF</label>
                 <InputField id="cpf" icon={<FileText size={16} />} name="cpf" placeholder="000.000.000-00" value={formData.cpf} onChange={handleChange} onBlur={handleBlur} error={errors.cpf} maxLength={14} />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1">
                 <label htmlFor="whatsapp" className="block text-xs font-semibold text-foreground ml-1">WhatsApp</label>
                 <InputField id="whatsapp" icon={<Smartphone size={16} />} name="whatsapp" placeholder="(99) 99999-9999" value={formData.whatsapp} onChange={handleChange} onBlur={handleBlur} error={errors.whatsapp} maxLength={16} />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1">
                 <label htmlFor="dataNascimento" className="block text-xs font-semibold text-foreground ml-1">Data de Nascimento</label>
                 <InputField
                     id="dataNascimento"
@@ -317,12 +317,12 @@ const Step2_PersonalData = ({ goToNextStep, goToPrevStep, formData, setFormData 
                 />
             </div>
 
-            <div className="flex items-center gap-4 pt-2">
-                <button onClick={goToPrevStep} className="w-full py-3 rounded-xl font-semibold text-sm bg-muted text-muted-foreground transition-all hover:scale-[1.02] active:scale-[0.98]">
+            <div className="flex items-center gap-3 pt-0.5">
+                <button onClick={goToPrevStep} className="w-full py-2.5 rounded-xl font-semibold text-sm bg-muted text-muted-foreground transition-all hover:scale-[1.02] active:scale-[0.98]">
                     <ArrowLeft className="inline-block w-4 h-4 mr-2" />
                     Voltar
                 </button>
-                <button onClick={goToNextStep} disabled={!isStepValid} className="w-full py-3 rounded-xl font-semibold text-sm bg-primary text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:scale-[1.02] active:scale-[0.98]">
+                <button onClick={goToNextStep} disabled={!isStepValid} className="w-full py-2.5 rounded-xl font-semibold text-sm bg-primary text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:scale-[1.02] active:scale-[0.98]">
                     Próximo
                 </button>
             </div>
@@ -375,9 +375,9 @@ const Step3_Password = ({ goToNextStep, goToPrevStep, formData }: { goToNextStep
     };
 
     return (
-        <motion.div variants={stepVariants} initial="hidden" animate="visible" exit="exit" className="space-y-4">
+        <motion.div variants={stepVariants} initial="hidden" animate="visible" exit="exit" className="space-y-3">
             <div className="text-center">
-                <h2 className="text-xl font-bold">Quase lá. Crie sua senha de acesso.</h2>
+                <h2 className="text-lg font-bold">Quase lá! Crie sua senha.</h2>
             </div>
             
             <InputField 
@@ -404,25 +404,25 @@ const Step3_Password = ({ goToNextStep, goToPrevStep, formData }: { goToNextStep
                 error={confirmPassword && !isPasswordMatch ? "As senhas não conferem." : ""}
             />
 
-            <ul className="text-xs space-y-1.5 pt-2">
+            <ul className="text-xs space-y-1 pt-1">
                 {requirements.map((req, i) => (
                     <li key={i} className={`flex items-center transition-colors duration-300 ${req.regex.test(password) ? 'text-green-500' : 'text-muted-foreground'}`}>
-                        {req.regex.test(password) ? <CheckCircle className="w-4 h-4 mr-2" /> : <XCircle className="w-4 h-4 mr-2 text-muted-foreground/50" />}
+                        {req.regex.test(password) ? <CheckCircle className="w-3.5 h-3.5 mr-2" /> : <XCircle className="w-3.5 h-3.5 mr-2 text-muted-foreground/50" />}
                         {req.text}
                     </li>
                 ))}
             </ul>
 
-            <div className="flex items-center gap-4">
-                <button onClick={goToPrevStep} className="w-full py-3 rounded-xl font-semibold text-sm bg-muted text-muted-foreground transition-all hover:scale-[1.02] active:scale-[0.98]">
+            <div className="flex items-center gap-3 pt-1">
+                <button onClick={goToPrevStep} className="w-full py-2.5 rounded-xl font-semibold text-sm bg-muted text-muted-foreground transition-all hover:scale-[1.02] active:scale-[0.98]">
                     <ArrowLeft className="inline-block w-4 h-4 mr-2" />
                     Voltar
                 </button>
-                <button onClick={handleSubmit} disabled={!isStepValid || isLoading} className="w-full py-3 rounded-xl font-semibold text-sm bg-primary text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:scale-[1.02] active:scale-[0.98]">
+                <button onClick={handleSubmit} disabled={!isStepValid || isLoading} className="w-full py-2.5 rounded-xl font-semibold text-sm bg-primary text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:scale-[1.02] active:scale-[0.98]">
                     {isLoading ? (
                         <span className="flex items-center justify-center"><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Enviando...</span>
                     ) : (
-                        "Finalizar Cadastro"
+                        "Finalizar"
                     )}
                 </button>
             </div>
@@ -432,15 +432,15 @@ const Step3_Password = ({ goToNextStep, goToPrevStep, formData }: { goToNextStep
 
 const Step4_Confirmation = ({ formData }: { formData: typeof initialFormData }) => {
     return (
-        <motion.div variants={stepVariants} initial="hidden" animate="visible" exit="exit" className="text-center space-y-4">
+        <motion.div variants={stepVariants} initial="hidden" animate="visible" exit="exit" className="text-center space-y-3">
             <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2, type: "spring" }}>
-                <CheckCircle className="w-16 h-16 text-green-500 mx-auto" />
+                <CheckCircle className="w-12 h-12 text-green-500 mx-auto" />
             </motion.div>
-            <h2 className="text-2xl font-bold">Cadastro enviado com sucesso!</h2>
-            <p className="text-muted-foreground">
-                Olá, {formData.nome}. Sua conta foi criada e agora está aguardando a aprovação da equipe EPS. Você poderá fazer login assim que seu acesso for liberado.
+            <h2 className="text-lg font-bold">Cadastro enviado!</h2>
+            <p className="text-muted-foreground text-xs">
+                Olá, {formData.nome}. Sua conta foi criada e está aguardando aprovação da equipe EPS. Você poderá fazer login assim que seu acesso for liberado.
             </p>
-            <Link href="/login" className="inline-block w-full py-3 rounded-xl font-semibold text-sm bg-primary text-primary-foreground">
+            <Link href="/login" className="inline-block w-full py-2.5 rounded-xl font-semibold text-sm bg-primary text-primary-foreground">
                 Voltar para o Login
             </Link>
         </motion.div>
