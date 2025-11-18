@@ -1,9 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Wallet, TrendingUp, ArrowRight, DollarSign, Lock } from "lucide-react";
-import Link from "next/link";
-import { cn } from "@/lib/utils";
+import { Wallet, TrendingUp, DollarSign, Lock, Info } from "lucide-react";
 
 interface SaldoCardProps {
   saldo: {
@@ -30,69 +28,83 @@ export function SaldoCard({ saldo }: SaldoCardProps) {
                       animate-shimmer" />
       
       <div className="relative p-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="p-3 rounded-2xl bg-primary/10 backdrop-blur-sm">
-              <Wallet className="w-7 h-7 text-primary" />
+        {/* Grid de Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Total de Pontos */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+            className="p-4 rounded-2xl bg-primary/10 border border-primary/20 group relative overflow-visible"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Wallet className="w-4 h-4 text-primary" />
+                <span className="text-xs font-medium text-primary">Total de Pontos</span>
+              </div>
+              <div className="relative">
+                <Info className="w-3.5 h-3.5 text-primary/50 hover:text-primary transition-colors cursor-help" />
+                <div className="absolute top-full right-0 mt-2 hidden group-hover:block z-50 w-40">
+                  <div className="bg-popover text-popover-foreground text-xs rounded-lg p-2 shadow-lg border">
+                    Total de pontos já pagos desde o início
+                  </div>
+                </div>
+              </div>
             </div>
-            <div>
-              <h3 className="text-sm font-medium text-muted-foreground">Saldo Total</h3>
-              <p className="text-xs text-muted-foreground/70">Pontos acumulados</p>
-            </div>
-          </div>
-        </div>
+            <p className="text-2xl font-bold text-primary">
+              {Math.floor(total).toLocaleString("pt-BR")} pts
+            </p>
+          </motion.div>
 
-        {/* Valor Principal */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="mb-8"
-        >
-          <div className="flex items-baseline gap-2">
-            <span className="text-sm font-medium text-muted-foreground">R$</span>
-            <span className="text-6xl font-bold bg-gradient-to-r from-primary to-primary/60 
-                           bg-clip-text text-transparent">
-              {total.toLocaleString("pt-BR", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
-            </span>
-          </div>
-        </motion.div>
-
-        {/* Breakdown */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          {/* Disponível */}
+          {/* Pontos Disponíveis */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.3 }}
-            className="p-4 rounded-2xl bg-success/10 border border-success/20"
+            className="p-4 rounded-2xl bg-success/10 border border-success/20 group relative overflow-visible"
           >
-            <div className="flex items-center gap-2 mb-2">
-              <DollarSign className="w-4 h-4 text-success" />
-              <span className="text-xs font-medium text-success">Disponível</span>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-success" />
+                <span className="text-xs font-medium text-success">Pontos Disponíveis</span>
+              </div>
+              <div className="relative">
+                <Info className="w-3.5 h-3.5 text-success/50 hover:text-success transition-colors cursor-help" />
+                <div className="absolute top-full right-0 mt-2 hidden group-hover:block z-50 w-40">
+                  <div className="bg-popover text-popover-foreground text-xs rounded-lg p-2 shadow-lg border">
+                    Total de pontos liberados para pagamento
+                  </div>
+                </div>
+              </div>
             </div>
             <p className="text-2xl font-bold text-success">
-              R$ {disponivel.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+              {Math.floor(disponivel).toLocaleString("pt-BR")} pts
             </p>
           </motion.div>
 
-          {/* Reservado */}
+          {/* Pontos Pendentes */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.4 }}
-            className="p-4 rounded-2xl bg-warning/10 border border-warning/20"
+            className="p-4 rounded-2xl bg-warning/10 border border-warning/20 group relative overflow-visible"
           >
-            <div className="flex items-center gap-2 mb-2">
-              <Lock className="w-4 h-4 text-warning" />
-              <span className="text-xs font-medium text-warning">Reservado</span>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Lock className="w-4 h-4 text-warning" />
+                <span className="text-xs font-medium text-warning">Pontos Pendentes</span>
+              </div>
+              <div className="relative">
+                <Info className="w-3.5 h-3.5 text-warning/50 hover:text-warning transition-colors cursor-help" />
+                <div className="absolute top-full right-0 mt-2 hidden group-hover:block z-50 w-40">
+                  <div className="bg-popover text-popover-foreground text-xs rounded-lg p-2 shadow-lg border">
+                    Vendas validadas aguardando conclusão de cartela
+                  </div>
+                </div>
+              </div>
             </div>
             <p className="text-2xl font-bold text-warning">
-              R$ {reservado.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+              {Math.floor(reservado).toLocaleString("pt-BR")} pts
             </p>
           </motion.div>
 
@@ -101,32 +113,27 @@ export function SaldoCard({ saldo }: SaldoCardProps) {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.5 }}
-            className="p-4 rounded-2xl bg-primary/10 border border-primary/20"
+            className="p-4 rounded-2xl bg-primary/10 border border-primary/20 group relative overflow-visible"
           >
-            <div className="flex items-center gap-2 mb-2">
-              <TrendingUp className="w-4 h-4 text-primary" />
-              <span className="text-xs font-medium text-primary">Neste mês</span>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-primary" />
+                <span className="text-xs font-medium text-primary">Neste mês</span>
+              </div>
+              <div className="relative">
+                <Info className="w-3.5 h-3.5 text-primary/50 hover:text-primary transition-colors cursor-help" />
+                <div className="absolute top-full right-0 mt-2 hidden group-hover:block z-50 w-40">
+                  <div className="bg-popover text-popover-foreground text-xs rounded-lg p-2 shadow-lg border">
+                    Pontos conquistados no mês atual
+                  </div>
+                </div>
+              </div>
             </div>
             <p className="text-2xl font-bold text-primary">
-              R$ {ganhosMes.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+              {Math.floor(ganhosMes).toLocaleString("pt-BR")} pts
             </p>
           </motion.div>
         </div>
-
-        {/* CTA */}
-        <Link href="/perfil?tab=financeiro">
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-2xl
-                     bg-primary text-primary-foreground font-semibold
-                     hover:bg-primary/90 transition-all duration-300
-                     shadow-lg shadow-primary/20"
-          >
-            Ver Extrato Detalhado
-            <ArrowRight className="w-5 h-5" />
-          </motion.button>
-        </Link>
       </div>
     </motion.div>
   );

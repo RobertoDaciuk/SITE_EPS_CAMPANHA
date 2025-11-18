@@ -23,14 +23,11 @@ import useSWR from "swr";
 import { useAuth } from "@/contexts/ContextoAutenticacao";
 import { KpisAdmin } from "@/components/dashboard/KpisAdmin";
 import { KpisGerente } from "@/components/dashboard/KpisGerente";
-import { KpisVendedor } from "@/components/dashboard/KpisVendedor";
 import { SaldoCard } from "@/components/dashboard/vendedor/saldo-card";
 import { CampanhasAtivasCarousel } from "@/components/dashboard/vendedor/campanhas-ativas-carousel";
-import { MiniRanking } from "@/components/dashboard/vendedor/mini-ranking";
-import { MetasAtuais } from "@/components/dashboard/vendedor/metas-atuais";
 import { FeedDeAtividades } from "@/components/dashboard/vendedor/feed-de-atividades";
 import api from "@/lib/axios";
-import { AlertTriangle, Loader2, Sparkles } from "lucide-react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 
 /**
@@ -150,20 +147,11 @@ export default function DashboardPage() {
 
         return (
           <div className="space-y-8">
-            {/* KPIs Principais */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <KpisVendedor dados={dadosKpis} />
-            </motion.div>
-
             {/* Saldo Card - Destaque */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
+              transition={{ duration: 0.5 }}
             >
               <SaldoCard saldo={dashboardCompleto.saldo} />
             </motion.div>
@@ -177,41 +165,17 @@ export default function DashboardPage() {
               <CampanhasAtivasCarousel campanhas={dashboardCompleto.campanhas} />
             </motion.div>
 
-            {/* Grid 2 Colunas: Metas + Ranking + Feed */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Coluna 1: Metas Atuais */}
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5, delay: 0.3 }}
-                className="lg:col-span-1"
-              >
-                <MetasAtuais metas={dashboardCompleto.metas} />
-              </motion.div>
-
-              {/* Coluna 2: Mini Ranking */}
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5, delay: 0.4 }}
-                className="lg:col-span-1"
-              >
-                <MiniRanking ranking={dashboardCompleto.ranking} />
-              </motion.div>
-
-              {/* Coluna 3: Feed de Atividades */}
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5, delay: 0.5 }}
-                className="lg:col-span-1"
-              >
-                <FeedDeAtividades
-                  historico={dashboardCompleto.historico}
-                  notificacoes={dashboardCompleto.notificacoes}
-                />
-              </motion.div>
-            </div>
+            {/* Feed de Atividades */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+            >
+              <FeedDeAtividades
+                historico={dashboardCompleto.historico}
+                notificacoes={dashboardCompleto.notificacoes}
+              />
+            </motion.div>
           </div>
         );
       
@@ -270,22 +234,6 @@ export default function DashboardPage() {
           </h2>
           <p className="text-muted-foreground mt-1">{getSubsaudacao()}</p>
         </div>
-        
-        {/* Badge de Nível (apenas Vendedor) */}
-        {usuario?.papel === "VENDEDOR" && dashboardCompleto && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="hidden md:flex items-center gap-2 px-4 py-2 rounded-full 
-                     bg-primary/10 border border-primary/20"
-          >
-            <Sparkles className="w-5 h-5 text-primary" />
-            <span className="font-semibold text-primary">
-              Nível {dashboardCompleto.usuario.nivel}
-            </span>
-          </motion.div>
-        )}
       </motion.div>
 
       {/* Renderização Condicional dos Dashboards */}

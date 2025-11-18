@@ -225,6 +225,7 @@ export class DashboardService {
         nivel: true,
         avatarUrl: true,
         saldoPontos: true,
+        saldoReservado: true,
         criadoEm: true,
       },
     });
@@ -235,10 +236,30 @@ export class DashboardService {
 
     // 1. SALDO DETALHADO
     const saldoDisponivel = this.toNumber(usuario.saldoPontos);
-    const saldoReservado = 0; // Removido do schema, manter como 0
-    const saldoTotal = saldoDisponivel + saldoReservado;
+    
+    // Pontos pendentes: vendas validadas mas que ainda não completaram cartela
+    // (numeroCartelaAtendida = null E pontosAdicionadosAoSaldo = false)
+    const pontosPendentes = await this.sumValorProcessado({
+      vendedorId: usuarioId,
+      status: StatusEnvioVenda.VALIDADO,
+      numeroCartelaAtendida: null,
+      pontosAdicionadosAoSaldo: false,
+    });
+    
+    // Total de pontos pagos: soma de todos os relatórios financeiros PAGOS
+    const relatoriosPagos = await this.prisma.relatorioFinanceiro.aggregate({
+      where: {
+        usuarioId: usuarioId,
+        status: 'PAGO',
+      },
+      _sum: {
+        valor: true,
+      },
+    });
+    
+    const totalPontosPagos = this.toNumber(relatoriosPagos._sum.valor || 0);
 
-    // Calcular pontos ganhos no mês atual
+    // Calcular pontos ganhos no mês atual (que já foram adicionados ao saldo)
     const inicioMes = new Date();
     inicioMes.setDate(1);
     inicioMes.setHours(0, 0, 0, 0);
@@ -590,8 +611,8 @@ export class DashboardService {
       },
       saldo: {
         disponivel: saldoDisponivel,
-        reservado: saldoReservado,
-        total: saldoTotal,
+        reservado: pontosPendentes,
+        total: totalPontosPagos,
         ganhosMes: pontosGanhosMes,
       },
       campanhas: campanhasComProgresso,
