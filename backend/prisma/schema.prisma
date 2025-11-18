@@ -314,10 +314,42 @@ model RequisitoCartela {
   condicoes      CondicaoRequisito[]
   enviosVenda    EnvioVenda[]
   regraCartela   RegraCartela        @relation(fields: [regraCartelaId], references: [id], onDelete: Cascade)
+  /// Produtos específicos vinculados a este requisito (Sprint 21 - Refatoração)
+  produtos       ProdutoRequisito[]
 
   @@index([regraCartelaId])
   @@index([ordem])
   @@map("requisitos_cartelas")
+}
+
+/// Define os produtos específicos vinculados a um requisito de cartela.
+/// Cada requisito tem sua própria lista de produtos elegíveis.
+/// Sprint 21 - Refatoração: Produtos por Requisito
+///
+/// Validação de spillover busca por (campanhaId + ordem + codigoRef),
+/// permitindo que produtos de requisitos de mesma ordem sejam compartilhados
+/// entre cartelas auto-replicantes.
+model ProdutoRequisito {
+  /// ID único do produto-requisito (UUID v4)
+  id           String           @id @default(uuid())
+  /// ID do requisito ao qual este produto pertence
+  requisitoId  String
+  /// Código da referência do produto (ex: "LENTE-001", "ARM-002")
+  codigoRef    String
+  /// Valor em Pontos Reais (R$) que este produto paga ao vendedor
+  pontosReais  Decimal          @db.Decimal(10, 2)
+  /// Data de criação do registro
+  criadoEm     DateTime         @default(now())
+  /// Relação com o requisito
+  requisito    RequisitoCartela @relation(fields: [requisitoId], references: [id], onDelete: Cascade)
+
+  /// Produto único por requisito (não pode ter mesmo código duas vezes no mesmo requisito)
+  @@unique([requisitoId, codigoRef])
+  /// Índice para busca por requisito (validação normal)
+  @@index([requisitoId])
+  /// Índice para busca de código (otimiza validação por código)
+  @@index([codigoRef])
+  @@map("produtos_requisitos")
 }
 
 /// Representa uma condição individual do Rule Builder.
