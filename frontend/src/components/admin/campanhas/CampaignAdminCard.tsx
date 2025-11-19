@@ -96,9 +96,9 @@ export default function CampaignAdminCard({
       <div className="glass rounded-2xl overflow-hidden border border-border hover:border-primary transition-all duration-300 hover:shadow-xl">
         {/* Header com Imagem */}
         <div className="relative h-40 bg-gradient-to-br from-primary/20 via-primary/10 to-background overflow-hidden">
-          {campanha.imagemCampanha ? (
+          {(campanha.imagemCampanha16x9Url || campanha.imagemCampanha) ? (
             <img
-              src={campanha.imagemCampanha}
+              src={campanha.imagemCampanha16x9Url || campanha.imagemCampanha}
               alt={campanha.titulo}
               className="w-full h-full object-cover"
             />
@@ -222,10 +222,12 @@ export default function CampaignAdminCard({
             <div className="bg-accent/50 rounded-lg p-3">
               <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
                 <GiftIcon className="h-3 w-3" />
-                <span>Pontos / Cartela</span>
+                <span>Pontos Máximo</span>
               </div>
               <p className="text-base font-bold text-foreground">
-                Pontos {Number(campanha.pontosReaisPorCartela).toFixed(2)}
+                {campanha.pontosReaisMaximo
+                  ? `Até ${Math.floor(Number(campanha.pontosReaisMaximo))} pts`
+                  : `${Math.floor(Number(campanha.pontosReaisPorCartela || 0))} pts`}
               </p>
             </div>
           </div>

@@ -317,9 +317,9 @@ export class CampanhaService {
     this.logger.log(`Listando campanhas para usuário: ${usuario.id} (${usuario.papel})`);
 
     // Construir filtro where baseado no usuário
-    const where: Prisma.CampanhaWhereInput = {
-      status: 'ATIVA', // Filtra apenas campanhas ativas (ajuste se necessário)
-    };
+    // CORRIGIDO: Removido filtro hardcoded status: 'ATIVA' para permitir listar todas as campanhas
+    // O frontend agora é responsável por filtrar por status (ATIVA, CONCLUIDA, FUTURA, etc.)
+    const where: Prisma.CampanhaWhereInput = {};
 
     // Admin vê tudo
     if (usuario.papel !== PapelUsuario.ADMIN) {
