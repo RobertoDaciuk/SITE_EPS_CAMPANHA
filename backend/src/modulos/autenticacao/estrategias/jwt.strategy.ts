@@ -30,11 +30,13 @@ import { PapelUsuario } from '@prisma/client'; // Importação do Enum PapelUsua
  * Interface para o payload do JWT após decodificação.
  * * O campo 'papel' usa o enum PapelUsuario para garantir que o valor
  * decodificado seja tipado corretamente.
+ * * CORREÇÃO (Sprint 20.5): Adicionado opticaId para RBAC de campanhas
  */
 interface JwtPayload {
   sub: string; // ID do usuário (Subject)
   email: string; // Email do usuário
   papel: PapelUsuario; // Papel do usuário (ADMIN, GERENTE, VENDEDOR)
+  opticaId?: string | null; // ✅ CORREÇÃO: ID da ótica do usuário (para RBAC)
   iat?: number; // Issued At (timestamp de emissão)
   exp?: number; // Expiration (timestamp de expiração)
 }
@@ -79,6 +81,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
    * Método de validação do payload do token JWT.
    * * O retorno deste método é injetado automaticamente em request.user
    * em todas as rotas protegidas com @UseGuards(JwtAuthGuard).
+   * * CORREÇÃO (Sprint 20.5): Adicionado opticaId ao objeto retornado para RBAC
    * * @param payload - Payload decodificado do token JWT (tipado com PapelUsuario)
    * @returns Dados do usuário que serão injetados em request.user
    */
@@ -92,6 +95,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       id: payload.sub, // Renomeia 'sub' para 'id' para facilitar uso
       email: payload.email,
       papel: payload.papel,
+      opticaId: payload.opticaId || null, // ✅ CORREÇÃO: Incluir opticaId no req.user
     };
   }
 }

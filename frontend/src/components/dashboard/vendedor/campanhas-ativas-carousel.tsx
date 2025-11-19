@@ -6,6 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { getImageUrl } from "@/lib/image-url";
 
 interface CartelaProgresso {
   id: string;
@@ -103,7 +104,7 @@ export function CampanhasAtivasCarousel({ campanhas }: CampanhasAtivasCarouselPr
           <div className="relative h-64 w-full bg-gradient-to-br from-primary/20 to-primary/5">
             {campanha.imagemCampanha16x9Url ? (
               <Image
-                src={campanha.imagemCampanha16x9Url}
+                src={getImageUrl(campanha.imagemCampanha16x9Url)}
                 alt={campanha.titulo}
                 fill
                 className="object-cover"

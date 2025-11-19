@@ -100,7 +100,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { VisualizarSaldosDto } from './dto/visualizar-saldos.dto';
 import { GerarLoteDto } from './dto/gerar-lote.dto';
 import { ProcessarLoteDto } from './dto/processar-lote.dto';
-import { Prisma, PapelUsuario } from '@prisma/client';
+import { Prisma, PapelUsuario, StatusEnvioVenda } from '@prisma/client';
 
 @Injectable()
 export class FinanceiroService {
@@ -130,6 +130,17 @@ export class FinanceiroService {
     this.logger.log(`Admin ID: ${adminId}`);
     this.logger.log(`Filtros: ${JSON.stringify(filtros)}`);
 
+    // ✅ CORREÇÃO: Processar data de corte (fim do dia em São Paulo)
+    const dataFim = filtros.dataFim 
+      ? (() => {
+          const data = new Date(filtros.dataFim);
+          data.setHours(23, 59, 59, 999);
+          return data;
+        })()
+      : new Date(); // Se não informado, usa data/hora atual
+
+    this.logger.log(`📅 [FILTRO DATA] Data de Corte: ${dataFim.toISOString()} | Local: ${dataFim.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`);
+
     const where: Prisma.UsuarioWhereInput = {
       saldoPontos: { gt: 0 },
       papel: { in: [PapelUsuario.VENDEDOR, PapelUsuario.GERENTE] },
@@ -149,7 +160,8 @@ export class FinanceiroService {
         whatsapp: true,
         papel: true,
         saldoPontos: true,
-        saldoReservado: true, // ✅ MELHORIA M2: Incluir saldo reservado
+        saldoReservado: true,
+        gerenteId: true, // Necessário para calcular comissões de gerentes
         optica: {
           select: {
             id: true,
@@ -172,16 +184,89 @@ export class FinanceiroService {
 
     this.logger.log(`✅ Total de usuários com saldo: ${usuarios.length}`);
 
-    // Calcular valores totais (disponível + reservado)
-    const valorTotalDisponivel = usuarios.reduce((acc, u) => {
-      const saldo =
-        typeof u.saldoPontos === 'object' && 'toNumber' in u.saldoPontos
-          ? (u.saldoPontos as any).toNumber()
-          : Number(u.saldoPontos);
-      return acc + saldo;
-    }, 0);
+    // ✅ CORREÇÃO CRÍTICA: Recalcular saldos baseados na data de corte
+    // Em vez de usar saldoPontos (acumulado), calcular com base em envios validados até dataFim
+    const usuariosComSaldoRecalculado = await Promise.all(
+      usuarios.map(async (usuario) => {
+        let saldoCalculado = 0;
 
-    const valorTotalReservado = usuarios.reduce((acc, u) => {
+        if (usuario.papel === PapelUsuario.VENDEDOR) {
+          // ========================================================================
+          // VENDEDOR: Soma direta dos valores dos envios próprios
+          // ========================================================================
+          const enviosDisponiveis = await this.prisma.envioVenda.findMany({
+            where: {
+              vendedorId: usuario.id,
+              status: StatusEnvioVenda.VALIDADO,
+              pontosAdicionadosAoSaldo: true,
+              pontosLiquidados: false,
+              dataValidacao: { lte: dataFim },
+            },
+            select: {
+              valorFinalComEvento: true,
+              valorPontosReaisRecebido: true,
+            },
+          });
+
+          saldoCalculado = enviosDisponiveis.reduce((acc, envio) => {
+            const valor = Number(envio.valorFinalComEvento || envio.valorPontosReaisRecebido || 0);
+            return acc + valor;
+          }, 0);
+
+          this.logger.debug(`👤 [VENDEDOR] ${usuario.nome}: ${enviosDisponiveis.length} envios | Saldo: R$ ${saldoCalculado.toFixed(2)}`);
+
+        } else if (usuario.papel === PapelUsuario.GERENTE) {
+          // ========================================================================
+          // GERENTE: Soma das COMISSÕES sobre envios dos subordinados
+          // ========================================================================
+          const enviosSubordinados = await this.prisma.envioVenda.findMany({
+            where: {
+              vendedor: { gerenteId: usuario.id },
+              status: StatusEnvioVenda.VALIDADO,
+              pontosAdicionadosAoSaldo: true,
+              pontosLiquidados: false,
+              dataValidacao: { lte: dataFim },
+            },
+            select: {
+              valorPontosReaisRecebido: true, // Valor ORIGINAL (sem multiplicador)
+              campanha: {
+                select: {
+                  percentualGerente: true,
+                },
+              },
+            },
+          });
+
+          saldoCalculado = enviosSubordinados.reduce((acc, envio) => {
+            const valorOriginal = Number(envio.valorPontosReaisRecebido || 0);
+            const percentual = envio.campanha?.percentualGerente
+              ? (typeof envio.campanha.percentualGerente === 'object' && 'toNumber' in envio.campanha.percentualGerente
+                  ? (envio.campanha.percentualGerente as any).toNumber()
+                  : Number(envio.campanha.percentualGerente))
+              : 0;
+            
+            const comissao = valorOriginal * percentual;
+            return acc + comissao;
+          }, 0);
+
+          this.logger.debug(`👤 [GERENTE] ${usuario.nome}: ${enviosSubordinados.length} envios subordinados | Comissão: R$ ${saldoCalculado.toFixed(2)}`);
+        }
+
+        return {
+          ...usuario,
+          saldoPontos: saldoCalculado, // Substituir pelo saldo recalculado
+        };
+      })
+    );
+
+    // Filtrar apenas usuários com saldo > 0 após recálculo
+    const usuariosComSaldo = usuariosComSaldoRecalculado.filter(u => u.saldoPontos > 0);
+
+    this.logger.log(`✅ Usuários com saldo após filtro de data: ${usuariosComSaldo.length}`);
+
+    // Calcular valores totais
+    const valorTotalDisponivel = usuariosComSaldo.reduce((acc, u) => acc + u.saldoPontos, 0);
+    const valorTotalReservado = usuariosComSaldo.reduce((acc, u) => {
       const saldo =
         typeof u.saldoReservado === 'object' && 'toNumber' in u.saldoReservado
           ? (u.saldoReservado as any).toNumber()
@@ -191,17 +276,17 @@ export class FinanceiroService {
 
     const valorTotal = valorTotalDisponivel + valorTotalReservado;
 
-    this.logger.log(`💰 Valor total disponível: R$ ${valorTotalDisponivel.toFixed(2)}`);
+    this.logger.log(`💰 Valor total disponível (até ${dataFim.toLocaleDateString('pt-BR')}): R$ ${valorTotalDisponivel.toFixed(2)}`);
     this.logger.log(`🔒 Valor total reservado: R$ ${valorTotalReservado.toFixed(2)}`);
     this.logger.log(`📊 Valor total geral: R$ ${valorTotal.toFixed(2)}`);
 
     return {
-      usuarios,
+      usuarios: usuariosComSaldo, // ✅ CORREÇÃO: Retornar apenas usuários com saldo > 0
       valorTotal,
-      valorTotalDisponivel, // ✅ NOVO: Saldo livre
-      valorTotalReservado,  // ✅ NOVO: Saldo em lotes PENDENTES
-      totalUsuarios: usuarios.length,
-      dataConsulta: new Date(),
+      valorTotalDisponivel,
+      valorTotalReservado,
+      totalUsuarios: usuariosComSaldo.length, // ✅ CORREÇÃO: Contar apenas usuários filtrados
+      dataConsulta: dataFim, // ✅ CORREÇÃO: Retornar a data usada no filtro
     };
   }
 
@@ -237,9 +322,14 @@ export class FinanceiroService {
   async gerarLote(dto: GerarLoteDto, adminId: string) {
     this.logger.log(`\n========== GERANDO LOTE DE PAGAMENTO ==========`);
     this.logger.log(`Admin ID: ${adminId}`);
-    this.logger.log(`Data de Corte: ${dto.dataCorte}`);
+    this.logger.log(`Data de Corte (recebida): ${dto.dataCorte}`);
 
+    // ✅ CORREÇÃO: Garantir que a data de corte seja o FIM do dia em São Paulo (23:59:59.999)
+    // Se receber "2025-11-18", deve pegar tudo até 23:59:59.999 do dia 18
     const dataCorte = new Date(dto.dataCorte);
+    dataCorte.setHours(23, 59, 59, 999);
+    
+    this.logger.log(`Data de Corte (processada): ${dataCorte.toISOString()} | Local: ${dataCorte.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`);
 
     return this.prisma.$transaction(async (tx) => {
       // ================================================================
@@ -285,6 +375,7 @@ export class FinanceiroService {
       this.logger.log(
         `🔍 [OTIMIZAÇÃO] Buscando envios em bulk: ${vendedoresIds.length} vendedores + ${gerentesIds.length} gerentes`
       );
+      this.logger.log(`📅 [FILTRO DATA] Data de Corte: ${dataCorte.toISOString()}`);
 
       // Query única para todos os envios
       const todosEnvios = await tx.envioVenda.findMany({
@@ -297,6 +388,7 @@ export class FinanceiroService {
                     vendedorId: { in: vendedoresIds },
                     pontosAdicionadosAoSaldo: true,
                     pontosLiquidados: false,
+                    dataValidacao: { lte: dataCorte }, // ✅ CRÍTICO: Filtrar até data de corte
                   },
                 ]
               : []),
@@ -309,6 +401,7 @@ export class FinanceiroService {
                     },
                     pontosAdicionadosAoSaldo: true,
                     pontosLiquidados: false,
+                    dataValidacao: { lte: dataCorte }, // ✅ CRÍTICO: Filtrar até data de corte
                   },
                 ]
               : []),
@@ -912,6 +1005,210 @@ export class FinanceiroService {
       valorTotal,
       criadoEm: relatorios[0].criadoEm,
       dataPagamento: relatorios[0].dataPagamento,
+      processadoPor: relatorios[0].processadoPor,
+    };
+  }
+
+  /**
+   * ============================================================================
+   * BUSCAR LOTE DETALHADO (com todos os envios para auditoria)
+   * ============================================================================
+   * Retorna lote com TODOS os detalhes dos envios incluídos:
+   * - Número do pedido
+   * - Datas de envio e validação
+   * - Campanha
+   * - Evento especial aplicado
+   * - Multiplicador
+   * - Valores originais e finais
+   * - Requisito atendido
+   * - Cartela
+   */
+  async buscarLoteDetalhado(numeroLote: string) {
+    this.logger.log(`\n========== BUSCANDO LOTE DETALHADO ${numeroLote} ==========`);
+
+    const relatorios = await this.prisma.relatorioFinanceiro.findMany({
+      where: { numeroLote },
+      include: {
+        usuario: {
+          select: {
+            id: true,
+            nome: true,
+            email: true,
+            cpf: true,
+            whatsapp: true,
+            papel: true,
+            optica: {
+              select: {
+                id: true,
+                nome: true,
+                cnpj: true,
+                cidade: true,
+                estado: true,
+              },
+            },
+            gerente: {
+              select: {
+                id: true,
+                nome: true,
+                email: true,
+              },
+            },
+          },
+        },
+        campanha: {
+          select: { id: true, titulo: true },
+        },
+        processadoPor: {
+          select: {
+            id: true,
+            nome: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: { usuario: { nome: 'asc' } },
+    });
+
+    if (relatorios.length === 0) {
+      throw new NotFoundException(`Lote ${numeroLote} não encontrado`);
+    }
+
+    // Buscar TODOS os envios detalhados para cada relatório
+    const relatoriosComEnvios = await Promise.all(
+      relatorios.map(async (rel) => {
+        const enviosIds = (rel.enviosIncluidos as string[]) || [];
+
+        if (!Array.isArray(enviosIds) || enviosIds.length === 0) {
+          return { ...rel, enviosDetalhados: [] };
+        }
+
+        // Buscar envios completos com todas as relações
+        const enviosDetalhados = await this.prisma.envioVenda.findMany({
+          where: {
+            id: { in: enviosIds },
+          },
+          select: {
+            id: true,
+            numeroPedido: true,
+            dataEnvio: true,
+            dataValidacao: true,
+            valorPontosReaisRecebido: true,
+            valorFinalComEvento: true,
+            multiplicadorAplicado: true,
+            numeroCartelaAtendida: true,
+            vendedor: {
+              select: {
+                id: true,
+                nome: true,
+                cpf: true,
+                email: true,
+                optica: {
+                  select: {
+                    id: true,
+                    nome: true,
+                    cnpj: true,
+                    cidade: true,
+                    estado: true,
+                  },
+                },
+                gerente: {
+                  select: {
+                    id: true,
+                    nome: true,
+                    cpf: true,
+                    email: true,
+                  },
+                },
+              },
+            },
+            campanha: {
+              select: {
+                id: true,
+                titulo: true,
+                percentualGerente: true,
+              },
+            },
+            requisito: {
+              select: {
+                id: true,
+                descricao: true,
+              },
+            },
+          },
+          orderBy: { dataValidacao: 'desc' },
+        });
+
+        // Buscar eventos especiais ativos na campanha durante o período do envio (com cache em memória)
+        const eventoCache = new Map<string, any>();
+        const enviosComEventos = await Promise.all(
+          enviosDetalhados.map(async (envio) => {
+            let eventoEspecial = null;
+            const multiplicadorNumerico = Number(envio.multiplicadorAplicado || 1);
+            const dataEnvioDate = envio.dataEnvio ? new Date(envio.dataEnvio) : null;
+            
+            // Se teve multiplicador aplicado > 1, buscar evento ativo no período
+            if (multiplicadorNumerico > 1 && dataEnvioDate) {
+              const cacheKey = `${envio.campanha.id}:${dataEnvioDate
+                .toISOString()
+                .substring(0, 10)}:${multiplicadorNumerico}`;
+
+              if (!eventoCache.has(cacheKey)) {
+                const evento = await this.prisma.eventoEspecial.findFirst({
+                  where: {
+                    campanhaId: envio.campanha.id,
+                    ativo: true,
+                    dataInicio: { lte: envio.dataEnvio },
+                    dataFim: { gte: envio.dataEnvio },
+                  },
+                  select: {
+                    id: true,
+                    nome: true,
+                    multiplicador: true,
+                    corDestaque: true,
+                  },
+                });
+                eventoCache.set(cacheKey, evento || null);
+              }
+
+              eventoEspecial = eventoCache.get(cacheKey);
+            }
+            
+            return { ...envio, eventoEspecial, multiplicadorNumerico };
+          })
+        );
+
+        return {
+          ...rel,
+          enviosDetalhados: enviosComEventos,
+        };
+      })
+    );
+
+    const valorTotal = relatorios.reduce((acc, rel) => {
+      const valorNum =
+        typeof rel.valor === 'object' && 'toNumber' in rel.valor
+          ? (rel.valor as any).toNumber()
+          : Number(rel.valor);
+      return acc + valorNum;
+    }, 0);
+
+    this.logger.log(`✅ Lote encontrado: ${relatorios.length} relatórios`);
+    const totalEnvios = relatoriosComEnvios.reduce(
+      (acc, rel) => acc + rel.enviosDetalhados.length,
+      0
+    );
+    this.logger.log(`📦 Total de envios detalhados: ${totalEnvios}`);
+
+    return {
+      numeroLote,
+      dataCorte: relatorios[0].dataCorte,
+      status: relatorios[0].status,
+      relatorios: relatoriosComEnvios,
+      totalRelatorios: relatorios.length,
+      valorTotal,
+      criadoEm: relatorios[0].criadoEm,
+      processadoEm: relatorios[0].dataPagamento,
+      observacoes: relatorios[0].observacoes,
       processadoPor: relatorios[0].processadoPor,
     };
   }

@@ -23,7 +23,7 @@
  * ============================================================================
  */
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PapelUsuario, Prisma, StatusUsuario, StatusEnvioVenda } from '@prisma/client';
 
@@ -37,6 +37,8 @@ interface PosicaoRanking {
 
 @Injectable()
 export class DashboardService {
+  private readonly logger = new Logger(DashboardService.name);
+  
   constructor(private readonly prisma: PrismaService) {}
 
   private toNumber(value: unknown): number {
@@ -68,12 +70,25 @@ export class DashboardService {
     const envios = await this.prisma.envioVenda.findMany({
       where,
       select: {
+        id: true,
         valorFinalComEvento: true,
         valorPontosReaisRecebido: true,
+        numeroPedido: true,
       },
     });
 
-    return envios.reduce((total, envio) => total + this.resolveValorEnvio(envio), 0);
+    const total = envios.reduce((acc, envio) => acc + this.resolveValorEnvio(envio), 0);
+
+    // 🐛 DEBUG: Log detalhado para pontos pendentes
+    if (process.env.NODE_ENV === 'development' && where.pontosAdicionadosAoSaldo === false) {
+      this.logger.debug(`🔍 [PONTOS PENDENTES] Encontrados ${envios.length} envios:`);
+      envios.forEach((e) => {
+        this.logger.debug(`  - Pedido ${e.numeroPedido}: R$ ${this.resolveValorEnvio(e).toFixed(2)}`);
+      });
+      this.logger.debug(`  💰 Total: R$ ${total.toFixed(2)}`);
+    }
+
+    return total;
   }
 
   /**
@@ -237,14 +252,43 @@ export class DashboardService {
     // 1. SALDO DETALHADO
     const saldoDisponivel = this.toNumber(usuario.saldoPontos);
     
-    // Pontos pendentes: vendas validadas mas que ainda não completaram cartela
-    // (numeroCartelaAtendida = null E pontosAdicionadosAoSaldo = false)
+    // Pontos pendentes: vendas validadas aguardando conclusão de cartela
+    // Critérios: status = VALIDADO E pontosAdicionadosAoSaldo = false
+    // Estas vendas estão "presas" em cartelas incompletas aguardando liberação
     const pontosPendentes = await this.sumValorProcessado({
       vendedorId: usuarioId,
       status: StatusEnvioVenda.VALIDADO,
-      numeroCartelaAtendida: null,
       pontosAdicionadosAoSaldo: false,
     });
+
+    // 🐛 DEBUG: Log detalhado para diagnosticar pontos pendentes
+    if (process.env.NODE_ENV === 'development') {
+      this.logger.debug(`🔍 [SALDO] Pontos pendentes calculados para ${usuarioId}: ${pontosPendentes}`);
+      
+      // Verificar todas as vendas validadas e seus estados
+      const todasVendasValidadas = await this.prisma.envioVenda.findMany({
+        where: {
+          vendedorId: usuarioId,
+          status: StatusEnvioVenda.VALIDADO,
+        },
+        select: {
+          id: true,
+          numeroPedido: true,
+          valorFinalComEvento: true,
+          valorPontosReaisRecebido: true,
+          numeroCartelaAtendida: true,
+          pontosAdicionadosAoSaldo: true,
+        },
+      });
+      
+      this.logger.debug(`📊 [VENDAS VALIDADAS] Total: ${todasVendasValidadas.length}`);
+      todasVendasValidadas.forEach((venda) => {
+        const valor = this.resolveValorEnvio(venda);
+        const status = venda.pontosAdicionadosAoSaldo ? '✅ Liberado' : '⏳ Pendente';
+        const cartela = venda.numeroCartelaAtendida || 'Nenhuma';
+        this.logger.debug(`  ${status} | Pedido ${venda.numeroPedido} | R$ ${valor.toFixed(2)} | Cartela: ${cartela}`);
+      });
+    }
     
     // Total de pontos pagos: soma de todos os relatórios financeiros PAGOS
     const relatoriosPagos = await this.prisma.relatorioFinanceiro.aggregate({

@@ -89,7 +89,71 @@ export class CampanhaController {
   }
 
   /**
+   * Rota específica para vendedores visualizarem campanhas.
+   * ⚠️ DEVE VIR ANTES DE GET :id PARA NÃO SER CAPTURADA COMO PARÂMETRO
+   *
+   * CORREÇÃO (Sprint 20.5 - Erro 404):
+   * - Adicionado @UseGuards(JwtAuthGuard) para garantir req.user
+   * - Movida ANTES de GET :id (rotas específicas primeiro em NestJS)
+   * - Adiciona campo calculado `eventosAtivos` para UX frontend
+   *
+   * Rota: GET /api/campanhas/:id/vendedor-view
+   * Acesso: Qualquer usuário autenticado (filtragem por permissão no service)
+   *
+   * @param id - UUID da campanha
+   * @param req - Request com dados do usuário (injetado por JwtAuthGuard)
+   * @returns Campanha com cartelas visíveis + eventosAtivos calculados
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/vendedor-view')
+  async buscarPorIdVendedorView(@Param('id') id: string, @Req() req) {
+    const usuario = req.user;
+    this.logger.log(`[GET] Vendedor-view da campanha: ${id} (usuário: ${usuario.email})`);
+    
+    // Busca campanha com lógica de cartelas visíveis (service faz RBAC)
+    const campanha = await this.campanhaService.buscarPorIdParaVendedorView(id, usuario);
+    
+    // Calcula eventos ativos no momento da requisição (campo derivado)
+    const agoraUtc = new Date();
+    const eventosAtivos = (campanha as any).eventosEspeciais?.filter(
+      (e: any) => e.ativo && new Date(e.dataInicio) <= agoraUtc && new Date(e.dataFim) >= agoraUtc,
+    ) || [];
+
+    return {
+      ...campanha,
+      eventosAtivos,
+    };
+  }
+
+  /**
+   * Rota específica para analytics de campanhas.
+   * ⚠️ DEVE VIR ANTES DE GET :id PARA NÃO SER CAPTURADA COMO PARÂMETRO
+   *
+   * REFATORAÇÃO (Fase 2 - 100% Absoluto):
+   * - NOVO: Endpoint dedicado para analytics
+   * - Movida ANTES de GET :id (rotas específicas primeiro em NestJS)
+   *
+   * Rota: GET /api/campanhas/:id/analytics
+   * Acesso: Admin apenas (validação no service)
+   *
+   * @param id - UUID da campanha
+   * @param req - Request com dados do usuário
+   * @returns Dados analíticos da campanha
+   *
+   * NOTA: Se analytics precisar de lógica diferente no futuro,
+   * implementar método separado no service.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/analytics')
+  async buscarAnalytics(@Param('id') id: string, @Req() req) {
+    const usuario = req.user;
+    this.logger.log(`[GET] Analytics da campanha: ${id} (usuário: ${usuario.email})`);
+    return this.campanhaService.analytics(id, usuario);
+  }
+
+  /**
    * Busca uma campanha específica por ID com dados aninhados completos.
+   * ⚠️ ROTA GENÉRICA - DEVE VIR DEPOIS DAS ROTAS ESPECÍFICAS
    *
    * Rota: GET /api/campanhas/:id
    * Acesso: Qualquer usuário autenticado
@@ -104,51 +168,6 @@ export class CampanhaController {
     const usuario = req.user;
     this.logger.log(`[GET] Buscando campanha por ID: ${id} (usuário: ${usuario.email})`);
     return this.campanhaService.buscarPorId(id, usuario);
-  }
-
-  /**
-   * Alias de GET /:id para compatibilidade com frontend.
-   *
-   * REFATORAÇÃO (Fase 2 - 100% Absoluto):
-   * - NOVO: Alias para /vendedor-view (chama o mesmo buscarPorId)
-   * - CORREÇÃO: Frontend chamava endpoint que não existia
-   *
-   * Rota: GET /api/campanhas/:id/vendedor-view
-   * Comportamento: Idêntico a GET /api/campanhas/:id
-   */
-  @Get(':id/vendedor-view')
-  async buscarPorIdVendedorView(@Param('id') id: string, @Req() req) {
-    // Busca a campanha completa e adiciona um campo calculado `eventosAtivos`
-    const campanha = await this.campanhaService.buscarPorIdParaVendedorView(id, req?.user);
-    const agoraUtc = new Date();
-    const eventosAtivos = (campanha as any).eventosEspeciais?.filter(
-      (e: any) => e.ativo && new Date(e.dataInicio) <= agoraUtc && new Date(e.dataFim) >= agoraUtc,
-    ) || [];
-
-    return {
-      ...campanha,
-      eventosAtivos,
-    };
-  }
-
-  /**
-   * Alias de GET /:id para analytics (compatibilidade).
-   *
-   * REFATORAÇÃO (Fase 2 - 100% Absoluto):
-   * - NOVO: Alias para /analytics (chama o mesmo buscarPorId)
-   * - CORREÇÃO: Frontend chamava endpoint que não existia
-   *
-   * Rota: GET /api/campanhas/:id/analytics
-   * Comportamento: Idêntico a GET /api/campanhas/:id
-   *
-   * NOTA: Se analytics precisar de lógica diferente no futuro,
-   * implementar método separado no service.
-   */
-  @Get(':id/analytics')
-  async buscarAnalytics(@Param('id') id: string, @Req() req) {
-    const usuario = req.user;
-    this.logger.log(`[GET] Analytics da campanha: ${id} (usuário: ${usuario?.email})`);
-    return this.campanhaService.analytics(id, usuario);
   }
 
   /**

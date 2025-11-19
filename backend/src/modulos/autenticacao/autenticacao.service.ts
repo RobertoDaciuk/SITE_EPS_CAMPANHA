@@ -325,11 +325,13 @@ export class AutenticacaoService {
 
     /**
      * Gera token JWT.
+     * CORREÇÃO (Sprint 20.5): Adicionado opticaId ao payload para RBAC de campanhas
      */
     const payload = {
       sub: usuario.id,
       email: usuario.email,
       papel: usuario.papel,
+      opticaId: usuario.opticaId || null, // ✅ CORREÇÃO: Incluir opticaId no token
     };
 
     const token = this.jwtService.sign(payload);

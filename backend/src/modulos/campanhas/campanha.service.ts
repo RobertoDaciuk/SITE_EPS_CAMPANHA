@@ -584,27 +584,42 @@ export class CampanhaService {
     if (usuario && usuario.papel !== PapelUsuario.ADMIN) {
       let podeVer = campanha.paraTodasOticas; // Verifica se é para todos
 
+      // 🐛 DEBUG: Log para diagnosticar problema de acesso
+      this.logger.debug(`🔍 [RBAC] Verificando acesso à campanha ${id}:`);
+      this.logger.debug(`  - paraTodasOticas: ${campanha.paraTodasOticas}`);
+      this.logger.debug(`  - usuario.opticaId: ${usuario.opticaId}`);
+      this.logger.debug(`  - oticasAlvo: ${JSON.stringify(campanha.oticasAlvo.map(o => ({ id: o.id, nome: o.nome })))}`);
+
       if (!podeVer && usuario.opticaId) {
         // Verifica se está no alvo direto
-        if (campanha.oticasAlvo.some(otica => otica.id === usuario.opticaId)) {
+        const estaNoAlvoDireto = campanha.oticasAlvo.some(otica => otica.id === usuario.opticaId);
+        this.logger.debug(`  - estaNoAlvoDireto: ${estaNoAlvoDireto}`);
+
+        if (estaNoAlvoDireto) {
           podeVer = true;
+          this.logger.debug(`  ✅ Acesso concedido: ótica no alvo direto`);
         } else {
           // Verifica se está no alvo da matriz
           const opticaUsuario = await this.prisma.optica.findUnique({
             where: { id: usuario.opticaId },
             select: { matrizId: true },
           });
-          if (
-            opticaUsuario?.matrizId &&
-            campanha.oticasAlvo.some(otica => otica.id === opticaUsuario.matrizId)
-          ) {
-            podeVer = true;
+          this.logger.debug(`  - matrizId da ótica: ${opticaUsuario?.matrizId || 'null'}`);
+
+          if (opticaUsuario?.matrizId) {
+            const estaNoAlvoViaMatriz = campanha.oticasAlvo.some(otica => otica.id === opticaUsuario.matrizId);
+            this.logger.debug(`  - estaNoAlvoViaMatriz: ${estaNoAlvoViaMatriz}`);
+
+            if (estaNoAlvoViaMatriz) {
+              podeVer = true;
+              this.logger.debug(`  ✅ Acesso concedido: matriz no alvo`);
+            }
           }
         }
       }
 
       if (!podeVer) {
-        this.logger.warn(`Usuário ${usuario.id} tentou acessar campanha restrita ${id}.`);
+        this.logger.warn(`❌ Usuário ${usuario.id} tentou acessar campanha restrita ${id} (acesso negado).`);
         throw new NotFoundException(
           `Campanha com ID ${id} não encontrada ou não acessível.`,
         ); // Retorna 404 por segurança
