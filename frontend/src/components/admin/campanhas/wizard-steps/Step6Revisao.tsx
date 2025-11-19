@@ -132,45 +132,8 @@ export default function Step6Revisao({ state }: Props) {
           </div>
         )}
 
-        {/* Produtos da Campanha */}
-        {state.produtosCampanha.length > 0 && (
-          <div className="bg-card border border-border rounded-xl p-5 space-y-3">
-            <h4 className="font-semibold text-foreground flex items-center gap-2">
-              <span aria-hidden className="text-primary">🎯</span>
-              Produtos da Campanha
-            </h4>
-            <p className="text-sm text-muted-foreground">
-              <strong>{state.produtosCampanha.length}</strong> produto(s) cadastrado(s) com valores
-            </p>
-            {state.produtosCampanha.length <= 10 ? (
-              <div className="space-y-2">
-                {state.produtosCampanha.map((produto, index) => (
-                  <div key={index} className="flex justify-between items-center bg-accent/50 rounded-lg p-2 text-xs">
-                    <span className="font-mono text-foreground">{produto.codigoRef}</span>
-                    <span className="font-semibold text-primary">{Math.floor(produto.pontosReais)} pts</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="bg-accent/50 rounded-lg p-3">
-                <p className="text-xs text-muted-foreground">
-                  Primeiros 5 produtos:
-                </p>
-                <div className="space-y-1 mt-2">
-                  {state.produtosCampanha.slice(0, 5).map((produto, index) => (
-                    <div key={index} className="flex justify-between items-center text-xs">
-                      <span className="font-mono text-foreground">{produto.codigoRef}</span>
-                      <span className="font-semibold text-primary">{Math.floor(produto.pontosReais)} pts</span>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  ... e mais {state.produtosCampanha.length - 5} produto(s)
-                </p>
-              </div>
-            )}
-          </div>
-        )}
+        {/* Sprint 21: Produtos agora são por requisito, não globais */}
+        {/* Preview de produtos está disponível em cada requisito no Step3Cartelas */}
 
         {/* Targeting */}
         <div className="bg-card border border-border rounded-xl p-5 space-y-3">

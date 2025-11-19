@@ -101,7 +101,7 @@ export class CampanhaService {
         paraTodasOticas: dto.paraTodasOticas ?? false, // Default false se omitido
         tipoPedido: dto.tipoPedido ?? 'OS_OP_EPS', // Default OS_OP_EPS
         regras: dto.regras,
-        planilhaProdutosUrl: dto.planilhaProdutosUrl,
+        // planilhaProdutosUrl removido (Sprint 21): produtos agora são sempre por requisito
         imagemCampanha16x9Url: dto.imagemCampanha16x9Url,
         imagemCampanha1x1Url: dto.imagemCampanha1x1Url,
       };
@@ -136,68 +136,13 @@ export class CampanhaService {
       this.logger.log(`Campanha base criada: ${campanha.id}`);
 
       /**
-       * PASSO 1.5: DEPRECADO - Produtos Globais (Sprint 18)
+       * PASSO 1.5: REMOVIDO - Produtos Globais (Sprint 21)
        *
-       * Sprint 21 - Refatoração: Produtos agora são por REQUISITO.
-       * A lógica abaixo é mantida apenas para compatibilidade com dados legados.
-       * Novas campanhas devem usar produtos em cada requisito (cartelas[].requisitos[].produtos).
+       * Produtos agora são SEMPRE por requisito (cartelas[].requisitos[].produtos).
+       * A lógica de produtos globais foi completamente removida.
+       * Para compatibilidade com campanhas antigas, a tabela produtos_campanha ainda existe,
+       * mas novas campanhas NÃO devem criar produtos globais.
        */
-      // @deprecated - Manter apenas para compatibilidade
-      if (dto.importSessionId) {
-        this.logger.warn(
-          `[DEPRECADO] Usando importSessionId global. Prefira usar produtos por requisito.`,
-        );
-        // OPÇÃO 1: Importar do staging via INSERT SELECT (muito mais eficiente)
-        this.logger.log(
-          `Importando produtos do staging (sessionId: ${dto.importSessionId}) para campanha ${campanha.id}`,
-        );
-
-        // Usar raw query para INSERT SELECT otimizado
-        await tx.$executeRaw`
-          INSERT INTO "produtos_campanha" ("id", "campanhaId", "codigoRef", "pontosReais", "criadoEm", "atualizadoEm")
-          SELECT
-            gen_random_uuid(),
-            ${campanha.id}::uuid,
-            "codigoRef",
-            "pontosReais",
-            NOW(),
-            NOW()
-          FROM "product_import_staging"
-          WHERE "sessionId" = ${dto.importSessionId}
-        `;
-
-        // Contar quantos foram importados
-        const countImportados = await tx.produtoCampanha.count({
-          where: { campanhaId: campanha.id },
-        });
-
-        this.logger.log(`✅ ${countImportados} produto(s) importado(s) do staging`);
-
-        // Limpar staging após sucesso
-        await tx.productImportStaging.deleteMany({
-          where: { sessionId: dto.importSessionId },
-        });
-
-        this.logger.log(`🧹 Staging limpo (sessionId: ${dto.importSessionId})`);
-      } else if (dto.produtosCampanha && dto.produtosCampanha.length > 0) {
-        this.logger.warn(
-          `[DEPRECADO] Usando produtosCampanha global. Prefira usar produtos por requisito.`,
-        );
-        // OPÇÃO 2: Importação direta via array (legado/compatibilidade)
-        this.logger.log(
-          `Criando ${dto.produtosCampanha.length} produto(s) para campanha ${campanha.id}`,
-        );
-
-        await tx.produtoCampanha.createMany({
-          data: dto.produtosCampanha.map((produto) => ({
-            campanhaId: campanha.id,
-            codigoRef: produto.codigoRef,
-            pontosReais: produto.pontosReais,
-          })),
-        });
-
-        this.logger.log(`✅ ${dto.produtosCampanha.length} produto(s) criado(s) com sucesso`);
-      }
 
       /**
        * PASSO 2, 3 e 4: Criar Cartelas, Requisitos e Condições (Loop Aninhado)
@@ -340,7 +285,7 @@ export class CampanhaService {
         // Contar produtos de todos os requisitos (Sprint 21)
         const totalProdutos = dto.cartelas.reduce((acc, cartela) =>
           acc + cartela.requisitos.reduce((reqAcc, req) =>
-            reqAcc + (req.produtos?.length || 0), 0), 0) || dto.produtosCampanha?.length || 0;
+            reqAcc + (req.produtos?.length || 0), 0), 0);
 
         await tx.historicoCampanha.create({
           data: {
@@ -624,7 +569,7 @@ export class CampanhaService {
           select: { id: true, nome: true },
         },
         eventosEspeciais: true,
-        produtosCampanha: true, // DEPRECADO: Manter para compatibilidade
+        // produtosCampanha removido (Sprint 21): produtos apenas por requisito
       },
     });
 
@@ -782,8 +727,9 @@ export class CampanhaService {
     // Remove campos não permitidos no update (garantia extra)
     delete dados['cartelas'];
     delete dados['oticasAlvoIds'];
-    delete dados['produtosCampanha']; // Sprint 18: produtos só podem ser definidos na criação
+    delete dados['produtosCampanha']; // Sprint 21: produtos globais deprecated (removido no create, mantido aqui para compatibilidade)
     delete dados['eventosEspeciais']; // Eventos também só na criação
+    delete dados['importSessionId']; // Sprint 21: não permitir importação global no update
 
     const campanha = await this.prisma.campanha.update({
       where: { id },
@@ -858,7 +804,7 @@ export class CampanhaService {
     const campanhaAtual: any = await this.prisma.campanha.findUnique({
       where: { id },
       include: {
-        produtosCampanha: true,
+        // produtosCampanha removido (Sprint 21)
         oticasAlvo: true,
         eventosEspeciais: true,
         cartelas: { include: { requisitos: { include: { condicoes: true, produtos: true } } } },
@@ -913,138 +859,13 @@ export class CampanhaService {
       }
 
       // ======================================================================
-      // 2. PRODUTOS DA CAMPANHA
+      // 2. PRODUTOS GLOBAIS REMOVIDO (Sprint 21)
       // ======================================================================
-
-      // 2.1 Remover produtos (com validação)
-      if (dto.produtosRemover && dto.produtosRemover.length > 0) {
-        this.logger.log(`Tentando remover ${dto.produtosRemover.length} produto(s)...`);
-
-        for (const codigoRef of dto.produtosRemover) {
-          // Verificar se existe pedido validado com este código
-          const countPedidos = await tx.envioVenda.count({
-            where: {
-              campanhaId: id,
-              codigoReferenciaUsado: codigoRef,
-              status: 'VALIDADO',
-            },
-          });
-
-          if (countPedidos > 0) {
-            throw new BadRequestException(
-              `Não é possível remover o produto "${codigoRef}" pois existem ${countPedidos} pedido(s) validado(s) usando este código.`,
-            );
-          }
-
-          // Remover produto
-          await tx.produtoCampanha.deleteMany({
-            where: { campanhaId: id, codigoRef },
-          });
-
-          alteracoes.push({
-            campo: 'produtos',
-            tipo: 'remocao',
-            valor: codigoRef,
-          });
-
-          this.logger.log(`✅ Produto "${codigoRef}" removido`);
-        }
-      }
-
-      // 2.2 Adicionar/Atualizar produtos (upsert em lote para evitar timeout)
-      if (dto.produtosAdicionar && dto.produtosAdicionar.length > 0) {
-        this.logger.log(`Processando ${dto.produtosAdicionar.length} produto(s)...`);
-
-        // Buscar todos os produtos existentes de uma vez
-        const produtosExistentes = await tx.produtoCampanha.findMany({
-          where: {
-            campanhaId: id,
-            codigoRef: { in: dto.produtosAdicionar.map(p => p.codigoRef) },
-          },
-        });
-
-        const existentesMap = new Map(
-          produtosExistentes.map(p => [p.codigoRef, p])
-        );
-
-        // Separar em criar vs atualizar
-        const paraAtualizar: Array<{ codigoRef: string; pontosReais: number; anterior: number }> = [];
-        const paraCriar: Array<{ codigoRef: string; pontosReais: number }> = [];
-
-        for (const produto of dto.produtosAdicionar) {
-          const existente = existentesMap.get(produto.codigoRef);
-          
-          if (existente) {
-            const pontosExistente = Number(existente.pontosReais);
-            if (pontosExistente !== produto.pontosReais) {
-              paraAtualizar.push({
-                codigoRef: produto.codigoRef,
-                pontosReais: produto.pontosReais,
-                anterior: pontosExistente,
-              });
-            }
-          } else {
-            paraCriar.push(produto);
-          }
-        }
-
-        // Executar atualizações em lote
-        if (paraAtualizar.length > 0) {
-          await Promise.all(
-            paraAtualizar.map(p =>
-              tx.produtoCampanha.update({
-                where: {
-                  campanhaId_codigoRef: {
-                    campanhaId: id,
-                    codigoRef: p.codigoRef,
-                  },
-                },
-                data: { pontosReais: p.pontosReais },
-              })
-            )
-          );
-
-          paraAtualizar.forEach(p => {
-            alteracoes.push({
-              campo: 'produtos',
-              tipo: 'atualizacao',
-              valor: {
-                codigoRef: p.codigoRef,
-                anterior: p.anterior,
-                novo: p.pontosReais,
-              },
-            });
-          });
-
-          this.logger.log(`✅ ${paraAtualizar.length} produto(s) atualizado(s)`);
-        }
-
-        // Executar criações em lote
-        if (paraCriar.length > 0) {
-          await tx.produtoCampanha.createMany({
-            data: paraCriar.map(p => ({
-              campanhaId: id,
-              codigoRef: p.codigoRef,
-              pontosReais: p.pontosReais,
-            })),
-          });
-
-          paraCriar.forEach(p => {
-            alteracoes.push({
-              campo: 'produtos',
-              tipo: 'adicao',
-              valor: p,
-            });
-          });
-
-          this.logger.log(`✅ ${paraCriar.length} produto(s) adicionado(s)`);
-        }
-
-        const ignorados = dto.produtosAdicionar.length - paraAtualizar.length - paraCriar.length;
-        if (ignorados > 0) {
-          this.logger.debug(`${ignorados} produto(s) ignorado(s) (sem alterações)`);
-        }
-      }
+      // Produtos agora são SEMPRE gerenciados por requisito via endpoint específico:
+      // PATCH /campanhas/requisitos/:requisitoId/produtos
+      // 
+      // Os campos dto.produtosRemover e dto.produtosAdicionar não são mais suportados.
+      // Use o endpoint de atualização de produtos por requisito.
 
       // ======================================================================
       // 3. ÓTICAS ALVO
@@ -1287,7 +1108,7 @@ export class CampanhaService {
           },
           oticasAlvo: { select: { id: true, nome: true } },
           eventosEspeciais: true,
-          produtosCampanha: true,
+          // produtosCampanha removido (Sprint 21)
         },
       });
 

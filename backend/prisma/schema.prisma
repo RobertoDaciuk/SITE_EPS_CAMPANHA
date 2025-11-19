@@ -215,8 +215,7 @@ model Campanha {
   regras                String?
   /// Tipo de coluna onde o número de pedido será buscado na validação
   tipoPedido            TipoPedido            @default(OS_OP_EPS)
-  /// Caminho/URL da planilha original de produtos (opcional, para referência)
-  planilhaProdutosUrl   String?
+  // planilhaProdutosUrl removido (Sprint 21): produtos são sempre por requisito
   /// URL da imagem da campanha em formato 16:9 (para cartelas e lista de campanhas)
   imagemCampanha16x9Url String?
   /// URL da imagem da campanha em formato 1:1 (para aba de regras)
@@ -229,7 +228,7 @@ model Campanha {
   cartelas              RegraCartela[]
   relatoriosFinanceiros RelatorioFinanceiro[]
   oticasAlvo            Optica[]              @relation("CampanhasOticas")
-  produtosCampanha      ProdutoCampanha[]
+  // produtosCampanha removido (Sprint 21): produtos agora são sempre por requisito
   historicosCampanha    HistoricoCampanha[]   @relation("HistoricosCampanha")
 
   @@index([status])
@@ -450,31 +449,9 @@ model EnvioVenda {
   @@map("envios_vendas")
 }
 
-/// Define os produtos específicos que participam de uma campanha.
-/// Cada produto tem um código de referência e valor em R$ associado.
-/// Versão 6.0 (Sprint 18): Substitui a tabela global ValorReferencia.
-model ProdutoCampanha {
-  /// ID único do produto (UUID v4)
-  id           String   @id @default(uuid())
-  /// ID da campanha à qual este produto pertence
-  campanhaId   String
-  /// Código da referência do produto (ex: "LENTE-PREMIUM-001", "ARM-BASICA-002")
-  /// Deve ser único dentro da mesma campanha
-  codigoRef    String
-  /// Valor em Pontos Reais (R$) que este produto paga ao vendedor
-  /// 1 Ponto = R$ 1,00
-  pontosReais  Decimal  @db.Decimal(10, 2)
-  /// Data de criação do registro
-  criadoEm     DateTime @default(now())
-  /// Data da última atualização
-  atualizadoEm DateTime @updatedAt
-  campanha     Campanha @relation(fields: [campanhaId], references: [id], onDelete: Cascade)
-
-  @@unique([campanhaId, codigoRef], map: "campanha_codigo_unico")
-  @@index([campanhaId])
-  @@index([codigoRef])
-  @@map("produtos_campanhas")
-}
+/// REMOVIDO (Sprint 21): Model ProdutoCampanha
+/// Produtos agora são SEMPRE vinculados a requisitos específicos via ProdutoRequisito.
+/// A tabela produtos_campanhas foi dropada pois não há campanhas antigas no sistema.
 
 // Model 'Premio' and 'ResgatePremio' removed.
 // Remoção realizada: a funcionalidade de "prêmios" (moedinhas / resgates)

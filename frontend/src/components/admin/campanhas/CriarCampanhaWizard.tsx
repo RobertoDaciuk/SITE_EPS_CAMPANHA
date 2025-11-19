@@ -24,7 +24,7 @@ type Campanha = {
   oticasAlvo?: Array<{ id: string; nome?: string }>;
   eventosEspeciais?: Array<{ id: string; [key: string]: any }>;
   cartelas?: Array<any>;
-  produtosCampanha?: Array<any>;
+  // produtosCampanha REMOVIDO (Sprint 21): produtos agora são sempre por requisito
 };
 import { fromZonedTime, toZonedTime, format } from 'date-fns-tz';
 import { startOfDay, endOfDay, parseISO } from 'date-fns';
@@ -65,11 +65,6 @@ export interface WizardState {
   tags: string[];
   regras: string;
   tipoPedido: 'OS_OP_EPS' | 'OPTICLICK' | 'EPSWEB' | 'ENVELOPE_OTICA' | '';
-  
-  // Produtos da Campanha (parseados da planilha)
-  produtosCampanha: Array<{ codigoRef: string; pontosReais: number }>;
-  planilhaProdutosUrl?: string;
-  importSessionId?: string; // ID da sessão de importação no staging (Sprint 20)
 
   // Step 2: Targeting
   paraTodasOticas: boolean;
@@ -94,6 +89,7 @@ export interface CartelaFormData {
 }
 
 export interface RequisitoFormData {
+  id?: string; // ID do requisito (apenas para edição)
   descricao: string;
   quantidade: number;
   tipoUnidade: 'PAR' | 'UNIDADE';
@@ -101,6 +97,8 @@ export interface RequisitoFormData {
   // Sprint 21: Produtos por requisito
   produtos?: Array<{ codigoRef: string; pontosReais: number }>;
   importSessionId?: string; // ID da sessão de staging para este requisito
+  quantidadeStaging?: number; // Quantidade de produtos na sessão de staging (para exibição na UI)
+  maxPontos?: number; // Maior valor de pontos encontrado nos produtos deste requisito
   // DEPRECADO: Condições removidas (validação agora é 100% por produtos)
   condicoes?: CondicaoFormData[];
 }
@@ -134,8 +132,6 @@ const initialState: WizardState = {
   imagemCampanha1x1Url: '',
   imagemCampanha16x9Preview: '',
   imagemCampanha1x1Preview: '',
-  produtosCampanha: [],
-  planilhaProdutosUrl: '',
   tags: [],
   regras: '',
   tipoPedido: '',
@@ -211,21 +207,23 @@ export default function CriarCampanhaWizard({ isOpen, onClose, onSuccess, campan
           'yyyy-MM-dd'
         );
 
-        // Carregar produtos da campanha
-        const produtosCampanha = (campanhaCompleta.produtosCampanha || []).map((p: any) => ({
-          codigoRef: p.codigoRef,
-          pontosReais: Number(p.pontosReais),
-        }));
-
-        // Carregar cartelas completas (requisitos + condições)
+        // Carregar cartelas completas (requisitos + produtos + condições)
         const cartelas = (campanhaCompleta.cartelas || []).map((cartela: any) => ({
           numeroCartela: cartela.numeroCartela,
           descricao: cartela.descricao || '',
           requisitos: (cartela.requisitos || []).map((req: any) => ({
+            id: req.id,
             descricao: req.descricao,
             quantidade: req.quantidade,
             tipoUnidade: req.tipoUnidade,
             ordem: req.ordem,
+            // Sprint 21: Carregar produtos do requisito
+            produtos: (req.produtos || []).map((p: any) => ({
+              codigoRef: p.codigoRef,
+              pontosReais: Number(p.pontosReais),
+            })),
+            importSessionId: req.importSessionId || undefined,
+            // DEPRECADO: Condições (mantido para compatibilidade)
             condicoes: (req.condicoes || []).map((cond: any) => ({
               campo: cond.campo,
               operador: cond.operador,
@@ -261,13 +259,11 @@ export default function CriarCampanhaWizard({ isOpen, onClose, onSuccess, campan
           percentualGerente: Number(campanhaCompleta.percentualGerente) * 100, // CONVERSÃO: 0.1 → 10%
           imagemCampanha16x9Url: campanhaCompleta.imagemCampanha16x9Url || '',
           imagemCampanha1x1Url: campanhaCompleta.imagemCampanha1x1Url || '',
-          planilhaProdutosUrl: campanhaCompleta.planilhaProdutosUrl || '',
           regras: campanhaCompleta.regras || '',
           tipoPedido: campanhaCompleta.tipoPedido || '',
           paraTodasOticas: campanhaCompleta.paraTodasOticas || false,
           oticasAlvoIds,
           matrizesSelecionadasIds: [], // Será preenchido pelo Step2Targeting
-          produtosCampanha,
           cartelas: cartelas.length > 0 ? cartelas : initialState.cartelas,
           eventosEspeciais,
           // Manter configurações de wizard padrão
@@ -356,7 +352,7 @@ export default function CriarCampanhaWizard({ isOpen, onClose, onSuccess, campan
         // Eventos a remover (estavam no original mas não estão mais)
         const eventosRemover = eventosIdsOriginais.filter((id: string) => !eventosIdsAtuais.includes(id));
 
-        // Payload de edição avançada
+        // Payload de edição avançada: qualquer campo que não for string, number, boolean ou array deve ser enviado como objeto
         const payloadEdicaoAvancada: any = {
           // Campos básicos
           titulo: state.titulo,
@@ -369,16 +365,11 @@ export default function CriarCampanhaWizard({ isOpen, onClose, onSuccess, campan
           ...(state.tipoPedido ? { tipoPedido: state.tipoPedido } : {}),
           ...(state.regras ? { regras: state.regras } : {}),
           ...(state.tags && state.tags.length > 0 ? { tags: state.tags } : {}),
-          ...(state.planilhaProdutosUrl ? { planilhaProdutosUrl: state.planilhaProdutosUrl } : {}),
           ...(state.imagemCampanha16x9Url ? { imagemCampanha16x9Url: state.imagemCampanha16x9Url } : {}),
           ...(state.imagemCampanha1x1Url ? { imagemCampanha1x1Url: state.imagemCampanha1x1Url } : {}),
         };
 
-        // Produtos (apenas adicionar novos, backend não permite remover via UI por enquanto)
-        // TODO: Implementar lógica de diff de produtos quando necessário
-        if (state.produtosCampanha && state.produtosCampanha.length > 0) {
-          payloadEdicaoAvancada.produtosAdicionar = state.produtosCampanha;
-        }
+        // Sprint 21: Produtos globais removidos da edição (agora são por requisito)
 
         // Eventos especiais
         if (eventosAdicionar.length > 0) {
@@ -391,10 +382,20 @@ export default function CriarCampanhaWizard({ isOpen, onClose, onSuccess, campan
           payloadEdicaoAvancada.eventosRemover = eventosRemover;
         }
 
-        // Óticas (apenas adicionar novas, backend não permite remover via UI por enquanto)
-        // TODO: Implementar lógica de diff de óticas quando necessário
-        if (!state.paraTodasOticas && state.oticasAlvoIds.length > 0) {
-          payloadEdicaoAvancada.oticasAdicionar = state.oticasAlvoIds;
+        // Óticas - Diff (Adicionar/Remover)
+        if (!state.paraTodasOticas) {
+          const oticasOriginaisIds = (campanhaParaEditar.oticasAlvo || []).map((o: any) => o.id);
+          const oticasAtuaisIds = state.oticasAlvoIds;
+
+          const oticasAdicionar = oticasAtuaisIds.filter(id => !oticasOriginaisIds.includes(id));
+          const oticasRemover = oticasOriginaisIds.filter((id: string) => !oticasAtuaisIds.includes(id));
+
+          if (oticasAdicionar.length > 0) {
+            payloadEdicaoAvancada.oticasAdicionar = oticasAdicionar;
+          }
+          if (oticasRemover.length > 0) {
+            payloadEdicaoAvancada.oticasRemover = oticasRemover;
+          }
         }
 
         console.log('📤 Payload de edição avançada:', payloadEdicaoAvancada);
@@ -450,20 +451,29 @@ export default function CriarCampanhaWizard({ isOpen, onClose, onSuccess, campan
           percentualGerente: Number(state.percentualGerente) / 100, // CONVERSÃO: 10% → 0.1
           paraTodasOticas: !!state.paraTodasOticas,
           cartelas: cartelasParaEnvio,
-          produtosCampanha: state.produtosCampanha,
+          // Sprint 21: produtosCampanha REMOVIDO - produtos agora são sempre por requisito
           ...(state.tipoPedido ? { tipoPedido: state.tipoPedido } : {}),
           ...(state.regras ? { regras: state.regras } : {}),
           ...(state.tags && state.tags.length > 0 ? { tags: state.tags } : {}),
           ...(eventosEspeciais.length > 0 ? { eventosEspeciais } : {}),
-          ...(state.planilhaProdutosUrl ? { planilhaProdutosUrl: state.planilhaProdutosUrl } : {}),
           ...(state.imagemCampanha16x9Url ? { imagemCampanha16x9Url: state.imagemCampanha16x9Url } : {}),
           ...(state.imagemCampanha1x1Url ? { imagemCampanha1x1Url: state.imagemCampanha1x1Url } : {}),
           ...(!state.paraTodasOticas ? { oticasAlvoIds: state.oticasAlvoIds } : {}),
         };
 
         console.log('📤 Payload de criação:', payloadCriacao);
+        console.log('📦 Total de cartelas:', payloadCriacao.cartelas.length);
+        payloadCriacao.cartelas.forEach((cartela: any, idx: number) => {
+          console.log(`  📋 Cartela ${idx + 1}:`, cartela.requisitos.length, 'requisitos');
+          cartela.requisitos.forEach((req: any, reqIdx: number) => {
+            const prodCount = req.produtos?.length || 0;
+            const hasSession = !!req.importSessionId;
+            console.log(`    ✅ Requisito ${reqIdx + 1}: ${prodCount} produtos ${hasSession ? `(sessionId: ${req.importSessionId})` : ''}`);
+          });
+        });
 
-        await api.post('/campanhas', payloadCriacao);
+        const response = await api.post('/campanhas', payloadCriacao);
+        console.log('✅ Campanha criada:', response.data);
         toast.success('Campanha criada com sucesso!');
       }
 
@@ -474,9 +484,27 @@ export default function CriarCampanhaWizard({ isOpen, onClose, onSuccess, campan
       onSuccess();
       onClose();
     } catch (error: any) {
-      console.error('Erro ao salvar campanha:', error);
-      const errorMessage = error.response?.data?.message || 'Erro ao salvar campanha';
-      toast.error(errorMessage);
+      console.error('❌ Erro ao salvar campanha:', error);
+      console.error('📋 Response data:', error.response?.data);
+      console.error('📋 Response status:', error.response?.status);
+      
+      // Extrair mensagem de erro detalhada
+      let errorMessage = 'Erro ao salvar campanha';
+      
+      if (error.response?.data) {
+        if (typeof error.response.data === 'string') {
+          errorMessage = error.response.data;
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+          
+          // Se houver array de erros de validação
+          if (Array.isArray(error.response.data.message)) {
+            errorMessage = error.response.data.message.join(', ');
+          }
+        }
+      }
+      
+      toast.error(errorMessage, { duration: 5000 });
     } finally {
       setIsLoading(false);
     }

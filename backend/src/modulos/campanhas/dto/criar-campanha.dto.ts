@@ -44,7 +44,7 @@ import { Type } from 'class-transformer';
 import { TipoPedido } from '@prisma/client';
 import { CriarRegraCartelaDto } from './criar-regra-cartela.dto';
 import { CriarEventoEspecialDto } from './criar-evento-especial.dto';
-import { ProdutoCampanhaDto } from './produto-campanha.dto';
+// ProdutoCampanhaDto removido (Sprint 21): produtos agora são sempre por requisito
 
 /**
  * DTO para criação de uma campanha completa.
@@ -267,55 +267,15 @@ export class CriarCampanhaDto {
   eventosEspeciais?: CriarEventoEspecialDto[];
 
   // ========================================================================
-  // NOVOS CAMPOS (Sprint 18 - Produtos da Campanha)
+  // REMOVIDO (Sprint 21): Produtos Globais
   // ========================================================================
-
-  /**
-   * DEPRECADO (Sprint 21): Produtos agora são por requisito.
-   *
-   * Lista de produtos que participam desta campanha (GLOBAL).
-   * Mantido para compatibilidade temporária.
-   * Use produtos em cada requisito (cartelas[].requisitos[].produtos).
-   *
-   * @deprecated Use cartelas[].requisitos[].produtos ou cartelas[].requisitos[].importSessionId
-   *
-   * @example
-   * ```
-   * [
-   *   { codigoRef: "LENTE-PREMIUM-001", pontosReais: 150.00 },
-   *   { codigoRef: "ARMACAO-BASICA-002", pontosReais: 80.00 }
-   * ]
-   * ```
-   */
-  @IsArray({ message: 'produtosCampanha deve ser um array' })
-  @ValidateNested({ each: true })
-  @Type(() => ProdutoCampanhaDto)
-  @IsOptional()
-  produtosCampanha?: ProdutoCampanhaDto[];
-
-  /**
-   * DEPRECADO (Sprint 21): Produtos agora são por requisito.
-   *
-   * ID da sessão de importação de produtos no staging (GLOBAL).
-   * Mantido para compatibilidade temporária.
-   * Use cartelas[].requisitos[].importSessionId para importação por requisito.
-   *
-   * @deprecated Use cartelas[].requisitos[].importSessionId
-   *
-   * @example "550e8400-e29b-41d4-a716-446655440000"
-   */
-  @IsString({ message: 'O ID da sessão deve ser uma string' })
-  @IsOptional()
-  importSessionId?: string;
-
-  /**
-   * URL/caminho da planilha original de produtos (opcional, para referência).
-   * 
-   * @example "/uploads/campanhas/produtos_campanha_xyz.xlsx"
-   */
-  @IsString({ message: 'A URL da planilha deve ser uma string' })
-  @IsOptional()
-  planilhaProdutosUrl?: string;
+  // Os campos produtosCampanha, importSessionId e planilhaProdutosUrl foram REMOVIDOS.
+  // Produtos agora são SEMPRE definidos por requisito:
+  //   - cartelas[].requisitos[].produtos (array de produtos)
+  //   - cartelas[].requisitos[].importSessionId (importação do staging)
+  //
+  // A tabela produtos_campanha ainda existe no banco para compatibilidade com campanhas antigas,
+  // mas novas campanhas NÃO devem criar produtos globais.
 
   /**
    * URL da imagem da campanha em formato 16:9 (para cartelas e lista).

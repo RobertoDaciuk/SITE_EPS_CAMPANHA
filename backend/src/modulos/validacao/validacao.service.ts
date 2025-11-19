@@ -298,8 +298,8 @@ export class ValidacaoService {
               include: {
                 campanha: {
                   include: {
-                    produtosCampanha: true as any,  // DEPRECADO (Sprint 18): Manter para compatibilidade
-                    // Sprint 21: Para busca por ordem, precisamos de todos os requisitos da campanha
+                    // produtosCampanha removido (Sprint 21): produtos apenas por requisito
+                    // Sprint 21: Para busca por ordem (spillover), precisamos de todos os requisitos da campanha
                     cartelas: {
                       include: {
                         requisitos: {
@@ -817,15 +817,7 @@ export class ValidacaoService {
             }
           }
 
-          // Fallback: buscar em produtos globais da campanha (compatibilidade legado)
-          if (!produtoEncontrado && campanha.produtosCampanha) {
-            produtoEncontrado = campanha.produtosCampanha.find(
-              (p: any) => p.codigoRef === codigoReferencia
-            ) || null;
-            if (produtoEncontrado) {
-              this.logger.log(`Produto encontrado em produtos globais da campanha (legado)`);
-            }
-          }
+          // Fallback removido (Sprint 21): produtos globais não existem mais
 
           if (!produtoEncontrado) {
             const mensagens = this._gerarMensagensDuais('CODIGO_REFERENCIA_NAO_CADASTRADO', {
@@ -1299,14 +1291,14 @@ export class ValidacaoService {
           };
         }
 
-        // Debug: Mostrar campanha e produtos cadastrados
-        const produtosCadastrados = campanha.produtosCampanha?.map((p: any) => p.codigoRef) || [];
+        // Debug: Mostrar campanha e produtos cadastrados NO REQUISITO (Sprint 21)
+        const produtosCadastrados = requisito.produtos?.map((p: any) => p.codigoRef) || [];
         this.logger.debug(`Campanha ID: ${campanha?.id}, Título: "${campanha?.titulo}"`);
-        this.logger.debug(`Produtos cadastrados na campanha: ${produtosCadastrados.length > 0 ? produtosCadastrados.slice(0, 10).join(', ') + (produtosCadastrados.length > 10 ? '...' : '') : 'NENHUM'}`);
+        this.logger.debug(`Produtos cadastrados no requisito: ${produtosCadastrados.length > 0 ? produtosCadastrados.slice(0, 10).join(', ') + (produtosCadastrados.length > 10 ? '...' : '') : 'NENHUM'}`);
 
-        // Verificar se os códigos da planilha existem na tabela ProdutoCampanha
+        // Verificar se os códigos da planilha existem nos produtos do requisito
         const codigosNaoEncontrados = codigosUnicos.filter(
-          (codigo) => !campanha.produtosCampanha?.some((p: any) => p.codigoRef === codigo),
+          (codigo) => !requisito.produtos?.some((p: any) => p.codigoRef === codigo),
         );
 
         if (codigosNaoEncontrados.length > 0) {
@@ -1715,12 +1707,13 @@ export class ValidacaoService {
         },
         campanha: {
           include: {
-            produtosCampanha: true,
+            // produtosCampanha removido (Sprint 21)
           },
         },
         requisito: {
           include: {
             condicoes: true,
+            produtos: true, // Sprint 21: produtos por requisito
             regraCartela: {
               include: {
                 campanha: true,
@@ -1812,7 +1805,7 @@ export class ValidacaoService {
         continue;
       }
 
-      // Validação 3: Código de Referência
+      // Validação 3: Código de Referência (Sprint 21: buscar no requisito)
       const colunaCodRefPlanilha = mapaInvertido['CODIGO_REFERENCIA'];
       const codigoReferencia = String(linhaPlanilha[colunaCodRefPlanilha] || '').trim().toUpperCase();
 
@@ -1821,12 +1814,13 @@ export class ValidacaoService {
         continue;
       }
 
-      const produtoCampanha = envioRejeitado.campanha.produtosCampanha?.find(
+      // Sprint 21: Buscar produto no requisito específico
+      const produtoRequisito = envioRejeitado.requisito.produtos?.find(
         (p: any) => p.codigoRef === codigoReferencia
       );
 
-      if (!produtoCampanha) {
-        this.logger.log(`Revalidação falhou: Código '${codigoReferencia}' não cadastrado na campanha.`);
+      if (!produtoRequisito) {
+        this.logger.log(`Revalidação falhou: Código '${codigoReferencia}' não cadastrado no requisito.`);
         continue;
       }
 
@@ -1848,7 +1842,7 @@ export class ValidacaoService {
         dataRejeicaoOriginal: dataValidacaoOriginal,
         motivoRejeicaoOriginal: motivoRejeicaoOriginal,
         codigoReferenciaUsado: codigoReferencia,
-        valorPontosReaisRecebido: produtoCampanha.pontosReais,
+        valorPontosReaisRecebido: produtoRequisito.pontosReais,
         vendedor: {
           id: envioRejeitado.vendedor.id,
           nome: envioRejeitado.vendedor.nome,

@@ -164,13 +164,11 @@ export class ImportsService {
         }
 
         const record = {
-          id: uuidv4(),
           sessionId: dto.sessionId,
           codigoRef,
           pontosReais: pontos,
           nomeProduto: nomeProduto || null,
           metadata: null,
-          criadoEm: new Date(),
         };
 
         stagingRecords.push(record);

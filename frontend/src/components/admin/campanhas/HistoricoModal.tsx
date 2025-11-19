@@ -64,6 +64,23 @@ export default function HistoricoModal({ isOpen, onClose, campanhaId, tituloCamp
     }
   };
 
+  const formatarValor = (valor: any): string => {
+    if (valor === null || valor === undefined) return 'Vazio';
+    if (typeof valor === 'boolean') return valor ? 'Sim' : 'Não';
+    
+    // Check if it's a date string (ISO format)
+    if (typeof valor === 'string' && /^\d{4}-\d{2}-\d{2}/.test(valor)) {
+      try {
+        return formatarDataBR(valor);
+      } catch (e) {
+        return valor;
+      }
+    }
+    
+    if (typeof valor === 'object') return JSON.stringify(valor);
+    return String(valor);
+  };
+
   const formatarAlteracoes = (alteracoes: any): string[] => {
     if (!alteracoes) return [];
 
@@ -80,6 +97,17 @@ export default function HistoricoModal({ isOpen, onClose, campanhaId, tituloCamp
     // Se for array de alterações
     if (Array.isArray(alteracoes)) {
       return alteracoes.map((alt: Alteracao) => {
+        // Tratamento especial para produtos e staging
+        if (alt.campo === 'produtos' || alt.campo.includes('produtos')) {
+           return `📦 Lista de produtos atualizada`;
+        }
+        if (alt.campo === 'importSessionId') {
+           return `📥 Importação de produtos via planilha atualizada`;
+        }
+        if (alt.campo === 'maxPontos') {
+           return `💰 Pontuação máxima do requisito atualizada`;
+        }
+
         if (alt.tipo === 'adicao') {
           return `➕ ${alt.campo}: Adicionado`;
         } else if (alt.tipo === 'remocao') {
@@ -87,7 +115,9 @@ export default function HistoricoModal({ isOpen, onClose, campanhaId, tituloCamp
         } else if (alt.tipo === 'atualizacao') {
           return `✏️ ${alt.campo}: Atualizado`;
         } else if (alt.valorAnterior !== undefined && alt.valorNovo !== undefined) {
-          return `📝 ${alt.campo}: ${JSON.stringify(alt.valorAnterior)} → ${JSON.stringify(alt.valorNovo)}`;
+          const valAnt = formatarValor(alt.valorAnterior);
+          const valNov = formatarValor(alt.valorNovo);
+          return `📝 ${alt.campo}: ${valAnt} → ${valNov}`;
         }
         return `🔄 ${alt.campo} modificado`;
       });

@@ -33,7 +33,7 @@ async function limparDados() {
   await prisma.requisitoCartela.deleteMany({});
   await prisma.regraCartela.deleteMany({});
   await prisma.eventoEspecial.deleteMany({});
-  await prisma.produtoCampanha.deleteMany({});
+  // produtoCampanha removido (Sprint 21): produtos agora são por requisito
   await prisma.campanha.deleteMany({});
   await prisma.usuario.deleteMany({});
   await prisma.optica.deleteMany({});

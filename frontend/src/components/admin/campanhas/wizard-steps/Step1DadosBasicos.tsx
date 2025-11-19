@@ -178,25 +178,7 @@ export default function Step1DadosBasicos({ state, setState, modoEdicao = false 
       exit={{ opacity: 0, x: -20 }}
       className="space-y-5"
     >
-      {/* Header - COMPACTO */}
-      <div className="bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-blue-500/10 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
-        <div className="flex items-start gap-3">
-          <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg shadow-lg">
-            <Info className="h-6 w-6 text-white" />
-          </div>
-          <div className="flex-1">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
-              {modoEdicao ? 'Editar Campanha' : 'Informações Gerais'}
-            </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              {modoEdicao 
-                ? '✅ Você pode alterar todos os campos abaixo' 
-                : 'Configure as informações fundamentais da sua campanha'
-              }
-            </p>
-          </div>
-        </div>
-      </div>
+      {/* Header removido conforme solicitação */}
 
       {/* Alerta de Modo Edição */}
       {modoEdicao && (
@@ -235,7 +217,7 @@ export default function Step1DadosBasicos({ state, setState, modoEdicao = false 
             type="text"
             value={state.titulo}
             onChange={(e) => setState({ ...state, titulo: e.target.value })}
-            placeholder="Ex: Campanha Lentes Premium Q1 2025"
+            placeholder="Ex: Verão Transitions"
             className="w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white placeholder:text-gray-400 transition-all"
             required
           />
@@ -253,7 +235,7 @@ export default function Step1DadosBasicos({ state, setState, modoEdicao = false 
           <textarea
             value={state.descricao}
             onChange={(e) => setState({ ...state, descricao: e.target.value })}
-            placeholder="Ex: Campanha focada em lentes premium com tratamento BlueProtect. Meta: aumentar vendas em 30%..."
+            placeholder="Ex: Campanha focada em lentes transitions. Meta: aumentar vendas em 30%..."
             rows={3}
             className="w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-white placeholder:text-gray-400 resize-none transition-all"
             required
@@ -329,7 +311,7 @@ export default function Step1DadosBasicos({ state, setState, modoEdicao = false 
                 min="0"
                 max="100"
                 step="1"
-                placeholder="Ex: 10"
+                placeholder="Ex: 15"
                 className="w-full px-4 py-2.5 pr-12 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 dark:text-white transition-all"
                 required
               />
@@ -431,7 +413,7 @@ export default function Step1DadosBasicos({ state, setState, modoEdicao = false 
             className="w-full px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent text-gray-900 dark:text-white placeholder:text-gray-400 transition-all"
           />
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            Ex: Lentes, Q1-2025, Premium, Promoção
+            Ex: Transitions, Varilux, Kodak...
           </p>
 
           {state.tags.length > 0 && (

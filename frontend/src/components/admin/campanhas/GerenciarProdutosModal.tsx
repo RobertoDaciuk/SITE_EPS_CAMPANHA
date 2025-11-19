@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Upload, FileSpreadsheet, Copy, Search, Check, Loader2 } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
@@ -10,13 +10,15 @@ import api from '@/lib/axios';
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (produtos: Array<{ codigoRef: string; pontosReais: number }>, sessionId?: string) => void;
+  onSave: (produtos: Array<{ codigoRef: string; pontosReais: number }>, sessionId?: string, totalStaging?: number, maxPontos?: number) => void;
   produtosAtuais: Array<{ codigoRef: string; pontosReais: number }>;
+  currentSessionId?: string;
   outrosRequisitos?: Array<{
     descricao: string;
     ordem: number;
     produtos: Array<{ codigoRef: string; pontosReais: number }>;
     importSessionId?: string;
+    quantidadeStaging?: number;
   }>;
   cartelaNumero: number;
   requisitoOrdem: number;
@@ -27,6 +29,7 @@ export default function GerenciarProdutosModal({
   onClose,
   onSave,
   produtosAtuais,
+  currentSessionId,
   outrosRequisitos = [],
   cartelaNumero,
   requisitoOrdem,
@@ -38,14 +41,47 @@ export default function GerenciarProdutosModal({
   const [previewProdutos, setPreviewProdutos] = useState<Array<any>>([]);
   const [totalProdutos, setTotalProdutos] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const [availableColumns, setAvailableColumns] = useState<string[]>([]);
   const [mappedCodeColumn, setMappedCodeColumn] = useState<string>('');
   const [mappedValueColumn, setMappedValueColumn] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Estados para paginação
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 50;
+
+  // Ao abrir o modal, verificar se já existem produtos
+  useEffect(() => {
+    if (isOpen) {
+      if (produtosAtuais.length > 0) {
+        // Exibir produtos existentes diretamente no preview
+        setPreviewProdutos(produtosAtuais.map(p => ({
+          codigoRef: p.codigoRef,
+          pontos: p.pontosReais,
+        })));
+        setTotalProdutos(produtosAtuais.length);
+        setStep('preview');
+        setSearchTerm('');
+      } else if (currentSessionId) {
+        // Carregar produtos da sessão de staging
+        setSessionId(currentSessionId);
+        setStep('preview');
+        setSearchTerm('');
+        // Disparar busca inicial
+        handleSearch('', currentSessionId);
+      } else {
+        // Resetar ao estado inicial
+        setStep('upload');
+        setPreviewProdutos([]);
+        setTotalProdutos(0);
+        setSearchTerm('');
+        setFileId('');
+        setSessionId('');
+      }
+    }
+  }, [isOpen, produtosAtuais, currentSessionId]);
 
   // Dropzone para upload
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
@@ -62,7 +98,7 @@ export default function GerenciarProdutosModal({
       });
 
       setFileId(response.data.fileId);
-      setAvailableColumns(response.data.columns || []);
+      setAvailableColumns(response.data.headers || []);
       setStep('mapping');
       toast.success(`Arquivo "${file.name}" carregado com sucesso!`);
     } catch (error) {
@@ -92,27 +128,32 @@ export default function GerenciarProdutosModal({
 
     setIsLoading(true);
     try {
-      const response = await api.post('/imports/staging/map', {
+      // Gerar sessionId único para este upload
+      const newSessionId = `${Date.now()}-${Math.random().toString(36).substring(7)}`;
+      
+      const payload = {
         fileId,
-        codeColumn: mappedCodeColumn,
-        valueColumn: mappedValueColumn,
-      });
-
+        columnRef: mappedCodeColumn,
+        columnPoints: mappedValueColumn,
+        sessionId: newSessionId,
+      };
+      
+      const response = await api.post('/imports/staging/map', payload);
+      
       setSessionId(response.data.sessionId);
-      setTotalProdutos(response.data.totalProducts);
+      setTotalProdutos(response.data.inserted || 0);
 
       // Carregar preview
       const previewResponse = await api.get('/imports/staging/search', {
         params: {
           sessionId: response.data.sessionId,
           limit: pageSize,
-          offset: 0,
         },
       });
 
       setPreviewProdutos(previewResponse.data.products || []);
       setStep('preview');
-      toast.success(`${response.data.totalProducts} produtos mapeados!`);
+      toast.success(`${response.data.inserted} produtos mapeados!`);
     } catch (error) {
       console.error('Erro ao mapear:', error);
       toast.error('Erro ao mapear colunas');
@@ -121,14 +162,65 @@ export default function GerenciarProdutosModal({
     }
   };
 
+  // Buscar produtos via API (com debounce)
+  const handleSearch = useCallback(async (term: string, currentSessionId: string) => {
+    if (!currentSessionId) return;
+
+    setIsSearching(true);
+    try {
+      const params: any = {
+        sessionId: currentSessionId,
+        limit: pageSize,
+      };
+
+      if (term.trim()) {
+        params.q = term.trim();
+      }
+
+      const response = await api.get('/imports/staging/search', { params });
+      setPreviewProdutos(response.data.products || []);
+      setTotalProdutos(response.data.totalInSession || 0);
+    } catch (error) {
+      console.error('Erro ao buscar produtos:', error);
+      toast.error('Erro ao buscar produtos');
+    } finally {
+      setIsSearching(false);
+    }
+  }, [pageSize]);
+
+  // Debounce da busca
+  useEffect(() => {
+    if (step === 'preview' && sessionId) {
+      // Limpar timeout anterior
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+
+      // Agendar nova busca
+      searchTimeoutRef.current = setTimeout(() => {
+        handleSearch(searchTerm, sessionId);
+      }, 300);
+    }
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchTerm, sessionId, step, handleSearch]);
+
   // Copiar de outro requisito
   const handleCopiarDeOutroRequisito = async (requisito: any) => {
-    if (requisito.produtos && requisito.produtos.length > 0) {
-      onSave(requisito.produtos, undefined);
+    if (requisito.importSessionId) {
+      // Copiar via sessionId (Staging)
+      onSave([], requisito.importSessionId, requisito.quantidadeStaging);
+      onClose();
+      toast.success(`Produtos copiados via Staging!`);
+    } else if (requisito.produtos && requisito.produtos.length > 0) {
+      // Copiar produtos diretamente
+      onSave(requisito.produtos, undefined, requisito.produtos.length);
       onClose();
       toast.success(`${requisito.produtos.length} produtos copiados!`);
-    } else if (requisito.importSessionId) {
-      toast.error('Clonagem de sessão ainda não implementada');
     } else {
       toast.error('Este requisito não tem produtos para copiar');
     }
@@ -136,25 +228,25 @@ export default function GerenciarProdutosModal({
 
   // Salvar
   const handleSalvar = () => {
+    // Calcular maxPontos
+    let maxPontos = 0;
+    if (previewProdutos.length > 0) {
+      maxPontos = Math.max(...previewProdutos.map(p => Number(p.pontos || p.pontosReais || 0)));
+    }
+
     if (sessionId) {
       // Salvar com sessionId (backend vai fazer INSERT SELECT)
-      onSave([], sessionId);
+      // Passar totalProdutos para atualizar a UI do card de resumo
+      onSave([], sessionId, totalProdutos, maxPontos);
     } else if (previewProdutos.length > 0) {
-      // Salvar com array direto
+      // Salvar com array direto (produtos existentes ou copiados)
       onSave(previewProdutos.map(p => ({
         codigoRef: p.codigoRef,
-        pontosReais: Number(p.pontosReais || p.pontos),
-      })), undefined);
+        pontosReais: Number(p.pontos || p.pontosReais),
+      })), undefined, previewProdutos.length, maxPontos);
     }
     onClose();
   };
-
-  // Filtrar produtos por busca
-  const filteredProdutos = searchTerm
-    ? previewProdutos.filter(p =>
-        p.codigoRef.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    : previewProdutos;
 
   if (!isOpen) return null;
 
@@ -222,11 +314,11 @@ export default function GerenciarProdutosModal({
                 </div>
 
                 {/* Opção: Copiar de outro requisito */}
-                {outrosRequisitos.length > 0 && (
-                  <div className="mt-8">
-                    <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                      Ou copie de outro requisito:
-                    </h4>
+                <div className="mt-8">
+                  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                    Ou copie de outro requisito:
+                  </h4>
+                  {outrosRequisitos.length > 0 ? (
                     <div className="space-y-2 max-h-48 overflow-y-auto">
                       {outrosRequisitos.map((req, idx) => (
                         <button
@@ -237,15 +329,19 @@ export default function GerenciarProdutosModal({
                           <div>
                             <span className="font-medium">{req.descricao || `Requisito ${req.ordem}`}</span>
                             <span className="text-sm text-gray-500 ml-2">
-                              ({req.produtos?.length || 0} produtos)
+                              ({req.produtos?.length || req.quantidadeStaging || 0} produtos)
                             </span>
                           </div>
                           <Copy className="w-4 h-4 text-gray-400" />
                         </button>
                       ))}
                     </div>
-                  </div>
-                )}
+                  ) : (
+                    <p className="text-sm text-gray-500 italic">
+                      Nenhum requisito disponível para cópia. Configure o requisito anterior primeiro.
+                    </p>
+                  )}
+                </div>
               </div>
             )}
 
@@ -334,23 +430,44 @@ export default function GerenciarProdutosModal({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700 max-h-64 overflow-y-auto">
-                      {filteredProdutos.slice(0, 50).map((produto, idx) => (
-                        <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                          <td className="px-4 py-3 text-sm font-mono">
-                            {produto.codigoRef}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-right">
-                            R$ {Number(produto.pontosReais || produto.pontos).toFixed(2)}
+                      {isSearching ? (
+                        <tr>
+                          <td colSpan={2} className="px-4 py-8 text-center">
+                            <Loader2 className="w-6 h-6 mx-auto text-blue-500 animate-spin" />
+                            <p className="text-sm text-gray-500 mt-2">Buscando produtos...</p>
                           </td>
                         </tr>
-                      ))}
+                      ) : previewProdutos.length === 0 ? (
+                        <tr>
+                          <td colSpan={2} className="px-4 py-8 text-center text-gray-500">
+                            {searchTerm ? 'Nenhum produto encontrado com esse código' : 'Nenhum produto disponível'}
+                          </td>
+                        </tr>
+                      ) : (
+                        previewProdutos.map((produto, idx) => (
+                          <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                            <td className="px-4 py-3 text-sm font-mono">
+                              {produto.codigoRef}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-right">
+                              R$ {Number(produto.pontos || produto.pontosReais || 0).toFixed(2)}
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
 
-                {filteredProdutos.length > 50 && (
+                {!isSearching && previewProdutos.length > 0 && searchTerm && (
                   <p className="text-sm text-gray-500 text-center">
-                    Mostrando 50 de {filteredProdutos.length} produtos
+                    Mostrando até 50 resultados da busca
+                  </p>
+                )}
+                
+                {!isSearching && !searchTerm && totalProdutos > previewProdutos.length && (
+                  <p className="text-sm text-gray-500 text-center">
+                    Mostrando {previewProdutos.length} de {totalProdutos.toLocaleString()} produtos
                   </p>
                 )}
               </div>
@@ -366,13 +483,28 @@ export default function GerenciarProdutosModal({
               Cancelar
             </button>
             {step === 'preview' && (
-              <button
-                onClick={handleSalvar}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 flex items-center gap-2"
-              >
-                <Check className="w-4 h-4" />
-                Salvar {totalProdutos.toLocaleString()} produtos
-              </button>
+              <>
+                <button
+                  onClick={() => {
+                    setStep('upload');
+                    setPreviewProdutos([]);
+                    setTotalProdutos(0);
+                    setSearchTerm('');
+                    setFileId('');
+                    setSessionId('');
+                  }}
+                  className="px-4 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg font-medium mr-auto"
+                >
+                  Nova Importação
+                </button>
+                <button
+                  onClick={handleSalvar}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 flex items-center gap-2"
+                >
+                  <Check className="w-4 h-4" />
+                  Salvar {totalProdutos.toLocaleString()} produtos
+                </button>
+              </>
             )}
           </div>
         </motion.div>
