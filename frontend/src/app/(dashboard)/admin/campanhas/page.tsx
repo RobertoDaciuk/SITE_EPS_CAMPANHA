@@ -34,16 +34,20 @@ export interface Campanha {
   id: string;
   titulo: string;
   descricao: string;
-  pontosReaisPorCartela: number;
+  pontosReaisPorCartela?: number; // Campo legado (campanhas antigas)
+  pontosReaisMaximo?: number; // Campo novo (campanhas Sprint 21+)
   percentualGerente: number;
   dataInicio: string;
   dataFim: string;
   status: string;
   imagemCampanha?: string;
+  imagemCampanha16x9Url?: string;
+  imagemCampanha1x1Url?: string;
   eventosEspeciais?: EventoEspecial[];
   tags?: string[];
   paraTodasOticas?: boolean;
   oticasAlvo?: any[];
+  cartelas?: any[];
   _count?: {
     enviosVenda: number;
     cartelasConcluidas: number;
@@ -53,13 +57,13 @@ export interface Campanha {
 /**
  * Tipo de filtro de status
  */
-type FiltroStatus = "ATIVAS" | "CONCLUIDAS" | "EXPIRADAS";
+type FiltroStatus = "ATIVAS" | "CONCLUIDAS" | "FUTURAS";
 
 /**
  * Determina o status atual da campanha baseado nas datas, considerando o fuso horário.
- * 
+ *
  * @param campanha - Dados da campanha
- * @returns Status calculado (ATIVA, CONCLUIDA, EXPIRADA)
+ * @returns Status calculado (ATIVA, CONCLUIDA, FUTURA)
  */
 function getStatusCampanha(campanha: Campanha): string {
   // A verdade é UTC. Convertemos a hora atual de São Paulo para UTC para uma comparação justa.
@@ -69,7 +73,7 @@ function getStatusCampanha(campanha: Campanha): string {
 
   // Campanha ainda não começou
   if (agoraEmUtc < dataInicio) {
-    return "EXPIRADA"; // Futura (agrupada com expiradas por enquanto)
+    return "FUTURA";
   }
 
   // Campanha está no período ativo
@@ -228,7 +232,7 @@ export default function CampanhasPage() {
 
       if (filtroStatus === "ATIVAS") return statusAtual === "ATIVA";
       if (filtroStatus === "CONCLUIDAS") return statusAtual === "CONCLUIDA";
-      if (filtroStatus === "EXPIRADAS") return statusAtual === "EXPIRADA";
+      if (filtroStatus === "FUTURAS") return statusAtual === "FUTURA";
 
       return false;
     });
@@ -347,25 +351,25 @@ export default function CampanhasPage() {
           )}
         </button>
 
-        {/* Aba: Expiradas */}
+        {/* Aba: Futuras */}
         <button
-          onClick={() => setFiltroStatus("EXPIRADAS")}
+          onClick={() => setFiltroStatus("FUTURAS")}
           className={`px-2 py-1 rounded-lg text-xs md:px-4 md:py-2 md:text-sm font-medium transition-all duration-200 ${
-            filtroStatus === "EXPIRADAS"
+            filtroStatus === "FUTURAS"
               ? "bg-primary text-primary-foreground shadow-md"
               : "text-muted-foreground hover:text-foreground hover:bg-accent"
           }`}
         >
-          Expiradas
+          Futuras
           {!isLoading && (
             <span
               className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
-                filtroStatus === "EXPIRADAS"
+                filtroStatus === "FUTURAS"
                   ? "bg-primary-foreground/20"
                   : "bg-muted"
               }`}
             >
-              {campanhas.filter((c) => getStatusCampanha(c) === "EXPIRADA").length}
+              {campanhas.filter((c) => getStatusCampanha(c) === "FUTURA").length}
             </span>
           )}
         </button>
@@ -408,7 +412,7 @@ export default function CampanhasPage() {
                 Não há campanhas{" "}
                 {filtroStatus === "ATIVAS" && "ativas"}
                 {filtroStatus === "CONCLUIDAS" && "concluídas"}
-                {filtroStatus === "EXPIRADAS" && "expiradas"} no momento.
+                {filtroStatus === "FUTURAS" && "futuras"} no momento.
               </p>
               {filtroStatus !== "ATIVAS" && (
                 <button
