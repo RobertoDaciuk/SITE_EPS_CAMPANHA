@@ -62,7 +62,7 @@ interface RankingResponse {
 export default function RankingGerentePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { usuario } = useAuth();
+  const { usuario, atualizarUsuario } = useAuth();
   const [ranking, setRanking] = useState<RankingResponse | null>(null);
   const [filialSelecionada, setFilialSelecionada] = useState<string>("");
   const [carregando, setCarregando] = useState(true);
@@ -124,6 +124,17 @@ export default function RankingGerentePage() {
       });
 
       setRankingVisivel(novoEstado);
+
+      // Atualiza o contexto global para refletir a mudança imediatamente (sem refresh)
+      if (usuario && usuario.optica) {
+        atualizarUsuario({
+          optica: {
+            ...usuario.optica,
+            rankingVisivelParaVendedores: novoEstado,
+          },
+        });
+      }
+
       toast.success(
         novoEstado
           ? "Ranking habilitado para vendedores!"

@@ -520,16 +520,7 @@ export default function MinhaEquipePage() {
               Gerencie, acompanhe e apoie o desenvolvimento de cada vendedor.
             </p>
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={exportarCSV}
-              disabled={!equipeFiltrada.length}
-              className="flex items-center gap-2 rounded-full border border-border/50 bg-background/60 px-4 py-2 text-sm font-semibold transition hover:bg-background disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Download className="h-4 w-4" />
-              Exportar CSV
-            </button>
-          </div>
+          {/* Botão Exportar CSV removido conforme solicitado */}
         </div>
       </header>
 
@@ -592,73 +583,9 @@ export default function MinhaEquipePage() {
 
       {!carregandoDados && data && (
         <>
-          {/* KPIs Overview */}
-          <section className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
-            <KpiCard
-              titulo="Vendedores ativos"
-              valor={data.overview.ativos}
-              descricao={`${data.overview.totalVendedores} na equipe`}
-              Icone={UserCheck}
-              cor="success"
-            />
-            <KpiCard
-              titulo="Pendentes de aprovação"
-              valor={data.overview.pendentes}
-              descricao="Aguardando onboarding"
-              Icone={Clock}
-              cor="warning"
-            />
-            <KpiCard
-              titulo="Bloqueados"
-              valor={data.overview.bloqueados}
-              descricao="Revisar pendências"
-              Icone={UserX}
-              cor="danger"
-            />
-            <KpiCard
-              titulo="Pontos acumulados"
-              valor={formatarPontos(data.overview.totalPontosEquipe)}
-              descricao={`${data.overview.cartelasConcluidas} cartelas concluídas`}
-              Icone={TrendingUp}
-            />
-            <KpiCard
-              titulo="Saldo disponível"
-              valor={formatarPontos(data.overview.saldoEquipe)}
-              descricao="Pronto para premiações"
-              Icone={Wallet}
-            />
-            <KpiCard
-              titulo="Vendas em análise"
-              valor={data.overview.vendasEmAnalise}
-              descricao="Acompanhe as validações"
-              Icone={Target}
-              cor="warning"
-            />
-            <KpiCard
-              titulo="Comissão pendente"
-              valor={formatarMoeda(data.overview.comissaoPendente)}
-              descricao="Financeiro aguardando aprovação"
-              Icone={Activity}
-            />
-          </section>
+          {/* KPIs Overview removido conforme solicitado */}
 
-          {/* Destaques */}
-          <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <DestaqueCard
-              titulo="Top performer da semana"
-              subtitulo="Maior entrega em pontos reais"
-              membro={data.destaques.topPerformer}
-              icon={Trophy}
-              color="bg-amber-100 text-amber-700"
-            />
-            <DestaqueCard
-              titulo="Precisa de atenção"
-              subtitulo="Menor atividade nos últimos 30 dias"
-              membro={data.destaques.precisaAtencao}
-              icon={AlertTriangle}
-              color="bg-rose-100 text-rose-700"
-            />
-          </section>
+          {/* Destaques removidos conforme solicitado */}
 
           {/* Filtros e Busca */}
           <section className="rounded-2xl border border-border/40 bg-card/80 shadow-sm">

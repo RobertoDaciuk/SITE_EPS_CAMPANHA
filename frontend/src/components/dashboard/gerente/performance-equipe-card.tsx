@@ -119,27 +119,26 @@ export function PerformanceEquipeCard({ performance }: PerformanceEquipeCardProp
       {/* Sparkline (Mini Gráfico) */}
       <div className="mt-6 pt-6 border-t border-border/30">
         <p className="text-sm font-semibold text-muted-foreground mb-3">
-          Evolução (últimos 7 dias)
+          Evolução (últimos 30 dias)
         </p>
         <div className="flex items-end justify-between gap-1 h-16">
-          {performance.evolucaoTemporal.slice(-7).map((item, index) => {
-            const maxPontos = Math.max(...performance.evolucaoTemporal.slice(-7).map((e) => e.pontos));
+          {performance.evolucaoTemporal.slice(-30).map((item, index) => {
+            const maxPontos = Math.max(...performance.evolucaoTemporal.slice(-30).map((e) => e.pontos));
             const altura = maxPontos > 0 ? (item.pontos / maxPontos) * 100 : 0;
-            
             return (
               <motion.div
                 key={index}
                 initial={{ height: 0 }}
                 animate={{ height: `${altura}%` }}
-                transition={{ delay: index * 0.05, duration: 0.4 }}
-                className="flex-1 bg-gradient-to-t from-blue-600 to-blue-400 dark:from-blue-500 dark:to-blue-300 rounded-t-sm min-h-[4px] hover:opacity-80 transition-opacity"
+                transition={{ delay: index * 0.01, duration: 0.3 }}
+                className="flex-1 bg-gradient-to-t from-blue-600 to-blue-400 dark:from-blue-500 dark:to-blue-300 rounded-t-sm min-h-[2px] hover:opacity-80 transition-opacity"
                 title={`${item.pontos} pontos em ${new Date(item.data).toLocaleDateString("pt-BR")}`}
               />
             );
           })}
         </div>
         <div className="flex justify-between mt-2 text-xs text-muted-foreground">
-          <span>-7d</span>
+          <span>-30d</span>
           <span>Hoje</span>
         </div>
       </div>

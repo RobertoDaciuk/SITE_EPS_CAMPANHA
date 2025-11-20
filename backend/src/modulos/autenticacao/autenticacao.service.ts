@@ -258,6 +258,7 @@ export class AutenticacaoService {
           select: {
             id: true,
             nome: true,
+            rankingVisivelParaVendedores: true,
           },
         },
       },

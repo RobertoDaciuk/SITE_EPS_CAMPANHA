@@ -78,6 +78,13 @@ export interface PropsContextoAutenticacao {
   ) => void;
 
   /**
+   * Função para atualizar os dados do usuário no estado e localStorage
+   * sem precisar fazer login novamente.
+   * @param dadosParciais - Objeto com os campos a serem atualizados
+   */
+  atualizarUsuario: (dadosParciais: Partial<Usuario>) => void;
+
+  /**
    * Função para realizar logout.
    * Limpa os dados do estado e do localStorage.
    */

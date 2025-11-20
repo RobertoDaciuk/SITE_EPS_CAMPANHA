@@ -43,10 +43,7 @@ export default function Header({ setSidebarOpen }: HeaderProps) {
             <Menu className="w-6 h-6" />
           </button>
 
-          {/* Título da Página (opcional) */}
-          <div className="hidden md:block">
-            <h1 className="text-xl font-semibold">Dashboard</h1>
-          </div>
+          {/* Título da Página removido para evitar redundância visual */}
         </div>
 
         {/* ========================================

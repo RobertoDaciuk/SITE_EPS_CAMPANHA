@@ -84,6 +84,18 @@ export function ProvedorAutenticacao({ children }: ProvedorAutenticacaoProps) {
     router.push("/login");
   }, [router]);
 
+  /**
+   * Função para atualizar os dados do usuário no estado e localStorage.
+   */
+  const atualizarUsuario = useCallback((dadosParciais: Partial<Usuario>) => {
+    setUsuario((usuarioAtual) => {
+      if (!usuarioAtual) return null;
+      const novoUsuario = { ...usuarioAtual, ...dadosParciais };
+      localStorage.setItem(USUARIO_KEY, JSON.stringify(novoUsuario));
+      return novoUsuario;
+    });
+  }, []);
+
   // ========================================
   // CARREGAMENTO INICIAL
   // ========================================
@@ -168,6 +180,7 @@ export function ProvedorAutenticacao({ children }: ProvedorAutenticacaoProps) {
         carregando,
         login,
         logout,
+        atualizarUsuario,
       }}
     >
       {children}

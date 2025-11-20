@@ -615,11 +615,21 @@ export class RankingService {
     // Buscar vendedor e sua ótica
     const vendedor = await this.prisma.usuario.findUnique({
       where: { id: vendedorId },
-      select: { opticaId: true },
+      select: { 
+        opticaId: true,
+        optica: {
+          select: { rankingVisivelParaVendedores: true }
+        }
+      },
     });
 
     if (!vendedor || !vendedor.opticaId) {
       throw new ForbiddenException('Vendedor sem ótica vinculada.');
+    }
+
+    // Validação de visibilidade (Regra de Negócio)
+    if (!vendedor.optica?.rankingVisivelParaVendedores) {
+      throw new ForbiddenException('O ranking está desabilitado para vendedores desta ótica.');
     }
 
     // Buscar todos os vendedores da ótica e calcular total de pontos reais por vendedor

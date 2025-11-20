@@ -149,11 +149,11 @@ export const ALL_MENU_ITEMS: NavItem[] = [
     roles: [PapelUsuario.GERENTE, PapelUsuario.VENDEDOR], // REMOVIDO: PapelUsuario.ADMIN
     position: "footer",
   },
-  {
-    href: "/configuracoes",
-    label: "Configurações",
-    icon: Settings,
-    roles: [PapelUsuario.ADMIN], // Apenas Admin pode ver as configurações globais
-    position: "footer",
-  },
+  //{
+  //  href: "/configuracoes",
+  //  label: "Configurações",
+  //  icon: Settings,
+  //  roles: [PapelUsuario.ADMIN], // Apenas Admin pode ver as configurações globais
+  //  position: "footer",
+  //},
 ];

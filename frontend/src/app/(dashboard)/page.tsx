@@ -94,15 +94,22 @@ export default function DashboardPage() {
    */
   useEffect(() => {
     if (!carregando && usuario?.papel === "GERENTE") {
-      router.push("/gerente");
+      router.replace("/gerente"); // replace evita histórico e flash
     }
   }, [usuario, carregando, router]);
 
+
+  // Se gerente, não renderiza nada (redireciona imediatamente)
+  if (usuario?.papel === "GERENTE") {
+    return null;
+  }
+
   /**
    * Hook de busca de dados (SWR) - KPIs Básicos
+   * Só ADMIN pode chegar aqui, pois GERENTE é redirecionado antes
    */
   const { data: dadosKpis, error: erroKpis } = useSWR(
-    usuario && usuario.papel !== "GERENTE" ? "/dashboard/kpis" : null,
+    usuario?.papel === "ADMIN" ? "/dashboard/kpis" : null,
     fetcher,
     { revalidateOnFocus: false }
   );
@@ -140,7 +147,13 @@ export default function DashboardPage() {
     }
 
     // 2. Estado de Carregamento
-    if (!usuario || !dadosKpis) {
+    const carregandoAdmin = usuario?.papel === "ADMIN" && !dadosKpis;
+    const carregandoVendedor = usuario?.papel === "VENDEDOR" && !dashboardCompleto;
+
+    if (!usuario || carregandoAdmin || carregandoVendedor) {
+      if (usuario?.papel === "VENDEDOR") {
+        return <SkeletonDashboardVendedor />;
+      }
       return <SkeletonKpis />;
     }
 
@@ -148,21 +161,8 @@ export default function DashboardPage() {
     switch (usuario.papel) {
       case "ADMIN":
         return <KpisAdmin dados={dadosKpis} />;
-      
-      case "GERENTE":
-        // Gerente é redirecionado para /gerente via useEffect
-        return (
-          <div className="flex h-full items-center justify-center py-16">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        );
-      
       case "VENDEDOR":
         // Dashboard Premium para Vendedor
-        if (!dashboardCompleto) {
-          return <SkeletonDashboardVendedor />;
-        }
-
         return (
           <div className="space-y-8">
             {/* Saldo Card - Destaque */}
@@ -196,7 +196,6 @@ export default function DashboardPage() {
             </motion.div>
           </div>
         );
-      
       default:
         return (
           <p className="text-muted-foreground">
