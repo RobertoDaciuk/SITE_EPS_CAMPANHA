@@ -1410,8 +1410,9 @@ export class FinanceiroService {
     dataInicio?: string;
     dataFim?: string;
   }) {
-    const pagina = dto.pagina || 1;
-    const porPagina = dto.porPagina || 20;
+    // Garantir que pagina e porPagina sejam números
+    const pagina = Number(dto.pagina) || 1;
+    const porPagina = Number(dto.porPagina) || 20;
     const skip = (pagina - 1) * porPagina;
 
     this.logger.log(`\n========== LISTANDO AUDITORIA FINANCEIRA ==========`);

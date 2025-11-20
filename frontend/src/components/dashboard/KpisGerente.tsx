@@ -64,34 +64,60 @@ export function KpisGerente({ dados }: KpisGerenteProps) {
   if (!dados) return null;
 
   return (
-    <motion.div
-      variants={containerVariantes}
-      initial="oculto"
-      animate="visivel"
-      className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4"
-    >
-      <KpiCard
-        titulo="Comissão Pendente"
-        valor={formatarBRL(dados.comissaoPendente)}
-        descricao="Valor a receber"
-        Icone={DollarSign}
-        cor={dados.comissaoPendente > 0 ? "success" : "primary"}
-      />
-      <KpiCard
-        titulo="Vendedores na Equipe"
-        valor={(dados.totalVendedores ?? 0).toLocaleString("pt-BR")}
-        descricao="Total de vendedores gerenciados"
-        Icone={Users}
-        cor="primary"
-      />
-      <KpiCard
-        titulo="Vendas (Equipe) em Análise"
-        valor={(dados.vendasTimeAnalise ?? 0).toLocaleString("pt-BR")}
-        descricao="Aguardando validação do Admin"
-        Icone={Files}
-        cor={dados.vendasTimeAnalise > 0 ? "warning" : "primary"}
-      />
-      
-    </motion.div>
+    <div className="space-y-6">
+      <motion.div
+        variants={containerVariantes}
+        initial="oculto"
+        animate="visivel"
+        className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4"
+      >
+        <KpiCard
+          titulo="Comissão Pendente"
+          valor={formatarBRL(dados.comissaoPendente)}
+          descricao="Valor a receber"
+          Icone={DollarSign}
+          cor={dados.comissaoPendente > 0 ? "success" : "primary"}
+        />
+        <KpiCard
+          titulo="Vendedores na Equipe"
+          valor={(dados.totalVendedores ?? 0).toLocaleString("pt-BR")}
+          descricao="Total de vendedores gerenciados"
+          Icone={Users}
+          cor="primary"
+        />
+        <KpiCard
+          titulo="Vendas (Equipe) em Análise"
+          valor={(dados.vendasTimeAnalise ?? 0).toLocaleString("pt-BR")}
+          descricao="Aguardando validação do Admin"
+          Icone={Files}
+          cor={dados.vendasTimeAnalise > 0 ? "warning" : "primary"}
+        />
+      </motion.div>
+
+      {/* Call to Action - Dashboard Completo */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4, duration: 0.5 }}
+        className="rounded-2xl border border-primary/30 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-6"
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-foreground mb-1">
+              📊 Dashboard Premium do Gerente
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Acesse insights avançados, alertas inteligentes e performance detalhada da sua equipe
+            </p>
+          </div>
+          <a
+            href="/gerente"
+            className="rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-all hover:scale-105 shadow-lg shadow-primary/20"
+          >
+            Ver Dashboard Completo →
+          </a>
+        </div>
+      </motion.div>
+    </div>
   );
 }

@@ -682,4 +682,453 @@ export class DashboardService {
       },
     };
   }
+
+  /**
+   * Obtém o dashboard completo e enriquecido para o gerente.
+   * Consolida dados de múltiplas fontes para gestão estratégica da equipe.
+   *
+   * @param usuarioId - ID do gerente autenticado
+   * @returns Objeto completo com todos os dados do dashboard gerente
+   */
+  async getDashboardGerenteCompleto(usuarioId: string) {
+    // Buscar gerente com dados completos
+    const gerente = await this.prisma.usuario.findUnique({
+      where: { id: usuarioId },
+      select: {
+        id: true,
+        nome: true,
+        email: true,
+        avatarUrl: true,
+        saldoPontos: true,
+        criadoEm: true,
+        optica: {
+          select: {
+            id: true,
+            nome: true,
+            cidade: true,
+            estado: true,
+          },
+        },
+      },
+    });
+
+    if (!gerente) {
+      throw new Error('Gerente não encontrado');
+    }
+
+    // Buscar vendedores da equipe
+    const vendedores = await this.prisma.usuario.findMany({
+      where: {
+        gerenteId: usuarioId,
+      },
+      select: {
+        id: true,
+        nome: true,
+        email: true,
+        avatarUrl: true,
+        status: true,
+        nivel: true,
+        saldoPontos: true,
+        criadoEm: true,
+        enviosVenda: {
+          select: {
+            id: true,
+            status: true,
+            dataEnvio: true,
+            dataValidacao: true,
+            valorPontosReaisRecebido: true,
+            valorFinalComEvento: true,
+            numeroCartelaAtendida: true,
+            pontosAdicionadosAoSaldo: true,
+            campanhaId: true,
+          },
+        },
+      },
+    });
+
+    const vendedoresIds = vendedores.map((v) => v.id);
+    const agora = new Date();
+    const inicioMes = new Date(agora.getFullYear(), agora.getMonth(), 1);
+    const inicioSemana = new Date(agora);
+    inicioSemana.setDate(agora.getDate() - 7);
+    const inicioSemanaAnterior = new Date(agora);
+    inicioSemanaAnterior.setDate(agora.getDate() - 14);
+
+    // 1. COMISSÃO DETALHADA
+    const comissaoPendente = await this.prisma.relatorioFinanceiro.aggregate({
+      _sum: { valor: true },
+      where: { usuarioId: usuarioId, tipo: 'GERENTE', status: 'PENDENTE' },
+    });
+
+    const proximoPagamento = await this.prisma.relatorioFinanceiro.findFirst({
+      where: { usuarioId: usuarioId, tipo: 'GERENTE', status: 'PENDENTE' },
+      orderBy: { criadoEm: 'asc' },
+      select: { valor: true, criadoEm: true },
+    });
+
+    const historico30Dias = await this.prisma.relatorioFinanceiro.aggregate({
+      _sum: { valor: true },
+      where: {
+        usuarioId: usuarioId,
+        tipo: 'GERENTE',
+        status: 'PAGO',
+        dataPagamento: { gte: new Date(agora.getTime() - 30 * 24 * 60 * 60 * 1000) },
+      },
+    });
+
+    // Calcular pontos pendentes (vendas validadas aguardando conclusão de cartela)
+    const pontosPendentesEquipe = vendedores.reduce((acc, v) => {
+      const pontosPendentes = v.enviosVenda
+        .filter((e) => e.status === 'VALIDADO' && !e.pontosAdicionadosAoSaldo)
+        .reduce((s, e) => s + this.resolveValorEnvio(e), 0);
+      return acc + pontosPendentes;
+    }, 0);
+
+    // 2. PERFORMANCE DA EQUIPE
+    const totalPontosEquipe = vendedores.reduce((acc, v) => {
+      const pontos = v.enviosVenda
+        .filter((e) => e.status === 'VALIDADO' && e.numeroCartelaAtendida && e.pontosAdicionadosAoSaldo)
+        .reduce((s, e) => s + this.resolveValorEnvio(e), 0);
+      return acc + pontos;
+    }, 0);
+
+    const pontosSemanaAtual = vendedores.reduce((acc, v) => {
+      const pontos = v.enviosVenda
+        .filter((e) => e.status === 'VALIDADO' && e.dataValidacao && e.dataValidacao >= inicioSemana && e.pontosAdicionadosAoSaldo)
+        .reduce((s, e) => s + this.resolveValorEnvio(e), 0);
+      return acc + pontos;
+    }, 0);
+
+    const pontosSemanaAnterior = vendedores.reduce((acc, v) => {
+      const pontos = v.enviosVenda
+        .filter(
+          (e) =>
+            e.status === 'VALIDADO' &&
+            e.dataValidacao &&
+            e.dataValidacao >= inicioSemanaAnterior &&
+            e.dataValidacao < inicioSemana &&
+            e.pontosAdicionadosAoSaldo,
+        )
+        .reduce((s, e) => s + this.resolveValorEnvio(e), 0);
+      return acc + pontos;
+    }, 0);
+
+    const crescimentoSemana =
+      pontosSemanaAnterior > 0 ? ((pontosSemanaAtual - pontosSemanaAnterior) / pontosSemanaAnterior) * 100 : 0;
+
+    const vendedoresAtivos = vendedores.filter((v) => v.status === 'ATIVO').length;
+    const mediaVendedorAtivo = vendedoresAtivos > 0 ? totalPontosEquipe / vendedoresAtivos : 0;
+
+    const cartelasCompletas = await this.prisma.cartelaConcluida.count({
+      where: { vendedorId: { in: vendedoresIds } },
+    });
+
+    // Evolução temporal (últimos 30 dias)
+    const evolucaoTemporal: { data: Date; pontos: number; vendas: number }[] = [];
+    for (let i = 29; i >= 0; i--) {
+      const dia = new Date(agora);
+      dia.setDate(agora.getDate() - i);
+      dia.setHours(0, 0, 0, 0);
+      const diaFim = new Date(dia);
+      diaFim.setHours(23, 59, 59, 999);
+
+      const vendasDia = await this.prisma.envioVenda.findMany({
+        where: {
+          vendedorId: { in: vendedoresIds },
+          status: StatusEnvioVenda.VALIDADO,
+          dataValidacao: { gte: dia, lte: diaFim },
+        },
+        select: {
+          valorPontosReaisRecebido: true,
+          valorFinalComEvento: true,
+        },
+      });
+
+      const pontosDia = vendasDia.reduce((acc, v) => acc + this.resolveValorEnvio(v), 0);
+
+      evolucaoTemporal.push({
+        data: dia,
+        pontos: pontosDia,
+        vendas: vendasDia.length,
+      });
+    }
+
+    // 3. ALERTAS INTELIGENTES
+    const alertas: {
+      tipo: 'CRITICO' | 'ATENCAO' | 'OPORTUNIDADE';
+      vendedor?: string;
+      descricao: string;
+      acao: string;
+    }[] = [];
+
+    for (const vendedor of vendedores) {
+      const ultimaVenda = vendedor.enviosVenda
+        .filter((e) => e.status === 'VALIDADO' && e.dataValidacao)
+        .sort((a, b) => (b.dataValidacao?.getTime() || 0) - (a.dataValidacao?.getTime() || 0))[0];
+
+      const diasInativo = ultimaVenda?.dataValidacao
+        ? Math.floor((agora.getTime() - ultimaVenda.dataValidacao.getTime()) / (1000 * 60 * 60 * 24))
+        : Math.floor((agora.getTime() - vendedor.criadoEm.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (diasInativo > 7) {
+        alertas.push({
+          tipo: 'CRITICO',
+          vendedor: vendedor.nome,
+          descricao: `${vendedor.nome} está inativo há ${diasInativo} dias`,
+          acao: 'Enviar mensagem motivacional',
+        });
+      } else if (diasInativo >= 4) {
+        alertas.push({
+          tipo: 'ATENCAO',
+          vendedor: vendedor.nome,
+          descricao: `${vendedor.nome} com baixa atividade (${diasInativo} dias sem vendas)`,
+          acao: 'Acompanhar performance',
+        });
+      }
+
+      // Verificar queda de performance
+      const vendasUltimos7Dias = vendedor.enviosVenda.filter(
+        (e) => e.status === 'VALIDADO' && e.dataValidacao && e.dataValidacao >= inicioSemana,
+      ).length;
+
+      const vendasSemanaAnterior = vendedor.enviosVenda.filter(
+        (e) =>
+          e.status === 'VALIDADO' &&
+          e.dataValidacao &&
+          e.dataValidacao >= inicioSemanaAnterior &&
+          e.dataValidacao < inicioSemana,
+      ).length;
+
+      if (vendasSemanaAnterior > 0 && vendasUltimos7Dias < vendasSemanaAnterior * 0.7) {
+        const quedaPercentual = Math.round(((vendasSemanaAnterior - vendasUltimos7Dias) / vendasSemanaAnterior) * 100);
+        alertas.push({
+          tipo: quedaPercentual > 30 ? 'CRITICO' : 'ATENCAO',
+          vendedor: vendedor.nome,
+          descricao: `${vendedor.nome} com queda de ${quedaPercentual}% em vendas`,
+          acao: 'Agendar reunião 1:1',
+        });
+      }
+    }
+
+    // 4. TOP PERFORMERS (Top 5)
+    const topPerformers = vendedores
+      .map((v) => {
+        const pontosTotal = v.enviosVenda
+          .filter((e) => e.status === 'VALIDADO' && e.numeroCartelaAtendida && e.pontosAdicionadosAoSaldo)
+          .reduce((acc, e) => acc + this.resolveValorEnvio(e), 0);
+
+        const pontosSemana = v.enviosVenda
+          .filter((e) => e.status === 'VALIDADO' && e.dataValidacao && e.dataValidacao >= inicioSemana && e.pontosAdicionadosAoSaldo)
+          .reduce((acc, e) => acc + this.resolveValorEnvio(e), 0);
+
+        const pontosSemanaAnterior = v.enviosVenda
+          .filter(
+            (e) =>
+              e.status === 'VALIDADO' &&
+              e.dataValidacao &&
+              e.dataValidacao >= inicioSemanaAnterior &&
+              e.dataValidacao < inicioSemana &&
+              e.pontosAdicionadosAoSaldo,
+          )
+          .reduce((acc, e) => acc + this.resolveValorEnvio(e), 0);
+
+        const crescimento = pontosSemanaAnterior > 0 ? ((pontosSemana - pontosSemanaAnterior) / pontosSemanaAnterior) * 100 : 0;
+
+        return {
+          vendedor: {
+            id: v.id,
+            nome: v.nome,
+            avatarUrl: v.avatarUrl,
+          },
+          pontos: pontosTotal,
+          crescimento,
+        };
+      })
+      .sort((a, b) => b.pontos - a.pontos)
+      .slice(0, 5)
+      .map((v, index) => ({
+        ...v,
+        badge: index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '',
+      }));
+
+    // 5. PIPELINE DE VENDAS
+    const pipeline = {
+      emAnalise: await this.prisma.envioVenda.count({
+        where: { vendedorId: { in: vendedoresIds }, status: 'EM_ANALISE' },
+      }),
+      validadasHoje: await this.prisma.envioVenda.count({
+        where: {
+          vendedorId: { in: vendedoresIds },
+          status: 'VALIDADO',
+          dataValidacao: {
+            gte: new Date(agora.getFullYear(), agora.getMonth(), agora.getDate()),
+          },
+        },
+      }),
+      rejeitadas7Dias: await this.prisma.envioVenda.count({
+        where: {
+          vendedorId: { in: vendedoresIds },
+          status: 'REJEITADO',
+          dataValidacao: { gte: inicioSemana },
+        },
+      }),
+      aguardandoVendedor: await this.prisma.envioVenda.count({
+        where: { vendedorId: { in: vendedoresIds }, status: StatusEnvioVenda.REJEITADO },
+      }),
+    };
+
+    // 6. MAPA DE ATIVIDADE (últimos 7 dias por vendedor)
+    const mapaAtividade = await Promise.all(
+      vendedores.map(async (v) => {
+        const ultimaVenda = v.enviosVenda
+          .filter((e) => e.status === 'VALIDADO' && e.dataValidacao)
+          .sort((a, b) => (b.dataValidacao?.getTime() || 0) - (a.dataValidacao?.getTime() || 0))[0];
+
+        const diasInativo = ultimaVenda?.dataValidacao
+          ? Math.floor((agora.getTime() - ultimaVenda.dataValidacao.getTime()) / (1000 * 60 * 60 * 24))
+          : 999;
+
+        // Atividade por dia da semana (últimos 7 dias)
+        const atividadeSemanal = [0, 0, 0, 0, 0, 0, 0]; // [dom, seg, ter, qua, qui, sex, sab]
+        
+        for (let i = 0; i < 7; i++) {
+          const dia = new Date(agora);
+          dia.setDate(agora.getDate() - (6 - i));
+          dia.setHours(0, 0, 0, 0);
+          const diaFim = new Date(dia);
+          diaFim.setHours(23, 59, 59, 999);
+
+          const vendasDia = v.enviosVenda.filter(
+            (e) =>
+              e.status === 'VALIDADO' &&
+              e.dataValidacao &&
+              e.dataValidacao >= dia &&
+              e.dataValidacao <= diaFim,
+          ).length;
+
+          atividadeSemanal[dia.getDay()] += vendasDia;
+        }
+
+        return {
+          vendedorId: v.id,
+          vendedorNome: v.nome,
+          ultimaVenda: ultimaVenda?.dataValidacao || null,
+          diasInativo,
+          atividadeSemanal,
+        };
+      }),
+    );
+
+    // 7. CAMPANHAS COM ENGAJAMENTO
+    const campanhasAtivas = await this.prisma.campanha.findMany({
+      where: {
+        dataInicio: { lte: agora },
+        dataFim: { gte: agora },
+      },
+      select: {
+        id: true,
+        titulo: true,
+        imagemCampanha16x9Url: true,
+      },
+    });
+
+    const campanhasEngajamento = await Promise.all(
+      campanhasAtivas.map(async (campanha) => {
+        // Contar vendedores únicos manualmente
+        const vendasCampanha = await this.prisma.envioVenda.findMany({
+          where: {
+            vendedorId: { in: vendedoresIds },
+            campanhaId: campanha.id,
+            status: StatusEnvioVenda.VALIDADO,
+          },
+          select: { vendedorId: true },
+        });
+        
+        const vendedoresParticipando = new Set(vendasCampanha.map((v) => v.vendedorId)).size;
+
+        const totalVendas = await this.prisma.envioVenda.count({
+          where: {
+            vendedorId: { in: vendedoresIds },
+            campanhaId: campanha.id,
+            status: StatusEnvioVenda.VALIDADO,
+          },
+        });
+
+        const cartelasConcluidas = await this.prisma.cartelaConcluida.count({
+          where: {
+            vendedorId: { in: vendedoresIds },
+            campanhaId: campanha.id,
+          },
+        });
+
+        const participacao = vendedoresAtivos > 0 ? (vendedoresParticipando / vendedoresAtivos) * 100 : 0;
+        const mediaCartelas = vendedoresParticipando > 0 ? cartelasConcluidas / vendedoresParticipando : 0;
+
+        // Encontrar melhor vendedor nesta campanha
+        const melhorVendedor = vendedores
+          .map((v) => {
+            const pontosCampanha = v.enviosVenda
+              .filter((e) => e.campanhaId === campanha.id && e.status === 'VALIDADO' && e.pontosAdicionadosAoSaldo)
+              .reduce((acc, e) => acc + this.resolveValorEnvio(e), 0);
+            return { nome: v.nome, pontos: pontosCampanha };
+          })
+          .sort((a, b) => b.pontos - a.pontos)[0];
+
+        return {
+          campanhaId: campanha.id,
+          campanhaNome: campanha.titulo,
+          campanhaImagem: campanha.imagemCampanha16x9Url,
+          participacao,
+          totalVendas,
+          mediaCartelas,
+          melhorVendedor: melhorVendedor?.pontos > 0 ? melhorVendedor.nome : null,
+        };
+      }),
+    );
+
+    // RETORNO CONSOLIDADO
+    return {
+      gerente: {
+        id: gerente.id,
+        nome: gerente.nome,
+        email: gerente.email,
+        avatarUrl: gerente.avatarUrl,
+        saldoPontos: this.toNumber(gerente.saldoPontos),
+        optica: gerente.optica,
+      },
+      comissao: {
+        pendente: this.toNumber(comissaoPendente._sum.valor || 0),
+        proximoPagamento: proximoPagamento
+          ? {
+              valor: this.toNumber(proximoPagamento.valor),
+              data: proximoPagamento.criadoEm,
+            }
+          : null,
+        historico30Dias: this.toNumber(historico30Dias._sum.valor || 0),
+        pontosPendentesEquipe: pontosPendentesEquipe,
+      },
+      performance: {
+        totalPontosEquipe,
+        crescimentoSemana,
+        mediaVendedorAtivo,
+        cartelasCompletas,
+        evolucaoTemporal,
+      },
+      alertas: {
+        criticos: alertas.filter((a) => a.tipo === 'CRITICO'),
+        atencao: alertas.filter((a) => a.tipo === 'ATENCAO'),
+        oportunidades: alertas.filter((a) => a.tipo === 'OPORTUNIDADE'),
+      },
+      topPerformers,
+      pipeline,
+      mapaAtividade,
+      campanhasEngajamento,
+      overview: {
+        totalVendedores: vendedores.length,
+        ativos: vendedores.filter((v) => v.status === 'ATIVO').length,
+        pendentes: vendedores.filter((v) => v.status === 'PENDENTE').length,
+        bloqueados: vendedores.filter((v) => v.status === 'BLOQUEADO').length,
+      },
+    };
+  }
 }

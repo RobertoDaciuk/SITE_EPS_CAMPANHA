@@ -153,6 +153,96 @@ interface DashboardStats {
 }
 
 // ============================================================================
+// TYPES & INTERFACES - AUDITORIA E RELATÓRIOS
+// ============================================================================
+
+type AcaoFinanceira = 
+  | 'VISUALIZAR_SALDOS'
+  | 'GERAR_LOTE'
+  | 'PROCESSAR_LOTE'
+  | 'CANCELAR_LOTE'
+  | 'EXPORTAR_EXCEL'
+  | 'BUSCAR_LOTE'
+  | 'LISTAR_LOTES';
+
+interface AuditoriaFinanceira {
+  id: string;
+  acao: AcaoFinanceira;
+  numeroLote?: string;
+  adminId: string;
+  admin: {
+    id: string;
+    nome: string;
+    email: string;
+  };
+  dadosAntes?: any;
+  dadosDepois?: any;
+  ipAddress: string;
+  userAgent?: string;
+  metadata?: any;
+  criadoEm: string;
+}
+
+interface PaginacaoMeta {
+  pagina: number;
+  porPagina: number;
+  total: number;
+  totalPaginas: number;
+}
+
+interface AuditoriaResponse {
+  auditorias: AuditoriaFinanceira[];
+  paginacao: PaginacaoMeta;
+}
+
+interface EvolucaoTemporal {
+  mes: string; // "YYYY-MM"
+  total: number;
+}
+
+interface MetricasRelatorio {
+  totalPago: number;
+  totalLotesPagos: number;
+  totalLotesPendentes: number;
+  ticketMedio: number;
+  usuariosUnicosPagos: number;
+  evolucaoTemporal: EvolucaoTemporal[];
+}
+
+interface RankingOtica {
+  posicao: number;
+  optica: {
+    id: string;
+    nome: string;
+    cidade: string;
+    estado: string;
+  };
+  totalPago: number;
+  numeroPagamentos: number;
+}
+
+interface PerformanceVendedor {
+  posicao: number;
+  vendedor: {
+    id: string;
+    nome: string;
+    optica?: {
+      id: string;
+      nome: string;
+    };
+  };
+  totalRecebido: number;
+  numeroPagamentos: number;
+}
+
+interface Campanha {
+  id: string;
+  nome: string;
+  dataInicio: string;
+  dataFim: string;
+}
+
+// ============================================================================
 // MAIN COMPONENT
 // ============================================================================
 
@@ -189,6 +279,40 @@ export default function FinanceiroPage() {
   const [viewMode, setViewMode] = useState<'list' | 'preview'>('list'); // Controla se estamos vendo lista de lotes ou preview de saldos
   const [valorTotalDisponivelPreview, setValorTotalDisponivelPreview] = useState(0);
   const [valorTotalReservadoPreview, setValorTotalReservadoPreview] = useState(0);
+
+  // Auditoria State
+  const [auditorias, setAuditorias] = useState<AuditoriaFinanceira[]>([]);
+  const [loadingAuditoria, setLoadingAuditoria] = useState(false);
+  const [paginacaoAuditoria, setPaginacaoAuditoria] = useState<PaginacaoMeta>({
+    pagina: 1,
+    porPagina: 20,
+    total: 0,
+    totalPaginas: 0,
+  });
+  const [filtrosAuditoria, setFiltrosAuditoria] = useState<{
+    acao?: AcaoFinanceira;
+    numeroLote?: string;
+    dataInicio?: string;
+    dataFim?: string;
+  }>({
+    dataInicio: format(subMonths(new Date(), 6), 'yyyy-MM-dd'),
+    dataFim: format(new Date(), 'yyyy-MM-dd'),
+  });
+
+  // Relatórios State
+  const [metricas, setMetricas] = useState<MetricasRelatorio | null>(null);
+  const [rankingOticas, setRankingOticas] = useState<RankingOtica[]>([]);
+  const [performanceVendedores, setPerformanceVendedores] = useState<PerformanceVendedor[]>([]);
+  const [loadingRelatorios, setLoadingRelatorios] = useState(false);
+  const [campanhas, setCampanhas] = useState<Campanha[]>([]);
+  const [filtrosRelatorios, setFiltrosRelatorios] = useState<{
+    dataInicio?: string;
+    dataFim?: string;
+    campanhaId?: string;
+  }>({
+    dataInicio: format(subMonths(new Date(), 6), 'yyyy-MM-dd'),
+    dataFim: format(new Date(), 'yyyy-MM-dd'),
+  });
 
   // ================================================================
   // COMPUTED VALUES
@@ -427,6 +551,127 @@ export default function FinanceiroPage() {
   };
 
   // ================================================================
+  // API CALLS - AUDITORIA E RELATÓRIOS
+  // ================================================================
+
+  const carregarAuditoria = useCallback(async () => {
+    try {
+      setLoadingAuditoria(true);
+      const params: any = {
+        pagina: paginacaoAuditoria.pagina,
+        porPagina: paginacaoAuditoria.porPagina,
+      };
+
+      if (filtrosAuditoria.acao) params.acao = filtrosAuditoria.acao;
+      if (filtrosAuditoria.numeroLote) params.numeroLote = filtrosAuditoria.numeroLote;
+      if (filtrosAuditoria.dataInicio) params.dataInicio = filtrosAuditoria.dataInicio;
+      if (filtrosAuditoria.dataFim) params.dataFim = filtrosAuditoria.dataFim;
+
+      const response = await axios.get<AuditoriaResponse>('/financeiro/auditoria', { params });
+
+      setAuditorias(response.data.auditorias || []);
+      setPaginacaoAuditoria(response.data.paginacao || {
+        pagina: 1,
+        porPagina: 20,
+        total: 0,
+        totalPaginas: 0,
+      });
+    } catch (error: any) {
+      console.error('Erro ao carregar auditoria:', error);
+      const mensagemErro = error.response?.data?.message || error.message || 'Erro ao carregar logs de auditoria';
+      
+      // Se for erro 500, pode ser que a tabela não existe ou está vazia
+      if (error.response?.status === 500) {
+        console.warn('Erro 500: Tabela de auditoria pode não estar criada. Execute as migrations do banco.');
+        toast.error('Sistema de auditoria não configurado. Contate o administrador.');
+      } else {
+        toast.error(mensagemErro);
+      }
+      
+      setAuditorias([]);
+      setPaginacaoAuditoria({
+        pagina: 1,
+        porPagina: 20,
+        total: 0,
+        totalPaginas: 0,
+      });
+    } finally {
+      setLoadingAuditoria(false);
+    }
+  }, [paginacaoAuditoria.pagina, paginacaoAuditoria.porPagina, filtrosAuditoria]);
+
+  const carregarCampanhas = useCallback(async () => {
+    try {
+      const response = await axios.get<Campanha[]>('/campanhas');
+      setCampanhas(response.data || []);
+    } catch (error: any) {
+      console.error('Erro ao carregar campanhas:', error);
+      setCampanhas([]);
+    }
+  }, []);
+
+  const carregarMetricas = useCallback(async () => {
+    try {
+      setLoadingRelatorios(true);
+      const params: any = {};
+
+      if (filtrosRelatorios.dataInicio) params.dataInicio = filtrosRelatorios.dataInicio;
+      if (filtrosRelatorios.dataFim) params.dataFim = filtrosRelatorios.dataFim;
+      if (filtrosRelatorios.campanhaId) params.campanhaId = filtrosRelatorios.campanhaId;
+
+      const response = await axios.get<MetricasRelatorio>('/financeiro/relatorios/metricas', { params });
+      setMetricas(response.data);
+    } catch (error: any) {
+      console.error('Erro ao carregar métricas:', error);
+      toast.error('Erro ao carregar métricas gerais');
+      setMetricas(null);
+    }
+  }, [filtrosRelatorios]);
+
+  const carregarRankingOticas = useCallback(async () => {
+    try {
+      const params: any = { limite: 10 };
+
+      if (filtrosRelatorios.dataInicio) params.dataInicio = filtrosRelatorios.dataInicio;
+      if (filtrosRelatorios.dataFim) params.dataFim = filtrosRelatorios.dataFim;
+
+      const response = await axios.get<RankingOtica[]>('/financeiro/relatorios/ranking-oticas', { params });
+      setRankingOticas(response.data || []);
+    } catch (error: any) {
+      console.error('Erro ao carregar ranking de óticas:', error);
+      toast.error('Erro ao carregar ranking de óticas');
+      setRankingOticas([]);
+    }
+  }, [filtrosRelatorios]);
+
+  const carregarPerformanceVendedores = useCallback(async () => {
+    try {
+      const params: any = { limite: 20 };
+
+      if (filtrosRelatorios.dataInicio) params.dataInicio = filtrosRelatorios.dataInicio;
+      if (filtrosRelatorios.dataFim) params.dataFim = filtrosRelatorios.dataFim;
+
+      const response = await axios.get<PerformanceVendedor[]>('/financeiro/relatorios/performance-vendedores', { params });
+      setPerformanceVendedores(response.data || []);
+    } catch (error: any) {
+      console.error('Erro ao carregar performance de vendedores:', error);
+      toast.error('Erro ao carregar performance de vendedores');
+      setPerformanceVendedores([]);
+    } finally {
+      setLoadingRelatorios(false);
+    }
+  }, [filtrosRelatorios]);
+
+  const carregarTodosRelatorios = useCallback(async () => {
+    setLoadingRelatorios(true);
+    await Promise.all([
+      carregarMetricas(),
+      carregarRankingOticas(),
+      carregarPerformanceVendedores(),
+    ]);
+  }, [carregarMetricas, carregarRankingOticas, carregarPerformanceVendedores]);
+
+  // ================================================================
   // FILTERS & SEARCH
   // ================================================================
   useEffect(() => {
@@ -590,9 +835,35 @@ export default function FinanceiroPage() {
           />
         )}
 
-        {/* PLACEHOLDERS */}
-        {activeView === 'auditoria' && <AuditoriaView />}
-        {activeView === 'relatorios' && <RelatoriosView />}
+        {/* AUDITORIA VIEW */}
+        {activeView === 'auditoria' && (
+          <AuditoriaView
+            activeView={activeView}
+            auditorias={auditorias}
+            loadingAuditoria={loadingAuditoria}
+            paginacaoAuditoria={paginacaoAuditoria}
+            filtrosAuditoria={filtrosAuditoria}
+            setPaginacaoAuditoria={setPaginacaoAuditoria}
+            setFiltrosAuditoria={setFiltrosAuditoria}
+            carregarAuditoria={carregarAuditoria}
+          />
+        )}
+
+        {/* RELATÓRIOS VIEW */}
+        {activeView === 'relatorios' && (
+          <RelatoriosView
+            activeView={activeView}
+            metricas={metricas}
+            rankingOticas={rankingOticas}
+            performanceVendedores={performanceVendedores}
+            loadingRelatorios={loadingRelatorios}
+            campanhas={campanhas}
+            filtrosRelatorios={filtrosRelatorios}
+            setFiltrosRelatorios={setFiltrosRelatorios}
+            carregarCampanhas={carregarCampanhas}
+            carregarTodosRelatorios={carregarTodosRelatorios}
+          />
+        )}
 
       </AnimatePresence>
     </div>
@@ -1222,13 +1493,62 @@ const StatCard: React.FC<any> = ({ title, value, subtitle, icon, color }) => {
   );
 };
 
-const AuditoriaView = () => {
-  // Mock data for now - in real app would fetch from API
-  const logs = [
-    { id: 1, acao: 'GERAR_LOTE', usuario: 'Admin Roberto', data: new Date(), detalhe: 'Gerou lote LOTE-2025-11-001' },
-    { id: 2, acao: 'PROCESSAR_LOTE', usuario: 'Admin Roberto', data: subDays(new Date(), 1), detalhe: 'Processou lote LOTE-2025-10-005' },
-    { id: 3, acao: 'LOGIN', usuario: 'Admin João', data: subDays(new Date(), 2), detalhe: 'Acesso ao sistema financeiro' },
-  ];
+interface AuditoriaViewProps {
+  activeView: string;
+  auditorias: AuditoriaFinanceira[];
+  loadingAuditoria: boolean;
+  paginacaoAuditoria: PaginacaoMeta;
+  filtrosAuditoria: {
+    acao?: AcaoFinanceira;
+    numeroLote?: string;
+    dataInicio?: string;
+    dataFim?: string;
+  };
+  setPaginacaoAuditoria: Dispatch<SetStateAction<PaginacaoMeta>>;
+  setFiltrosAuditoria: Dispatch<SetStateAction<{
+    acao?: AcaoFinanceira;
+    numeroLote?: string;
+    dataInicio?: string;
+    dataFim?: string;
+  }>>;
+  carregarAuditoria: () => Promise<void>;
+}
+
+const AuditoriaView: React.FC<AuditoriaViewProps> = ({
+  activeView,
+  auditorias,
+  loadingAuditoria,
+  paginacaoAuditoria,
+  filtrosAuditoria,
+  setPaginacaoAuditoria,
+  setFiltrosAuditoria,
+  carregarAuditoria,
+}) => {
+  // Carregar auditoria ao montar componente ou quando filtros mudarem
+  useEffect(() => {
+    if (activeView === 'auditoria') {
+      carregarAuditoria();
+    }
+  }, [activeView, carregarAuditoria]);
+
+  const handlePaginaChange = (novaPagina: number) => {
+    setPaginacaoAuditoria(prev => ({ ...prev, pagina: novaPagina }));
+  };
+
+  const handleFiltroChange = (campo: string, valor: any) => {
+    setFiltrosAuditoria(prev => ({ ...prev, [campo]: valor }));
+    setPaginacaoAuditoria(prev => ({ ...prev, pagina: 1 })); // Resetar para página 1 ao filtrar
+  };
+
+  const acoesTraduzidas: Record<AcaoFinanceira, string> = {
+    VISUALIZAR_SALDOS: 'Visualizar Saldos',
+    GERAR_LOTE: 'Gerar Lote',
+    PROCESSAR_LOTE: 'Processar Lote',
+    CANCELAR_LOTE: 'Cancelar Lote',
+    EXPORTAR_EXCEL: 'Exportar Excel',
+    BUSCAR_LOTE: 'Buscar Lote',
+    LISTAR_LOTES: 'Listar Lotes',
+  };
 
   return (
     <motion.div
@@ -1238,41 +1558,226 @@ const AuditoriaView = () => {
       exit={{ opacity: 0, y: -20 }}
       className="space-y-6"
     >
+      {/* Filtros */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-lg">
+        <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+          <Search className="w-5 h-5 text-purple-500" />
+          Filtros
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Ação</label>
+            <select
+              value={filtrosAuditoria.acao || ''}
+              onChange={(e) => handleFiltroChange('acao', e.target.value || undefined)}
+              className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg"
+            >
+              <option value="">Todas</option>
+              {Object.entries(acoesTraduzidas).map(([key, label]) => (
+                <option key={key} value={key}>{label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Nº Lote</label>
+            <input
+              type="text"
+              value={filtrosAuditoria.numeroLote || ''}
+              onChange={(e) => handleFiltroChange('numeroLote', e.target.value || undefined)}
+              placeholder="Ex: LOTE-2025-11-001"
+              className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Data Início</label>
+            <input
+              type="date"
+              value={filtrosAuditoria.dataInicio || ''}
+              onChange={(e) => handleFiltroChange('dataInicio', e.target.value || undefined)}
+              className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Data Fim</label>
+            <input
+              type="date"
+              value={filtrosAuditoria.dataFim || ''}
+              onChange={(e) => handleFiltroChange('dataFim', e.target.value || undefined)}
+              className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Timeline de Auditoria */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-lg">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-xl font-bold flex items-center gap-2">
             <Shield className="w-6 h-6 text-purple-500" />
             Auditoria Financeira
+            {!loadingAuditoria && (
+              <span className="text-sm text-muted-foreground font-normal">
+                ({paginacaoAuditoria.total} registro{paginacaoAuditoria.total !== 1 ? 's' : ''})
+              </span>
+            )}
           </h3>
-          <div className="flex gap-2">
-            <button className="px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm font-medium">Exportar Logs</button>
-          </div>
+          <button
+            onClick={carregarAuditoria}
+            disabled={loadingAuditoria}
+            className="px-4 py-2 bg-purple-500 text-white rounded-lg text-sm font-medium hover:bg-purple-600 transition-colors disabled:opacity-50 flex items-center gap-2"
+          >
+            <RefreshCw className={`w-4 h-4 ${loadingAuditoria ? 'animate-spin' : ''}`} />
+            Atualizar
+          </button>
         </div>
 
-        <div className="relative border-l-2 border-gray-200 dark:border-gray-700 ml-3 space-y-8 py-4">
-          {logs.map((log, index) => (
-            <div key={log.id} className="relative pl-8">
-              <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-purple-500 border-4 border-white dark:border-gray-800" />
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-1">
-                <span className="text-sm font-bold text-purple-600 dark:text-purple-400">{log.acao}</span>
-                <span className="text-xs text-muted-foreground">{format(log.data, "dd/MM/yyyy 'às' HH:mm")}</span>
-              </div>
-              <p className="text-gray-900 dark:text-gray-100 font-medium">{log.detalhe}</p>
-              <p className="text-sm text-muted-foreground mt-1">Por: {log.usuario}</p>
+        {loadingAuditoria ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
+          </div>
+        ) : auditorias.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground">
+            <Shield className="w-16 h-16 mx-auto mb-4 opacity-30" />
+            <p className="font-medium mb-2">Nenhum registro de auditoria encontrado</p>
+            <p className="text-sm">
+              {filtrosAuditoria.dataInicio || filtrosAuditoria.dataFim || filtrosAuditoria.acao || filtrosAuditoria.numeroLote
+                ? 'Tente ajustar os filtros para ver mais resultados'
+                : 'As ações financeiras aparecerão aqui automaticamente'}
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="relative border-l-2 border-gray-200 dark:border-gray-700 ml-3 space-y-8 py-4">
+              {auditorias.map((auditoria, index) => (
+                <motion.div
+                  key={auditoria.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  className="relative pl-8"
+                >
+                  <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-purple-500 border-4 border-white dark:border-gray-800" />
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-1">
+                    <span className="text-sm font-bold text-purple-600 dark:text-purple-400">
+                      {acoesTraduzidas[auditoria.acao] || auditoria.acao}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {format(parseISO(auditoria.criadoEm), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                    </span>
+                  </div>
+                  {auditoria.numeroLote && (
+                    <p className="text-gray-900 dark:text-gray-100 font-medium">
+                      Lote: {auditoria.numeroLote}
+                    </p>
+                  )}
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Por: {auditoria.admin.nome} ({auditoria.admin.email})
+                  </p>
+                  {auditoria.metadata && (
+                    <details className="mt-2 text-xs">
+                      <summary className="cursor-pointer text-purple-500 hover:text-purple-600">
+                        Ver detalhes
+                      </summary>
+                      <pre className="mt-2 p-2 bg-gray-100 dark:bg-gray-900 rounded overflow-x-auto">
+                        {JSON.stringify(auditoria.metadata, null, 2)}
+                      </pre>
+                    </details>
+                  )}
+                </motion.div>
+              ))}
             </div>
-          ))}
-        </div>
+
+            {/* Paginação */}
+            {paginacaoAuditoria.totalPaginas > 1 && (
+              <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <button
+                  onClick={() => handlePaginaChange(paginacaoAuditoria.pagina - 1)}
+                  disabled={paginacaoAuditoria.pagina === 1}
+                  className="px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                >
+                  Anterior
+                </button>
+                <span className="text-sm text-muted-foreground">
+                  Página {paginacaoAuditoria.pagina} de {paginacaoAuditoria.totalPaginas}
+                </span>
+                <button
+                  onClick={() => handlePaginaChange(paginacaoAuditoria.pagina + 1)}
+                  disabled={paginacaoAuditoria.pagina === paginacaoAuditoria.totalPaginas}
+                  className="px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                >
+                  Próxima
+                </button>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </motion.div>
   );
 };
 
-const RelatoriosView = () => {
-  const rankings = [
-    { nome: 'Ótica Visão Real', total: 15450.00, envios: 45 },
-    { nome: 'Ótica Exemplo', total: 12300.50, envios: 32 },
-    { nome: 'Centro Ótico Sul', total: 8900.00, envios: 28 },
-  ];
+interface RelatoriosViewProps {
+  activeView: string;
+  metricas: MetricasRelatorio | null;
+  rankingOticas: RankingOtica[];
+  performanceVendedores: PerformanceVendedor[];
+  loadingRelatorios: boolean;
+  campanhas: Campanha[];
+  filtrosRelatorios: {
+    dataInicio?: string;
+    dataFim?: string;
+    campanhaId?: string;
+  };
+  setFiltrosRelatorios: Dispatch<SetStateAction<{
+    dataInicio?: string;
+    dataFim?: string;
+    campanhaId?: string;
+  }>>;
+  carregarCampanhas: () => Promise<void>;
+  carregarTodosRelatorios: () => Promise<void>;
+}
+
+const RelatoriosView: React.FC<RelatoriosViewProps> = ({
+  activeView,
+  metricas,
+  rankingOticas,
+  performanceVendedores,
+  loadingRelatorios,
+  campanhas,
+  filtrosRelatorios,
+  setFiltrosRelatorios,
+  carregarCampanhas,
+  carregarTodosRelatorios,
+}) => {
+  // Carregar dados ao montar componente ou quando filtros mudarem
+  useEffect(() => {
+    if (activeView === 'relatorios') {
+      carregarCampanhas();
+      carregarTodosRelatorios();
+    }
+  }, [activeView, carregarTodosRelatorios, carregarCampanhas]);
+
+  const handleFiltroRelatorioChange = (campo: string, valor: any) => {
+    setFiltrosRelatorios(prev => ({ ...prev, [campo]: valor }));
+  };
+
+  const handleAplicarFiltros = () => {
+    carregarTodosRelatorios();
+  };
+
+  const handleImprimirRelatorio = () => {
+    window.print();
+  };
+
+  // Preparar dados para o gráfico de evolução temporal
+  const dadosGraficoEvolucao = useMemo(() => {
+    if (!metricas?.evolucaoTemporal) return [];
+    
+    return metricas.evolucaoTemporal.map(item => ({
+      mes: format(parseISO(`${item.mes}-01`), 'MMM/yy', { locale: ptBR }),
+      valor: item.total,
+    }));
+  }, [metricas]);
 
   return (
     <motion.div
@@ -1282,43 +1787,264 @@ const RelatoriosView = () => {
       exit={{ opacity: 0, y: -20 }}
       className="space-y-6"
     >
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-lg">
-          <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-            <Target className="w-6 h-6 text-blue-500" />
-            Top Óticas (Volume Pago)
-          </h3>
-          <div className="space-y-4">
-            {rankings.map((r, i) => (
-              <div key={i} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-                <div className="flex items-center gap-4">
-                  <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
-                    {i + 1}
-                  </div>
-                  <div>
-                    <p className="font-bold">{r.nome}</p>
-                    <p className="text-xs text-muted-foreground">{r.envios} pagamentos</p>
-                  </div>
-                </div>
-                <p className="font-bold text-lg">R$ {r.total.toFixed(2)}</p>
-              </div>
-            ))}
+      {/* Filtros */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-lg no-print">
+        <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+          <Search className="w-5 h-5 text-blue-500" />
+          Filtros de Período
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Data Início</label>
+            <input
+              type="date"
+              value={filtrosRelatorios.dataInicio || ''}
+              onChange={(e) => handleFiltroRelatorioChange('dataInicio', e.target.value || undefined)}
+              className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg"
+            />
           </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-lg">
-          <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-            <BarChart3 className="w-6 h-6 text-orange-500" />
-            Performance Mensal
-          </h3>
-          <div className="h-64 flex items-center justify-center text-muted-foreground">
-            <p>Selecione um período para gerar o relatório detalhado.</p>
+          <div>
+            <label className="block text-sm font-medium mb-2">Data Fim</label>
+            <input
+              type="date"
+              value={filtrosRelatorios.dataFim || ''}
+              onChange={(e) => handleFiltroRelatorioChange('dataFim', e.target.value || undefined)}
+              className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg"
+            />
           </div>
-          <button className="w-full py-3 bg-gray-100 dark:bg-gray-700 rounded-xl font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-200 transition-colors">
-            Gerar Relatório Completo (PDF)
-          </button>
+          <div>
+            <label className="block text-sm font-medium mb-2">Campanha</label>
+            <select
+              value={filtrosRelatorios.campanhaId || ''}
+              onChange={(e) => handleFiltroRelatorioChange('campanhaId', e.target.value || undefined)}
+              className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg"
+            >
+              <option value="">Todas as Campanhas</option>
+              {campanhas.map((campanha) => (
+                <option key={campanha.id} value={campanha.id}>
+                  {campanha.nome}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-end gap-2">
+            <button
+              onClick={handleAplicarFiltros}
+              disabled={loadingRelatorios}
+              className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {loadingRelatorios ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4" />
+              )}
+              Atualizar
+            </button>
+            <button
+              onClick={handleImprimirRelatorio}
+              className="px-4 py-2 bg-gray-500 text-white rounded-lg font-medium hover:bg-gray-600 transition-colors flex items-center gap-2"
+              title="Imprimir/Exportar PDF"
+            >
+              <Download className="w-4 h-4" />
+              PDF
+            </button>
+          </div>
         </div>
       </div>
+
+      {loadingRelatorios ? (
+        <div className="flex items-center justify-center py-12 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700">
+          <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+        </div>
+      ) : (
+        <>
+          {/* Seção 1: KPIs e Métricas Gerais */}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-lg">
+            <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+              <Activity className="w-6 h-6 text-emerald-500" />
+              Métricas Gerais
+            </h3>
+            
+            {metricas ? (
+              <>
+                {/* Cards de KPIs */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                  <div className="p-4 bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800">
+                    <div className="flex items-center gap-2 mb-2">
+                      <DollarSign className="w-5 h-5 text-emerald-600" />
+                      <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">Total Pago</span>
+                    </div>
+                    <p className="text-2xl font-black text-emerald-900 dark:text-emerald-100">
+                      R$ {metricas.totalPago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
+
+                  <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Receipt className="w-5 h-5 text-blue-600" />
+                      <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Lotes Pagos</span>
+                    </div>
+                    <p className="text-2xl font-black text-blue-900 dark:text-blue-100">
+                      {metricas.totalLotesPagos}
+                    </p>
+                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                      {metricas.totalLotesPendentes} pendentes
+                    </p>
+                  </div>
+
+                  <div className="p-4 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl border border-purple-200 dark:border-purple-800">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Target className="w-5 h-5 text-purple-600" />
+                      <span className="text-sm font-medium text-purple-700 dark:text-purple-300">Ticket Médio</span>
+                    </div>
+                    <p className="text-2xl font-black text-purple-900 dark:text-purple-100">
+                      R$ {metricas.ticketMedio.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
+
+                  <div className="p-4 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 rounded-xl border border-orange-200 dark:border-orange-800">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Users className="w-5 h-5 text-orange-600" />
+                      <span className="text-sm font-medium text-orange-700 dark:text-orange-300">Usuários Pagos</span>
+                    </div>
+                    <p className="text-2xl font-black text-orange-900 dark:text-orange-100">
+                      {metricas.usuariosUnicosPagos}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Gráfico de Evolução Temporal */}
+                {dadosGraficoEvolucao.length > 0 && (
+                  <div className="mt-6">
+                    <h4 className="text-lg font-bold mb-4">Evolução Temporal (Últimos 6 Meses)</h4>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <AreaChart data={dadosGraficoEvolucao}>
+                        <defs>
+                          <linearGradient id="colorValor" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                        <XAxis dataKey="mes" stroke="#6b7280" />
+                        <YAxis stroke="#6b7280" />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                            border: '1px solid #e5e7eb',
+                            borderRadius: '8px',
+                          }}
+                          formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="valor"
+                          stroke="#10b981"
+                          strokeWidth={2}
+                          fillOpacity={1}
+                          fill="url(#colorValor)"
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                Nenhum dado disponível para o período selecionado
+              </div>
+            )}
+          </div>
+
+          {/* Seção 2: Rankings */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Ranking de Óticas */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-lg">
+              <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+                <Building2 className="w-6 h-6 text-blue-500" />
+                Top 10 Óticas (Volume Pago)
+              </h3>
+              {rankingOticas.length > 0 ? (
+                <div className="space-y-3">
+                  {rankingOticas.map((item, index) => (
+                    <motion.div
+                      key={item.optica.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white ${
+                          index === 0 ? 'bg-yellow-500' :
+                          index === 1 ? 'bg-gray-400' :
+                          index === 2 ? 'bg-orange-600' :
+                          'bg-blue-500'
+                        }`}>
+                          {item.posicao}
+                        </div>
+                        <div>
+                          <p className="font-bold">{item.optica.nome}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {item.optica.cidade}/{item.optica.estado} • {item.numeroPagamentos} pagamentos
+                          </p>
+                        </div>
+                      </div>
+                      <p className="font-bold text-lg">
+                        R$ {item.totalPago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </p>
+                    </motion.div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  Nenhuma ótica encontrada no período
+                </div>
+              )}
+            </div>
+
+            {/* Performance de Vendedores */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-lg">
+              <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+                <Users className="w-6 h-6 text-orange-500" />
+                Top 20 Vendedores (Valor Recebido)
+              </h3>
+              {performanceVendedores.length > 0 ? (
+                <div className="space-y-3 max-h-[600px] overflow-y-auto">
+                  {performanceVendedores.map((item, index) => (
+                    <motion.div
+                      key={item.vendedor.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.03 }}
+                      className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-400 to-pink-500 text-white flex items-center justify-center font-bold text-sm">
+                          {item.posicao}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-sm">{item.vendedor.nome}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {item.vendedor.optica?.nome || 'Sem ótica'} • {item.numeroPagamentos} pag.
+                          </p>
+                        </div>
+                      </div>
+                      <p className="font-bold text-sm">
+                        R$ {item.totalRecebido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </p>
+                    </motion.div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  Nenhum vendedor encontrado no período
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </motion.div>
   );
 };

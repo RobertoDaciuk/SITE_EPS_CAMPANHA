@@ -122,4 +122,36 @@ export class DashboardController {
 
     return this.dashboardService.getDashboardVendedorCompleto(usuario.id);
   }
+
+  /**
+   * GET /dashboard/gerente/completo
+   *
+   * Endpoint enriquecido para o dashboard do gerente.
+   * Retorna dados completos para gestão estratégica da equipe:
+   * - Comissão detalhada (pendente, próximo pagamento, histórico, projeção)
+   * - Performance da equipe (pontos, crescimento, evolução temporal)
+   * - Alertas inteligentes (críticos, atenção, oportunidades)
+   * - Top performers (top 5 vendedores com badges)
+   * - Pipeline de vendas (em análise, validadas, rejeitadas)
+   * - Mapa de atividade (heatmap vendedor x dia)
+   * - Campanhas com engajamento da equipe
+   * - Overview geral (total, ativos, pendentes, bloqueados)
+   *
+   * @param req - Objeto Request com usuário autenticado
+   * @returns Objeto completo com todos os dados do dashboard gerente
+   */
+  @UseGuards(JwtAuthGuard, PapeisGuard)
+  @Papeis(PapelUsuario.GERENTE)
+  @Get('gerente/completo')
+  async getDashboardGerenteCompleto(@Request() req: { user: UsuarioAutenticado }) {
+    const usuario = req.user;
+
+    if (process.env.NODE_ENV === 'development') {
+      this.logger.log(
+        `Buscando dashboard completo para gerente: ${usuario.email}`,
+      );
+    }
+
+    return this.dashboardService.getDashboardGerenteCompleto(usuario.id);
+  }
 }

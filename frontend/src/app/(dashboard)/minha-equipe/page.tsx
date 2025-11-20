@@ -2,36 +2,48 @@
 
 import { useMemo, useState } from "react";
 import useSWR from "swr";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   Activity,
   AlertTriangle,
+  ArrowUpDown,
+  Building2,
+  Calendar,
+  CheckCircle2,
   Clock,
+  Download,
   Filter,
   Loader2,
   LucideIcon,
+  Mail,
+  MessageCircle,
   Search,
+  Sparkles,
   Target,
   TrendingUp,
   Trophy,
+  User,
   UserCheck,
-  UserX,
   Users,
+  UserX,
   Wallet,
+  XCircle,
 } from "lucide-react";
 
 import { useAuth } from "@/contexts/ContextoAutenticacao";
-import api from "@/lib/axios";
-import { KpiCard } from "@/components/dashboard/KpiCard";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import api from "@/lib/axios";
+import { KpiCard } from "@/components/dashboard/KpiCard";
 
 // ============================================================================
-// Tipagens locais para garantir consistência com o backend
+// TIPOS E INTERFACES
 // ============================================================================
+
 type StatusUsuario = "ATIVO" | "PENDENTE" | "BLOQUEADO";
 type StatusFiltro = "TODOS" | StatusUsuario;
+type OrdenacaoTipo = "nome" | "pontos" | "vendas" | "cartelas" | "ultimaVenda";
 
 interface OpticaResumo {
   id: string;
@@ -44,17 +56,17 @@ interface MembroEquipe {
   id: string;
   nome: string;
   email: string;
-  whatsapp: string | null;
+  whatsapp?: string | null;
   status: StatusUsuario;
-  nivel: string | null;
+  nivel: string;
   avatarUrl?: string | null;
   saldoPontos: number;
   totalPontosReais: number;
   cartelasConcluidas: number;
   vendasUltimos30Dias: number;
-  ultimaVenda: string | null;
+  ultimaVenda?: Date | string | null;
   optica?: OpticaResumo | null;
-  criadoEm: string;
+  criadoEm: Date | string;
 }
 
 interface OverviewEquipe {
@@ -74,9 +86,8 @@ interface MinhaEquipeResponse {
     id: string;
     nome: string;
     email: string;
-    avatarUrl?: string | null;
-    whatsapp?: string | null;
-    nivel?: string | null;
+    papel: string;
+    status: StatusUsuario;
     saldoPontos: number;
     optica?: OpticaResumo | null;
   };
@@ -88,32 +99,9 @@ interface MinhaEquipeResponse {
   equipe: MembroEquipe[];
 }
 
-const fetcher = (url: string) => api.get<MinhaEquipeResponse>(url).then((res) => res.data);
-
-const numberFormatter = new Intl.NumberFormat("pt-BR", {
-  maximumFractionDigits: 0,
-});
-
-const currencyFormatter = new Intl.NumberFormat("pt-BR", {
-  style: "currency",
-  currency: "BRL",
-});
-
-const formatarPontos = (valor?: number) => `${numberFormatter.format(valor ?? 0)} pts`;
-const formatarMoeda = (valor?: number) => currencyFormatter.format(valor ?? 0);
-
-const formatarData = (valor?: string | null) => {
-  if (!valor) return "—";
-  const data = new Date(valor);
-  if (Number.isNaN(data.getTime())) return "—";
-  return format(data, "dd/MM/yyyy", { locale: ptBR });
-};
-
-const statusStyles: Record<StatusUsuario, string> = {
-  ATIVO: "bg-emerald-100 text-emerald-600",
-  PENDENTE: "bg-amber-100 text-amber-700",
-  BLOQUEADO: "bg-rose-100 text-rose-600",
-};
+// ============================================================================
+// CONSTANTES E HELPERS
+// ============================================================================
 
 const filtrosStatus: { label: string; value: StatusFiltro }[] = [
   { label: "Todos", value: "TODOS" },
@@ -122,82 +110,274 @@ const filtrosStatus: { label: string; value: StatusFiltro }[] = [
   { label: "Bloqueados", value: "BLOQUEADO" },
 ];
 
-const LoadingState = () => (
-  <div className="space-y-6">
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-      {Array.from({ length: 4 }).map((_, index) => (
-        <div
-          key={index}
-          className="h-36 rounded-2xl border border-border/30 bg-card/60 shadow-inner animate-pulse"
-        />
-      ))}
-    </div>
-    <div className="h-[420px] rounded-2xl border border-border/30 bg-card/60 animate-pulse" />
-  </div>
-);
+const opcoesOrdenacao: { label: string; value: OrdenacaoTipo }[] = [
+  { label: "Nome (A-Z)", value: "nome" },
+  { label: "Pontos (maior)", value: "pontos" },
+  { label: "Vendas 30d (maior)", value: "vendas" },
+  { label: "Cartelas (maior)", value: "cartelas" },
+  { label: "Última venda (recente)", value: "ultimaVenda" },
+];
 
-const DestaqueCard = ({
+const statusStyles: Record<StatusUsuario, string> = {
+  ATIVO: "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300",
+  PENDENTE: "bg-yellow-100 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300",
+  BLOQUEADO: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300",
+};
+
+const numberFormatter = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
+const currencyFormatter = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+
+const formatarPontos = (valor?: number) => `${numberFormatter.format(valor ?? 0)} pts`;
+const formatarMoeda = (valor?: number) => currencyFormatter.format(valor ?? 0);
+
+function formatarData(data?: Date | null | string): string {
+  if (!data) return "Nunca";
+  const dateObj = typeof data === "string" ? new Date(data) : data;
+  if (Number.isNaN(dateObj.getTime())) return "—";
+  return format(dateObj, "dd/MM/yy", { locale: ptBR });
+}
+
+function formatarDataRelativa(data?: Date | null | string): string {
+  if (!data) return "Nunca";
+  const dateObj = typeof data === "string" ? new Date(data) : data;
+  if (Number.isNaN(dateObj.getTime())) return "—";
+  return formatDistanceToNow(dateObj, { locale: ptBR, addSuffix: true });
+}
+
+const fetcher = (url: string) => api.get<MinhaEquipeResponse>(url).then((res) => res.data);
+
+// ============================================================================
+// SUB-COMPONENTES
+// ============================================================================
+
+function LoadingState() {
+  return (
+    <div className="flex h-full min-h-[400px] w-full flex-col items-center justify-center space-y-4 animate-pulse">
+      <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      <p className="text-sm text-muted-foreground">Carregando equipe...</p>
+    </div>
+  );
+}
+
+function EmptyState({ onClear }: { onClear: () => void }) {
+  return (
+    <div className="py-12 text-center col-span-full">
+      <Users className="mx-auto mb-4 h-12 w-12 text-muted-foreground/40" />
+      <h3 className="text-lg font-semibold text-foreground">Nenhum vendedor encontrado</h3>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Ajuste os filtros para encontrar membros da equipe.
+      </p>
+      <button
+        onClick={onClear}
+        className="mt-4 inline-flex items-center gap-2 rounded-full border border-border/50 px-4 py-2 text-sm font-semibold hover:bg-foreground/5"
+      >
+        Limpar filtros
+      </button>
+    </div>
+  );
+}
+
+function DestaqueCard({
   titulo,
-  membro,
   subtitulo,
+  membro,
   icon: Icon,
   color,
 }: {
   titulo: string;
-  membro: MembroEquipe | null;
   subtitulo: string;
+  membro: MembroEquipe | null;
   icon: LucideIcon;
   color: string;
-}) => (
-  <div className="flex-1 rounded-2xl border border-border/40 bg-card/80 p-5 shadow-sm">
-    <div className="flex items-center gap-3 mb-4">
-      <div className={cn("rounded-2xl p-2", color)}>
-        <Icon className="h-5 w-5" />
-      </div>
-      <div>
-        <p className="text-sm text-muted-foreground">{subtitulo}</p>
-        <h4 className="text-lg font-semibold">{titulo}</h4>
-      </div>
-    </div>
-    {membro ? (
-      <div className="space-y-2">
-        <p className="text-base font-semibold text-foreground">{membro.nome}</p>
-        <p className="text-sm text-muted-foreground">
-          {membro.optica?.nome ?? "Ótica não informada"}
-        </p>
-        <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
-          <span>{formatarPontos(membro.totalPontosReais)}</span>
-          <span>•</span>
-          <span>{membro.cartelasConcluidas} cartelas</span>
-          <span>•</span>
-          <span>{membro.vendasUltimos30Dias} vendas / 30d</span>
+}) {
+  return (
+    <div className="flex-1 rounded-2xl border border-border/40 bg-card/80 p-5 shadow-sm">
+      <div className="mb-4 flex items-center gap-3">
+        <div className={cn("rounded-2xl p-2", color)}>
+          <Icon className="h-5 w-5" />
+        </div>
+        <div>
+          <p className="text-sm text-muted-foreground">{subtitulo}</p>
+          <h4 className="text-lg font-semibold">{titulo}</h4>
         </div>
       </div>
-    ) : (
-      <p className="text-sm text-muted-foreground">
-        Nenhum colaborador se enquadra neste destaque.
-      </p>
-    )}
-  </div>
-);
 
-const EmptyState = ({ onClear }: { onClear: () => void }) => (
-  <div className="flex flex-col items-center justify-center gap-3 py-12 text-center text-muted-foreground">
-    <Users className="h-10 w-10 text-muted-foreground/70" />
-    <p className="text-sm">Nenhum colaborador encontrado com os filtros atuais.</p>
-    <button
-      onClick={onClear}
-      className="rounded-full border border-border/50 px-4 py-1.5 text-xs font-semibold text-foreground hover:bg-foreground/5"
-    >
-      Limpar filtros
-    </button>
-  </div>
-);
+      {membro ? (
+        <div className="flex items-center gap-4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-lg font-bold text-primary">
+            {membro.nome
+              .split(" ")
+              .slice(0, 2)
+              .map((p) => p[0])
+              .join("")}
+          </div>
+          <div className="space-y-1">
+            <p className="text-base font-semibold text-foreground">{membro.nome}</p>
+            <p className="text-sm text-muted-foreground">
+              {membro.optica?.nome ?? "Ótica não informada"}
+            </p>
+            <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+              <span>{formatarPontos(membro.totalPontosReais)}</span>
+              <span>•</span>
+              <span>{membro.cartelasConcluidas} cartelas</span>
+              <span>•</span>
+              <span>{membro.vendasUltimos30Dias} vendas / 30d</span>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          Nenhum colaborador se enquadra neste destaque.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function MembroCard({ membro }: { membro: MembroEquipe }) {
+  const diasDesdeUltimaVenda = useMemo(() => {
+    if (!membro.ultimaVenda) return null;
+    const date = typeof membro.ultimaVenda === "string" ? new Date(membro.ultimaVenda) : membro.ultimaVenda;
+    if (Number.isNaN(date.getTime())) return null;
+    const diff = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
+    return diff;
+  }, [membro.ultimaVenda]);
+
+  const alertaInatividade = diasDesdeUltimaVenda !== null && diasDesdeUltimaVenda > 7;
+
+  return (
+    <div className="group relative overflow-hidden rounded-2xl border border-border/40 bg-card/80 p-6 shadow-sm transition-all hover:border-primary/40 hover:shadow-lg">
+      {/* Header com Avatar e Info Básica */}
+      <div className="flex items-start gap-4">
+        <div className="relative shrink-0">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/10 text-2xl font-bold text-primary ring-2 ring-primary/20">
+            {membro.nome
+              .split(" ")
+              .slice(0, 2)
+              .map((parte) => parte[0])
+              .join("")}
+          </div>
+          {alertaInatividade && (
+            <div className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white" title="Inativo há mais de 7 dias">
+              <AlertTriangle className="h-3.5 w-3.5" />
+            </div>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="truncate text-lg font-bold text-foreground">{membro.nome}</h3>
+            <Badge className={cn("shrink-0 border-none", statusStyles[membro.status])}>
+              {membro.status === "ATIVO" ? "Ativo" : membro.status === "PENDENTE" ? "Pendente" : "Bloqueado"}
+            </Badge>
+          </div>
+          <div className="mt-1 space-y-1 text-sm text-muted-foreground">
+            {membro.optica && (
+              <div className="flex items-center gap-1.5">
+                <Building2 className="h-3.5 w-3.5" />
+                <span className="truncate">
+                  {membro.optica.nome}
+                  {membro.optica.cidade && membro.optica.estado && ` · ${membro.optica.cidade}/${membro.optica.estado}`}
+                </span>
+              </div>
+            )}
+            <div className="flex items-center gap-1.5">
+              <Calendar className="h-3.5 w-3.5" />
+              <span>Desde {formatarData(membro.criadoEm)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Métricas Principais */}
+      <div className="mt-6 grid grid-cols-3 gap-3">
+        <div className="rounded-xl bg-background/60 p-3 text-center">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Pontos</p>
+          <p className="mt-1 text-lg font-bold text-foreground">{membro.totalPontosReais.toLocaleString("pt-BR")}</p>
+        </div>
+        <div className="rounded-xl bg-background/60 p-3 text-center">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Cartelas</p>
+          <p className="mt-1 text-lg font-bold text-foreground">{membro.cartelasConcluidas}</p>
+        </div>
+        <div className="rounded-xl bg-background/60 p-3 text-center">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Vendas 30d</p>
+          <p className="mt-1 text-lg font-bold text-foreground">{membro.vendasUltimos30Dias}</p>
+        </div>
+      </div>
+
+      {/* Info Adicional */}
+      <div className="mt-4 space-y-2 border-t border-border/30 pt-4">
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">Saldo disponível:</span>
+          <span className="font-semibold text-foreground">{formatarPontos(membro.saldoPontos)}</span>
+        </div>
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">Última venda:</span>
+          <span className={cn("font-medium", alertaInatividade ? "text-red-500" : "text-foreground")}>
+            {formatarDataRelativa(membro.ultimaVenda)}
+          </span>
+        </div>
+      </div>
+
+      {/* Ações */}
+      <div className="mt-5 flex flex-wrap gap-2">
+        {membro.whatsapp && (
+          <a
+            href={`https://wa.me/55${membro.whatsapp.replace(/\D/g, "")}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 rounded-full border border-border/50 bg-green-50 px-3 py-1.5 text-sm font-medium text-green-700 transition hover:bg-green-100 dark:bg-green-950 dark:text-green-300 dark:hover:bg-green-900"
+          >
+            <MessageCircle className="h-3.5 w-3.5" />
+            WhatsApp
+          </a>
+        )}
+        <a
+          href={`mailto:${membro.email}`}
+          className="flex items-center gap-1.5 rounded-full border border-border/50 bg-background/60 px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-background"
+        >
+          <Mail className="h-3.5 w-3.5" />
+          Email
+        </a>
+        <button className="flex items-center gap-1.5 rounded-full border border-border/50 bg-background/60 px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-background">
+          <User className="h-3.5 w-3.5" />
+          Ver detalhes
+        </button>
+      </div>
+
+      {/* Status Badges Adicionais */}
+      {alertaInatividade && (
+        <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-900 dark:bg-red-950/50">
+          <p className="flex items-center gap-2 text-xs font-semibold text-red-700 dark:text-red-300">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            Inativo há {diasDesdeUltimaVenda} dias
+          </p>
+        </div>
+      )}
+      {membro.status === "PENDENTE" && (
+        <div className="mt-4 flex gap-2">
+          <button className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-green-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-green-700">
+            <CheckCircle2 className="h-4 w-4" />
+            Aprovar
+          </button>
+          <button className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-red-600 px-3 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50 dark:hover:bg-red-950/50">
+            <XCircle className="h-4 w-4" />
+            Rejeitar
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// COMPONENTE PÁGINA PRINCIPAL
+// ============================================================================
 
 export default function MinhaEquipePage() {
   const { usuario, carregando } = useAuth();
   const [busca, setBusca] = useState("");
   const [filtroStatus, setFiltroStatus] = useState<StatusFiltro>("TODOS");
+  const [ordenacao, setOrdenacao] = useState<OrdenacaoTipo>("nome");
 
   const podeCarregar = usuario?.papel === "GERENTE";
 
@@ -205,44 +385,106 @@ export default function MinhaEquipePage() {
     podeCarregar ? "/perfil/minha-equipe" : null,
     fetcher,
     {
-      refreshInterval: 120000, // 2 minutos para manter visão quase em tempo real
+      refreshInterval: 120000, // 2 minutos
       revalidateOnFocus: true,
-    },
+    }
   );
+
+  const carregandoDados = podeCarregar && (isLoading || (!data && !error));
 
   const equipeOrdenada = useMemo(() => {
     if (!data?.equipe) return [];
-    return [...data.equipe].sort((a, b) => b.totalPontosReais - a.totalPontosReais);
+    return [...data.equipe];
   }, [data]);
 
   const equipeFiltrada = useMemo(() => {
-    const termo = busca.trim().toLowerCase();
-    return equipeOrdenada.filter((membro) => {
-      const correspondeStatus =
-        filtroStatus === "TODOS" ? true : membro.status === filtroStatus;
-      const correspondeBusca =
-        termo.length === 0
-          ? true
-          : membro.nome.toLowerCase().includes(termo) ||
-            membro.email.toLowerCase().includes(termo) ||
-            membro.optica?.nome?.toLowerCase().includes(termo);
-      return correspondeStatus && correspondeBusca;
+    let resultado = [...equipeOrdenada];
+
+    // Filtro de status
+    if (filtroStatus !== "TODOS") {
+      resultado = resultado.filter((membro) => membro.status === filtroStatus);
+    }
+
+    // Filtro de busca
+    if (busca.trim()) {
+      const termo = busca.toLowerCase().trim();
+      resultado = resultado.filter(
+        (membro) =>
+          membro.nome.toLowerCase().includes(termo) ||
+          membro.email.toLowerCase().includes(termo) ||
+          membro.optica?.nome?.toLowerCase().includes(termo)
+      );
+    }
+
+    // Ordenação
+    resultado.sort((a, b) => {
+      switch (ordenacao) {
+        case "nome":
+          return a.nome.localeCompare(b.nome);
+        case "pontos":
+          return b.totalPontosReais - a.totalPontosReais;
+        case "vendas":
+          return b.vendasUltimos30Dias - a.vendasUltimos30Dias;
+        case "cartelas":
+          return b.cartelasConcluidas - a.cartelasConcluidas;
+        case "ultimaVenda": {
+          const dateA = a.ultimaVenda ? new Date(a.ultimaVenda).getTime() : 0;
+          const dateB = b.ultimaVenda ? new Date(b.ultimaVenda).getTime() : 0;
+          return dateB - dateA;
+        }
+        default:
+          return 0;
+      }
     });
-  }, [busca, filtroStatus, equipeOrdenada]);
+
+    return resultado;
+  }, [equipeOrdenada, filtroStatus, busca, ordenacao]);
 
   const limparFiltros = () => {
     setBusca("");
     setFiltroStatus("TODOS");
+    setOrdenacao("nome");
   };
 
-  const carregandoDados = podeCarregar && (isLoading || (!data && !error));
+  const exportarCSV = () => {
+    if (!equipeFiltrada.length) return;
+
+    const cabecalho = [
+      "Nome",
+      "Email",
+      "WhatsApp",
+      "Status",
+      "Ótica",
+      "Pontos Totais",
+      "Saldo",
+      "Cartelas",
+      "Vendas 30d",
+      "Última Venda",
+    ];
+
+    const linhas = equipeFiltrada.map((m) => [
+      m.nome,
+      m.email,
+      m.whatsapp || "",
+      m.status,
+      m.optica?.nome || "",
+      m.totalPontosReais,
+      m.saldoPontos,
+      m.cartelasConcluidas,
+      m.vendasUltimos30Dias,
+      formatarData(m.ultimaVenda),
+    ]);
+
+    const csv = [cabecalho, ...linhas].map((linha) => linha.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `equipe_${format(new Date(), "yyyy-MM-dd")}.csv`;
+    link.click();
+  };
 
   if (carregando) {
-    return (
-      <div className="flex h-full items-center justify-center py-16">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-      </div>
-    );
+    return <LoadingState />;
   }
 
   if (!usuario) {
@@ -251,31 +493,51 @@ export default function MinhaEquipePage() {
 
   if (usuario.papel !== "GERENTE") {
     return (
-      <div className="rounded-2xl border border-border/40 bg-card/80 p-8 text-center">
-        <AlertTriangle className="mx-auto mb-3 h-10 w-10 text-amber-500" />
-        <h2 className="text-2xl font-semibold">Acesso restrito</h2>
-        <p className="mt-2 text-muted-foreground">
-          Esta área foi desenhada exclusivamente para gerentes. Entre em contato com o suporte
-          caso precise de acesso.
-        </p>
+      <div className="flex h-[50vh] items-center justify-center">
+        <div className="rounded-2xl border border-border/40 bg-card/80 p-8 text-center shadow-sm max-w-md">
+          <AlertTriangle className="mx-auto mb-3 h-10 w-10 text-amber-500" />
+          <h2 className="text-2xl font-semibold">Acesso restrito</h2>
+          <p className="mt-2 text-muted-foreground">
+            Esta área foi desenhada exclusivamente para gerentes. Entre em contato com o suporte caso precise de acesso.
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-10">
+      {/* Header */}
       <header className="space-y-2">
-        <p className="text-sm uppercase tracking-wider text-primary/80">Gestão da equipe</p>
-        <h1 className="text-3xl font-bold text-foreground">Minha equipe</h1>
-        <p className="text-muted-foreground">
-          Acompanhe performance, engajamento e oportunidades de coaching em tempo real.
-        </p>
+        <div className="flex items-center gap-2 text-sm uppercase tracking-wider text-primary/80">
+          <Users className="h-4 w-4" />
+          <p>Gestão de equipe</p>
+        </div>
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Minha equipe</h1>
+            <p className="mt-1 text-muted-foreground">
+              Gerencie, acompanhe e apoie o desenvolvimento de cada vendedor.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={exportarCSV}
+              disabled={!equipeFiltrada.length}
+              className="flex items-center gap-2 rounded-full border border-border/50 bg-background/60 px-4 py-2 text-sm font-semibold transition hover:bg-background disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Download className="h-4 w-4" />
+              Exportar CSV
+            </button>
+          </div>
+        </div>
       </header>
 
-      <section className="rounded-2xl border border-border/30 bg-card/70 p-6 shadow-sm">
+      {/* Info do Gerente */}
+      <section className="rounded-2xl border border-border/30 bg-gradient-to-br from-primary/5 to-primary/10 p-6 shadow-sm">
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-xl font-bold text-primary">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-xl font-bold text-primary-foreground ring-4 ring-primary/20">
               {(data?.gerente?.nome || usuario.nome)
                 .split(" ")
                 .slice(0, 2)
@@ -283,22 +545,25 @@ export default function MinhaEquipePage() {
                 .join("")}
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Responsável</p>
-              <h3 className="text-xl font-semibold text-foreground">
-                {data?.gerente?.nome ?? usuario.nome}
-              </h3>
+              <p className="text-sm font-semibold text-muted-foreground">Responsável pela equipe</p>
+              <h3 className="text-xl font-semibold text-foreground">{data?.gerente?.nome ?? usuario.nome}</h3>
               <p className="text-sm text-muted-foreground">
                 {data?.gerente?.optica?.nome ?? usuario.optica?.nome ?? "Ótica não vinculada"}
               </p>
             </div>
           </div>
-          <div className="grid gap-2 text-sm text-muted-foreground md:text-right">
-            <p>
+          <div className="grid gap-3 text-sm md:text-right">
+            <p className="text-muted-foreground">
               {data?.gerente?.optica?.cidade && data?.gerente?.optica?.estado
                 ? `${data.gerente.optica.cidade} / ${data.gerente.optica.estado}`
                 : "Localização não informada"}
             </p>
-            <p>Saldo pessoal: {formatarPontos(data?.gerente?.saldoPontos ?? 0)}</p>
+            <div className="flex items-center gap-2 md:justify-end">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <span className="font-semibold text-foreground">
+                {equipeFiltrada.length} {equipeFiltrada.length === 1 ? "vendedor" : "vendedores"}
+              </span>
+            </div>
           </div>
         </div>
       </section>
@@ -327,6 +592,7 @@ export default function MinhaEquipePage() {
 
       {!carregandoDados && data && (
         <>
+          {/* KPIs Overview */}
           <section className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
             <KpiCard
               titulo="Vendedores ativos"
@@ -376,6 +642,7 @@ export default function MinhaEquipePage() {
             />
           </section>
 
+          {/* Destaques */}
           <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <DestaqueCard
               titulo="Top performer da semana"
@@ -393,100 +660,80 @@ export default function MinhaEquipePage() {
             />
           </section>
 
+          {/* Filtros e Busca */}
           <section className="rounded-2xl border border-border/40 bg-card/80 shadow-sm">
             <div className="flex flex-col gap-4 border-b border-border/30 p-5 md:flex-row md:items-center md:justify-between">
+              {/* Busca */}
               <div className="w-full md:max-w-sm">
                 <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Buscar colaborador
                 </label>
-                <div className="mt-1 relative">
+                <div className="relative mt-1">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <input
                     type="text"
                     className="w-full rounded-full border border-border/40 bg-background/60 py-2 pl-10 pr-4 text-sm focus:border-primary focus:outline-none"
                     placeholder="Nome, e-mail ou ótica"
                     value={busca}
-                    onChange={(event) => setBusca(event.target.value)}
+                    onChange={(e) => setBusca(e.target.value)}
                   />
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  <Filter className="h-3.5 w-3.5" /> Status
-                </span>
-                {filtrosStatus.map((filtro) => (
-                  <button
-                    key={filtro.value}
-                    onClick={() => setFiltroStatus(filtro.value)}
-                    className={cn(
-                      "rounded-full border px-3 py-1 text-xs font-semibold transition", 
-                      filtroStatus === filtro.value
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border/40 text-muted-foreground hover:border-border/80",
-                    )}
+
+              {/* Filtros */}
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Status */}
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    <Filter className="h-3.5 w-3.5" /> Status
+                  </span>
+                  {filtrosStatus.map((filtro) => (
+                    <button
+                      key={filtro.value}
+                      onClick={() => setFiltroStatus(filtro.value)}
+                      className={cn(
+                        "rounded-full border px-3 py-1 text-xs font-semibold transition",
+                        filtroStatus === filtro.value
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border/40 text-muted-foreground hover:border-border/80"
+                      )}
+                    >
+                      {filtro.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Ordenação */}
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    <ArrowUpDown className="h-3.5 w-3.5" /> Ordenar
+                  </span>
+                  <select
+                    value={ordenacao}
+                    onChange={(e) => setOrdenacao(e.target.value as OrdenacaoTipo)}
+                    className="rounded-full border border-border/40 bg-background/60 px-3 py-1 text-xs font-semibold text-foreground transition hover:border-border/80 focus:border-primary focus:outline-none"
                   >
-                    {filtro.label}
-                  </button>
-                ))}
+                    {opcoesOrdenacao.map((opcao) => (
+                      <option key={opcao.value} value={opcao.value}>
+                        {opcao.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-border/30 text-sm">
-                <thead>
-                  <tr className="text-xs uppercase tracking-wide text-muted-foreground">
-                    <th className="px-4 py-3 text-left">Colaborador</th>
-                    <th className="px-4 py-3 text-left">Status</th>
-                    <th className="px-4 py-3 text-left">Cartelas</th>
-                    <th className="px-4 py-3 text-left">Pontos</th>
-                    <th className="px-4 py-3 text-left">Vendas 30d</th>
-                    <th className="px-4 py-3 text-left">Última venda</th>
-                    <th className="px-4 py-3 text-left">Saldo</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/30">
-                  {equipeFiltrada.length === 0 && (
-                    <tr>
-                      <td colSpan={7}>
-                        <EmptyState onClear={limparFiltros} />
-                      </td>
-                    </tr>
-                  )}
-                  {equipeFiltrada.map((membro) => (
-                    <tr key={membro.id} className="hover:bg-background/40">
-                      <td className="px-4 py-4">
-                        <div className="flex flex-col">
-                          <span className="font-semibold text-foreground">{membro.nome}</span>
-                          <span className="text-xs text-muted-foreground">{membro.email}</span>
-                          {membro.optica?.nome && (
-                            <span className="text-xs text-muted-foreground">
-                              {membro.optica.nome}
-                              {membro.optica.cidade && membro.optica.estado
-                                ? ` · ${membro.optica.cidade}/${membro.optica.estado}`
-                                : ""}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-4">
-                        <Badge className={cn("border-none", statusStyles[membro.status])}>
-                          {membro.status === "ATIVO"
-                            ? "Ativo"
-                            : membro.status === "PENDENTE"
-                              ? "Pendente"
-                              : "Bloqueado"}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-4 font-semibold">{membro.cartelasConcluidas}</td>
-                      <td className="px-4 py-4 font-semibold">{formatarPontos(membro.totalPontosReais)}</td>
-                      <td className="px-4 py-4">{membro.vendasUltimos30Dias}</td>
-                      <td className="px-4 py-4 text-sm text-muted-foreground">{formatarData(membro.ultimaVenda)}</td>
-                      <td className="px-4 py-4 font-semibold">{formatarPontos(membro.saldoPontos)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
           </section>
+
+          {/* Grid de Vendedores */}
+          {equipeFiltrada.length === 0 ? (
+            <EmptyState onClear={limparFiltros} />
+          ) : (
+            <section className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {equipeFiltrada.map((membro) => (
+                <MembroCard key={membro.id} membro={membro} />
+              ))}
+            </section>
+          )}
         </>
       )}
     </div>

@@ -9,7 +9,8 @@
  *   * /dashboard/kpis - KPIs básicos (compatibilidade com Admin/Gerente)
  *   * /dashboard/vendedor/completo - Dados enriquecidos (apenas Vendedor)
  * - Renderização Condicional: 
- *   * Admin/Gerente: KpisAdmin/KpisGerente (existentes)
+ *   * Admin: KpisAdmin
+ *   * Gerente: Redireciona para /gerente (dashboard completo)
  *   * Vendedor: Dashboard Premium com componentes especializados
  * - Design: Layout responsivo com grid moderno, componentes glassmorphism
  * - Animações: Framer Motion com entrada escalonada e micro-interações
@@ -19,6 +20,8 @@
  */
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { useAuth } from "@/contexts/ContextoAutenticacao";
 import { KpisAdmin } from "@/components/dashboard/KpisAdmin";
@@ -83,13 +86,23 @@ export default function DashboardPage() {
   /**
    * Hook de Autenticação.
    */
-  const { usuario } = useAuth();
+  const { usuario, carregando } = useAuth();
+  const router = useRouter();
+
+  /**
+   * Redirecionar gerente para o dashboard completo
+   */
+  useEffect(() => {
+    if (!carregando && usuario?.papel === "GERENTE") {
+      router.push("/gerente");
+    }
+  }, [usuario, carregando, router]);
 
   /**
    * Hook de busca de dados (SWR) - KPIs Básicos
    */
   const { data: dadosKpis, error: erroKpis } = useSWR(
-    usuario ? "/dashboard/kpis" : null,
+    usuario && usuario.papel !== "GERENTE" ? "/dashboard/kpis" : null,
     fetcher,
     { revalidateOnFocus: false }
   );
@@ -137,7 +150,12 @@ export default function DashboardPage() {
         return <KpisAdmin dados={dadosKpis} />;
       
       case "GERENTE":
-        return <KpisGerente dados={dadosKpis} />;
+        // Gerente é redirecionado para /gerente via useEffect
+        return (
+          <div className="flex h-full items-center justify-center py-16">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        );
       
       case "VENDEDOR":
         // Dashboard Premium para Vendedor

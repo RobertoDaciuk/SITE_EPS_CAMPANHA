@@ -47,7 +47,15 @@ export const ALL_MENU_ITEMS: NavItem[] = [
     href: "/",
     label: "Dashboard",
     icon: LayoutDashboard,
-    roles: [PapelUsuario.ADMIN, PapelUsuario.GERENTE, PapelUsuario.VENDEDOR],
+    roles: [PapelUsuario.ADMIN, PapelUsuario.VENDEDOR],
+    position: "main",
+  },
+  // Dashboard específico para Gerente
+  {
+    href: "/gerente",
+    label: "Dashboard",
+    icon: LayoutDashboard,
+    roles: [PapelUsuario.GERENTE],
     position: "main",
   },
   {

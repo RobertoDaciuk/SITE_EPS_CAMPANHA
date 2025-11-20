@@ -244,3 +244,92 @@
     background: hsl(var(--primary) / 0.5);
   }
 }
+
+/* ==========================================
+   ESTILOS PARA IMPRESSÃO (PDF)
+   ========================================== */
+@media print {
+  /* Ocultar elementos não necessários na impressão */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Remover backgrounds decorativos para economizar tinta */
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Otimizar margens e quebras de página */
+  @page {
+    margin: 1cm;
+    size: A4 portrait;
+  }
+
+  /* Evitar quebras dentro de elementos importantes */
+  .print-avoid-break {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Forçar quebra de página antes de elementos */
+  .print-page-break {
+    page-break-before: always;
+    break-before: always;
+  }
+
+  /* Ajustar cores para impressão */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* Otimizar cards para impressão */
+  .bg-white,
+  .dark\:bg-gray-800 {
+    background: white !important;
+    border: 1px solid #e5e7eb !important;
+  }
+
+  /* Garantir que gráficos sejam impressos corretamente */
+  svg {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* Remover sombras e efeitos visuais pesados */
+  .shadow-lg,
+  .shadow-xl,
+  .shadow-2xl {
+    box-shadow: none !important;
+  }
+
+  /* Ajustar tamanho de fonte para impressão */
+  body {
+    font-size: 10pt;
+    line-height: 1.4;
+  }
+
+  h1 { font-size: 18pt; }
+  h2 { font-size: 16pt; }
+  h3 { font-size: 14pt; }
+  h4 { font-size: 12pt; }
+
+  /* Garantir que links sejam visíveis */
+  a {
+    text-decoration: underline;
+  }
+
+  /* Otimizar tabelas para impressão */
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+  }
+}
