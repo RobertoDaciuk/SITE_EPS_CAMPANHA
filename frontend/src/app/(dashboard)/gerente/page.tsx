@@ -123,7 +123,7 @@ export default function DashboardGerentePage() {
           </h1>
         </div>
         <p className="text-muted-foreground">
-          Visão completa da performance da sua equipe, alertas inteligentes e insights acionáveis.
+          Visão completa da performance da sua equipe.
         </p>
       </motion.div>
 

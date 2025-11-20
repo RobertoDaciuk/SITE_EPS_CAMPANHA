@@ -28,6 +28,7 @@ import {
   Trophy,
   Store,
   DollarSign,
+  Coins,
   ChevronLeft,
   ChevronRight,
   Filter,
@@ -152,10 +153,7 @@ export default function RankingGerentePage() {
   };
 
   const formatarValor = (valor: number) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(valor);
+    return new Intl.NumberFormat("pt-BR").format(valor);
   };
 
   
@@ -313,13 +311,10 @@ export default function RankingGerentePage() {
                 <th className="px-6 py-4 text-left text-xs font-bold text-foreground uppercase tracking-wider">
                   Ótica
                 </th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-foreground uppercase tracking-wider">
-                  Nível
-                </th>
                 <th className="px-6 py-4 text-right text-xs font-bold text-foreground uppercase tracking-wider">
                   <div className="flex items-center justify-end gap-2">
-                    <DollarSign className="w-4 h-4" />
-                    Valor Total
+                    <Coins className="w-4 h-4" />
+                    Pontos
                   </div>
                 </th>
                 
@@ -367,11 +362,6 @@ export default function RankingGerentePage() {
                           </p>
                         </div>
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`text-sm font-bold ${getNivelColor(vendedor.nivel)}`}>
-                        {vendedor.nivel}
-                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <span className="text-lg font-bold text-success">

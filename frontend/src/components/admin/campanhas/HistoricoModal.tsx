@@ -32,7 +32,7 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   campanhaId: string;
-  tituloCampanha: string;
+  campanhaTitulo: string;
 }
 
 /**
@@ -41,7 +41,7 @@ interface Props {
  * Mostra linha do tempo completa de todas as alterações realizadas
  * por admins na campanha, incluindo criação, edições e exclusão.
  */
-export default function HistoricoModal({ isOpen, onClose, campanhaId, tituloCampanha }: Props) {
+export default function HistoricoModal({ isOpen, onClose, campanhaId, campanhaTitulo }: Props) {
   const [historico, setHistorico] = useState<RegistroHistorico[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -198,7 +198,7 @@ export default function HistoricoModal({ isOpen, onClose, campanhaId, tituloCamp
                       Histórico de Alterações
                     </h2>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                      {tituloCampanha}
+                      {campanhaTitulo}
                     </p>
                   </div>
                   <button

@@ -4,38 +4,46 @@
  * ============================================================================
  *
  * Descrição:
- * Helper para construir URLs absolutas de imagens a partir de caminhos relativos
- * retornados pela API.
+ * Helper para construir URLs de imagens compatíveis com rewrites do Next.js.
  *
- * Motivação:
- * - Backend retorna URLs relativas: /uploads/campanhas/file-xxx.jpg
- * - Frontend precisa acessar via backend: http://localhost:3000/uploads/...
- * - Rewrites do Next.js não funcionam bem com Turbopack em dev mode
+ * SOLUÇÃO DEFINITIVA PARA PRODUÇÃO:
+ * - Em produção, usa URLs relativas (/uploads/...) que são servidas via rewrites
+ * - Next.js faz proxy das imagens do backend automaticamente
+ * - Elimina problema de localhost/IPs privados bloqueados em produção
+ * - Funciona tanto em desenvolvimento quanto em produção na nuvem
+ *
+ * Fluxo:
+ * 1. Backend retorna: /uploads/campanhas/file-xxx.jpg
+ * 2. Frontend usa: /uploads/campanhas/file-xxx.jpg (URL relativa)
+ * 3. Next.js reescreve para: http://backend-api/uploads/campanhas/file-xxx.jpg
  *
  * @module ImageUrlHelper
  * ============================================================================
  */
 
 /**
- * URL base da API backend (sem /api no final para arquivos estáticos)
- */
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:3000';
-
-/**
- * Constrói URL absoluta para imagem a partir de caminho relativo ou absoluto.
+ * Constrói URL de imagem compatível com rewrites do Next.js.
+ *
+ * COMPORTAMENTO:
+ * - URLs relativas (/uploads/...) são mantidas como relativas
+ * - Next.js rewrites automaticamente para o backend
+ * - URLs absolutas externas são mantidas como estão
  *
  * @param imagePath - Caminho da imagem (relativo ou absoluto)
- * @returns URL completa da imagem ou string vazia se não houver imagem
+ * @returns URL da imagem ou string vazia se não houver imagem
  *
  * @example
+ * // URL relativa (será servida via rewrite)
  * getImageUrl('/uploads/campanhas/file-123.jpg')
- * // => 'http://localhost:3000/uploads/campanhas/file-123.jpg'
+ * // => '/uploads/campanhas/file-123.jpg'
  *
  * @example
+ * // URL absoluta externa (mantém como está)
  * getImageUrl('http://example.com/image.jpg')
  * // => 'http://example.com/image.jpg'
  *
  * @example
+ * // Sem imagem
  * getImageUrl(null)
  * // => ''
  */
@@ -45,15 +53,17 @@ export function getImageUrl(imagePath?: string | null): string {
   }
 
   // Se já é URL absoluta (começa com http:// ou https://), retorna como está
+  // (útil para imagens externas, CDNs, etc)
   if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
     return imagePath;
   }
 
-  // Se é caminho relativo (começa com /), constrói URL absoluta
+  // Se é caminho relativo (começa com /), mantém como relativo
+  // O Next.js rewrites vai fazer o proxy automaticamente
   if (imagePath.startsWith('/')) {
-    return `${API_BASE_URL}${imagePath}`;
+    return imagePath;
   }
 
-  // Se não tem barra no início, adiciona
-  return `${API_BASE_URL}/${imagePath}`;
+  // Se não tem barra no início, adiciona (para rewrites funcionarem)
+  return `/${imagePath}`;
 }

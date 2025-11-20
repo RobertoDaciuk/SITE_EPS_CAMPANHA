@@ -28,9 +28,9 @@ import CampaignCard, { Campanha } from "@/components/campanhas/CampaignCard";
 import SkeletonCampaignCard from "@/components/campanhas/SkeletonCampaignCard";
 
 /**
- * Tipo de filtro de status (Adicionado FUTURAS para melhor UX)
+ * Tipo de filtro de status
  */
-type FiltroStatus = "ATIVAS" | "CONCLUIDAS" | "EXPIRADAS" | "FUTURAS";
+type FiltroStatus = "ATIVAS" | "CONCLUIDAS" | "EXPIRADAS";
 
 /**
  * Determina o status atual da campanha baseado nas datas (Lógica Corrigida)
@@ -129,7 +129,6 @@ export default function CampanhasPage() {
       if (filtroStatus === "ATIVAS") return statusAtual === "ATIVA";
       if (filtroStatus === "CONCLUIDAS") return statusAtual === "CONCLUIDA";
       if (filtroStatus === "EXPIRADAS") return statusAtual === "EXPIRADA"; // Mantido se o backend usar
-      if (filtroStatus === "FUTURAS") return statusAtual === "FUTURA";
 
       return false;
     });
@@ -203,29 +202,6 @@ export default function CampanhasPage() {
               }`}
             >
               {contarStatus("ATIVA")}
-            </span>
-          )}
-        </button>
-
-        {/* Aba: Futuras (NOVA ABA) */}
-        <button
-          onClick={() => setFiltroStatus("FUTURAS")}
-          className={`px-2 py-1 rounded-lg text-xs md:px-4 md:py-2 md:text-sm font-medium transition-all duration-200 ${
-            filtroStatus === "FUTURAS"
-              ? "bg-primary text-primary-foreground shadow-md"
-              : "text-muted-foreground hover:text-foreground hover:bg-accent"
-          }`}
-        >
-          Futuras
-          {!isLoading && (
-            <span
-              className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
-                filtroStatus === "FUTURAS"
-                  ? "bg-primary-foreground/20"
-                  : "bg-muted"
-              }`}
-            >
-              {contarStatus("FUTURA")}
             </span>
           )}
         </button>
@@ -315,8 +291,7 @@ export default function CampanhasPage() {
                 {filtroStatus === "ATIVAS" && "ativas"}
                 {filtroStatus === "CONCLUIDAS" && "concluídas"}
                 {filtroStatus === "EXPIRADAS" && "expiradas"}
-                {filtroStatus === "FUTURAS" && "futuras"}
-                 no momento.
+                {" "}no momento.
               </p>
               {filtroStatus !== "ATIVAS" && (
                 <button

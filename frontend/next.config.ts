@@ -2,45 +2,54 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
+  
+  /**
+   * Rewrites: Proxy de imagens do backend
+   * 
+   * Em desenvolvimento e produção, o Next.js faz proxy das imagens do backend.
+   * Isso resolve o problema de localhost em produção.
+   * 
+   * Exemplo:
+   * - Frontend: http://seudominio.com/uploads/campanhas/file-123.jpg
+   * - Backend:  http://backend-api.com/uploads/campanhas/file-123.jpg
+   */
   async rewrites() {
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:3000';
+    
     return [
       {
         source: '/uploads/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/uploads/:path*`,
+        destination: `${backendUrl}/uploads/:path*`,
       },
     ];
   },
   
   /**
-   * Configuração de imagens externas (Next.js Image Optimization)
+   * Configuração de imagens (Next.js Image Optimization)
    * 
-   * CORREÇÃO (Sprint 20.5): Configurado para permitir imagens do backend local
-   * - dangerouslyAllowSVG: permite SVG (opcional)
-   * - unoptimized: desabilita otimização para evitar erros com localhost
-   * - remotePatterns: lista de domínios permitidos
+   * SOLUÇÃO DEFINITIVA PARA PRODUÇÃO:
+   * - Usa URLs relativas (/uploads/...) que são servidas via rewrites
+   * - Não depende de localhost ou IPs privados
+   * - Funciona tanto em dev quanto em produção
+   * - Mantém otimização de imagens do Next.js
    */
   images: {
     remotePatterns: [
+      // Permite imagens servidas pelo próprio domínio (via rewrites)
       {
         protocol: 'http',
         hostname: 'localhost',
-        port: '3000',
-        pathname: '/uploads/**',
-      },
-      {
-        protocol: 'http',
-        hostname: '127.0.0.1',
-        port: '3000',
+        port: '3001',
         pathname: '/uploads/**',
       },
       {
         protocol: 'https',
-        hostname: '**', // Permite qualquer domínio HTTPS (para produção)
+        hostname: '**', // Permite qualquer domínio HTTPS em produção
         pathname: '/uploads/**',
       },
     ],
-    // Desabilita otimização de imagens em desenvolvimento para evitar bloqueio de IPs privados
-    unoptimized: process.env.NODE_ENV === 'development',
+    // Mantém otimização habilitada
+    unoptimized: false,
   },
 };
 

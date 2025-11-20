@@ -168,7 +168,7 @@ export default function ImportarOticasModal({
       if (response.data.erros === 0) {
         toast.success(`${response.data.sucesso} óticas importadas com sucesso!`);
       } else {
-        toast.warning(`${response.data.sucesso} óticas importadas, ${response.data.erros} com erros`);
+        toast.error(`${response.data.sucesso} óticas importadas, ${response.data.erros} com erros`);
       }
     } catch (error: any) {
       console.error('Erro ao importar óticas:', error);

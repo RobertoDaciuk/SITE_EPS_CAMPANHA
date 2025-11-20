@@ -124,8 +124,7 @@ export default function RankingVendedorPage() {
             <tr>
               <th className="px-6 py-4 text-left text-xs font-bold uppercase">Posição</th>
               <th className="px-6 py-4 text-left text-xs font-bold uppercase">Vendedor</th>
-              <th className="px-6 py-4 text-left text-xs font-bold uppercase">Nível</th>
-              <th className="px-6 py-4 text-right text-xs font-bold uppercase">Pontos</th>
+                <th className="px-6 py-4 text-right text-xs font-bold uppercase">Pontos</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/20">
@@ -142,11 +141,8 @@ export default function RankingVendedorPage() {
                     <span className="font-semibold">{v.nome}</span>
                   </div>
                 </td>
-                <td className="px-6 py-4">
-                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${getNivelColor(v.nivel)} ${getNivelBg(v.nivel)}`}>{v.nivel}</span>
-                </td>
                 <td className="px-6 py-4 text-right">
-                  <span className="text-lg font-bold text-primary">{formatarNumero((v as any).valorTotal ?? 0)}</span>
+                    <span className="text-lg font-bold text-primary">{formatarNumero((v as any).valorTotal ?? 0)}</span>
                 </td>
               </tr>
             ))}

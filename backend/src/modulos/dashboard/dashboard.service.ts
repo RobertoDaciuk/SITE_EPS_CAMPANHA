@@ -121,11 +121,14 @@ export class DashboardService {
     const totalVendedores = await this.prisma.usuario.count({ where: { gerenteId: usuarioId } });
     // KPI 2: vendas da equipe em análise
     const vendasTimeAnalise = await this.prisma.envioVenda.count({ where: { vendedor: { gerenteId: usuarioId } as any, status: 'EM_ANALISE' } });
+    
     // KPI 3: comissão pendente
-    const comissaoPendente = await this.prisma.relatorioFinanceiro.aggregate({
-      _sum: { valor: true },
-      where: { usuarioId: usuarioId, tipo: 'GERENTE', status: 'PENDENTE' },
+    // ✅ CORREÇÃO CRÍTICA (Sprint 20.5): Usar saldoPontos diretamente ao invés de RelatorioFinanceiro
+    const gerente = await this.prisma.usuario.findUnique({
+      where: { id: usuarioId },
+      select: { saldoPontos: true },
     });
+    const comissaoPendente = this.toNumber(gerente?.saldoPontos || 0);
 
     // Calcular total de pontos reais da equipe somando envios validados de todos os vendedores do gerente
     const vendedores = await this.prisma.usuario.findMany({
@@ -153,7 +156,7 @@ export class DashboardService {
     return {
       totalVendedores: totalVendedores ?? 0,
       vendasTimeAnalise: vendasTimeAnalise ?? 0,
-      comissaoPendente: comissaoPendente._sum.valor?.toNumber() ?? 0,
+      comissaoPendente: comissaoPendente, // ✅ CORREÇÃO: Usar saldoPontos ao invés de RelatorioFinanceiro
       totalPontosReaisTime,
     };
   }
@@ -755,11 +758,12 @@ export class DashboardService {
     inicioSemanaAnterior.setDate(agora.getDate() - 14);
 
     // 1. COMISSÃO DETALHADA
-    const comissaoPendente = await this.prisma.relatorioFinanceiro.aggregate({
-      _sum: { valor: true },
-      where: { usuarioId: usuarioId, tipo: 'GERENTE', status: 'PENDENTE' },
-    });
+    // ✅ CORREÇÃO CRÍTICA (Sprint 20.5): Usar saldoPontos diretamente ao invés de RelatorioFinanceiro
+    // O sistema incrementa saldoPontos quando cartelas são concluídas, mas RelatorioFinanceiro
+    // só é criado quando admin gera lote de pagamento. Isso causava comissão "invisível" no dashboard.
+    const saldoPendente = this.toNumber(gerente.saldoPontos || 0);
 
+    // Buscar próximo pagamento agendado (se houver relatório pendente)
     const proximoPagamento = await this.prisma.relatorioFinanceiro.findFirst({
       where: { usuarioId: usuarioId, tipo: 'GERENTE', status: 'PENDENTE' },
       orderBy: { criadoEm: 'asc' },
@@ -1097,7 +1101,7 @@ export class DashboardService {
         optica: gerente.optica,
       },
       comissao: {
-        pendente: this.toNumber(comissaoPendente._sum.valor || 0),
+        pendente: saldoPendente, // ✅ CORREÇÃO: Usar saldoPontos ao invés de RelatorioFinanceiro
         proximoPagamento: proximoPagamento
           ? {
               valor: this.toNumber(proximoPagamento.valor),

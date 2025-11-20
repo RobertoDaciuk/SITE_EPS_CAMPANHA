@@ -466,7 +466,7 @@ export default function CampanhasPage() {
           isOpen={modalHistoricoOpen}
           onClose={() => setModalHistoricoOpen(false)}
           campanhaId={historicoInfo.id}
-          tituloCampanha={historicoInfo.titulo}
+          campanhaTitulo={historicoInfo.titulo}
         />
       )}
 
@@ -476,7 +476,7 @@ export default function CampanhasPage() {
           isOpen={modalAnalyticsOpen}
           onClose={() => setModalAnalyticsOpen(false)}
           campanhaId={analyticsInfo.id}
-          tituloCampanha={analyticsInfo.titulo}
+          campanhaTitulo={analyticsInfo.titulo}
         />
       )}
     </div>

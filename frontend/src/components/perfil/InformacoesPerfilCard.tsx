@@ -356,7 +356,7 @@ export function InformacoesPerfilCard() {
             htmlFor="dataNascimento"
             className="block text-sm font-bold text-foreground tracking-wide uppercase"
           >
-            Data de Nascimento <span className="text-muted-foreground font-normal text-xs">(Opcional)</span>
+            Data de Nascimento
           </label>
           <div className="relative group">
             <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-blue-400/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />

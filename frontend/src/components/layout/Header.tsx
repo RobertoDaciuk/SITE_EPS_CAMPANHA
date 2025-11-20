@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
+import { useRouter } from "next/navigation";
 import { Menu, Sun, Moon, Bell, User } from "lucide-react";
 
 /**
@@ -21,6 +22,7 @@ interface HeaderProps {
 
 export default function Header({ setSidebarOpen }: HeaderProps) {
   const { theme, setTheme } = useTheme();
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
 
   // Evita hidratação incorreta
@@ -66,17 +68,31 @@ export default function Header({ setSidebarOpen }: HeaderProps) {
           )}
 
           {/* Botão de Notificações */}
-          <button
-            className="relative p-2 rounded-lg hover:bg-accent transition-colors"
-            aria-label="Notificações"
-          >
-            <Bell className="w-5 h-5" />
-            {/* Badge de notificações não lidas */}
-            <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />
-          </button>
+          <div className="relative group">
+            <button
+              className="relative p-2 rounded-lg hover:bg-accent transition-colors"
+              aria-label="Notificações"
+            >
+              <Bell className="w-5 h-5" />
+              {/* Badge de notificações não lidas */}
+              <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />
+            </button>
+            {/* Dropdown de notificações recentes */}
+            <div className="absolute right-0 mt-0 w-80 bg-card border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+              <div className="p-4 border-b border-border">
+                <h3 className="font-semibold text-sm">Notificações Recentes</h3>
+              </div>
+              <div className="max-h-96 overflow-y-auto">
+                <div className="p-4 text-sm text-muted-foreground text-center">
+                  Nenhuma notificação no momento
+                </div>
+              </div>
+            </div>
+          </div>
 
           {/* Botão de Perfil */}
           <button
+            onClick={() => router.push("/perfil")}
             className="p-2 rounded-lg hover:bg-accent transition-colors"
             aria-label="Perfil do usuário"
           >

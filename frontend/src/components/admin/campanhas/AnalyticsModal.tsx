@@ -31,7 +31,7 @@ interface AnalyticsModalProps {
   isOpen: boolean;
   onClose: () => void;
   campanhaId: string;
-  tituloCampanha: string;
+  campanhaTitulo: string;
 }
 
 interface AnalyticsData {
@@ -95,7 +95,7 @@ export default function AnalyticsModal({
   isOpen,
   onClose,
   campanhaId,
-  tituloCampanha,
+  campanhaTitulo,
 }: AnalyticsModalProps) {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -229,7 +229,7 @@ export default function AnalyticsModal({
                 <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
                   Analytics da Campanha
                 </h2>
-                <p className="text-sm text-muted-foreground mt-1">{tituloCampanha}</p>
+                <p className="text-sm text-muted-foreground mt-1">{campanhaTitulo}</p>
               </div>
             </div>
             <button

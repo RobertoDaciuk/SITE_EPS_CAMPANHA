@@ -60,7 +60,7 @@ export function ComissaoHeroCard({ comissao }: ComissaoHeroCardProps) {
               <DollarSign className="h-7 w-7 text-white" />
             </div>
             <div>
-              <p className="text-sm font-medium text-purple-200">Pontos da Equipe</p>
+              <p className="text-sm font-medium text-purple-200">Pontos da Gerência</p>
               <h3 className="text-2xl font-bold text-white">Total Acumulado</h3>
             </div>
           </div>
@@ -86,7 +86,7 @@ export function ComissaoHeroCard({ comissao }: ComissaoHeroCardProps) {
             {numberFormatter.format(comissao.pendente)} <span className="text-3xl">pts</span>
           </motion.h2>
           <p className="text-sm text-purple-200">
-            Pontos totais de comissão acumulados da sua equipe
+            Pontos totais disponíveis
           </p>
         </div>
 

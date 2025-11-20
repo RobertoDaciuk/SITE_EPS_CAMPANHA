@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import api from "@/lib/axios";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Trophy, Store, Coins, DollarSign, ChevronLeft, ChevronRight, Filter } from "lucide-react";
+import { Trophy, Store, Coins, ChevronLeft, ChevronRight, Filter } from "lucide-react";
 import toast from "react-hot-toast";
 
 interface Vendedor {
@@ -121,8 +121,7 @@ export default function RankingAdminPage() {
               <th className="px-6 py-4 text-left text-xs font-bold uppercase">Posição</th>
               <th className="px-6 py-4 text-left text-xs font-bold uppercase">Vendedor</th>
               <th className="px-6 py-4 text-left text-xs font-bold uppercase">Ótica</th>
-              <th className="px-6 py-4 text-left text-xs font-bold uppercase">Nível</th>
-              <th className="px-6 py-4 text-right text-xs font-bold uppercase">Valor Total</th>
+              <th className="px-6 py-4 text-right text-xs font-bold uppercase">Pontos</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/20">
@@ -146,8 +145,7 @@ export default function RankingAdminPage() {
                     </div>
                   </div>
                 </td>
-                <td className="px-6 py-4"><span className={`text-sm font-bold ${getNivelColor(v.nivel)}`}>{v.nivel}</span></td>
-                <td className="px-6 py-4 text-right"><span className="text-lg font-bold text-success">{formatarValor(v.valorTotal)}</span></td>
+                <td className="px-6 py-4 text-right"><span className="text-lg font-bold text-success">{v.valorTotal.toLocaleString('pt-BR')}</span></td>
                 
               </tr>
             ))}

@@ -319,30 +319,7 @@ function MembroCard({ membro }: { membro: MembroEquipe }) {
       </div>
 
       {/* Ações */}
-      <div className="mt-5 flex flex-wrap gap-2">
-        {membro.whatsapp && (
-          <a
-            href={`https://wa.me/55${membro.whatsapp.replace(/\D/g, "")}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 rounded-full border border-border/50 bg-green-50 px-3 py-1.5 text-sm font-medium text-green-700 transition hover:bg-green-100 dark:bg-green-950 dark:text-green-300 dark:hover:bg-green-900"
-          >
-            <MessageCircle className="h-3.5 w-3.5" />
-            WhatsApp
-          </a>
-        )}
-        <a
-          href={`mailto:${membro.email}`}
-          className="flex items-center gap-1.5 rounded-full border border-border/50 bg-background/60 px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-background"
-        >
-          <Mail className="h-3.5 w-3.5" />
-          Email
-        </a>
-        <button className="flex items-center gap-1.5 rounded-full border border-border/50 bg-background/60 px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-background">
-          <User className="h-3.5 w-3.5" />
-          Ver detalhes
-        </button>
-      </div>
+      {/* Bloco de ações removido conforme solicitado */}
 
       {/* Status Badges Adicionais */}
       {alertaInatividade && (
@@ -509,10 +486,7 @@ export default function MinhaEquipePage() {
     <div className="space-y-8 pb-10">
       {/* Header */}
       <header className="space-y-2">
-        <div className="flex items-center gap-2 text-sm uppercase tracking-wider text-primary/80">
-          <Users className="h-4 w-4" />
-          <p>Gestão de equipe</p>
-        </div>
+        {/* Elemento 'Gestão de equipe' removido conforme solicitado */}
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
             <h1 className="text-3xl font-bold text-foreground">Minha equipe</h1>
@@ -609,44 +583,7 @@ export default function MinhaEquipePage() {
 
               {/* Filtros */}
               <div className="flex flex-wrap items-center gap-3">
-                {/* Status */}
-                <div className="flex items-center gap-2">
-                  <span className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    <Filter className="h-3.5 w-3.5" /> Status
-                  </span>
-                  {filtrosStatus.map((filtro) => (
-                    <button
-                      key={filtro.value}
-                      onClick={() => setFiltroStatus(filtro.value)}
-                      className={cn(
-                        "rounded-full border px-3 py-1 text-xs font-semibold transition",
-                        filtroStatus === filtro.value
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-border/40 text-muted-foreground hover:border-border/80"
-                      )}
-                    >
-                      {filtro.label}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Ordenação */}
-                <div className="flex items-center gap-2">
-                  <span className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    <ArrowUpDown className="h-3.5 w-3.5" /> Ordenar
-                  </span>
-                  <select
-                    value={ordenacao}
-                    onChange={(e) => setOrdenacao(e.target.value as OrdenacaoTipo)}
-                    className="rounded-full border border-border/40 bg-background/60 px-3 py-1 text-xs font-semibold text-foreground transition hover:border-border/80 focus:border-primary focus:outline-none"
-                  >
-                    {opcoesOrdenacao.map((opcao) => (
-                      <option key={opcao.value} value={opcao.value}>
-                        {opcao.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {/* Elementos de filtro removidos conforme solicitado */}
               </div>
             </div>
           </section>

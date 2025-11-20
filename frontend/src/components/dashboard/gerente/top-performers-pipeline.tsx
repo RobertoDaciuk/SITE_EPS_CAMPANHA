@@ -33,7 +33,7 @@ export function TopPerformersCarousel({ topPerformers }: { topPerformers: TopPer
       transition={{ duration: 0.5, delay: 0.3 }}
       className="rounded-2xl border border-border/40 bg-card/80 p-6 shadow-sm"
     >
-      <h3 className="text-lg font-semibold mb-4">🏆 Top Performers da Semana</h3>
+      <h3 className="text-lg font-semibold mb-4">🏆 Top Vendedores da Semana</h3>
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         {topPerformers.map((performer, index) => (
           <motion.div

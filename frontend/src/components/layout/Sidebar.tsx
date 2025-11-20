@@ -172,10 +172,9 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
       <aside className="hidden md:block sticky top-0 h-screen w-64 bg-card border-r border-border">
         <div className="flex flex-col h-full p-6">
           <div className="mb-8">
-            <h2 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 text-transparent bg-clip-text">
-              EPS
+            <h2 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 text-transparent bg-clip-text whitespace-nowrap">
+              EPS Campanhas
             </h2>
-            <p className="text-xs text-muted-foreground mt-1">Campanhas</p>
           </div>
           <nav className="flex-1 space-y-2">
             <NavLinkList />
@@ -199,12 +198,9 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             <div className="flex flex-col h-full p-6">
               <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h2 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 text-transparent bg-clip-text">
-                    EPS
+                  <h2 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/70 text-transparent bg-clip-text whitespace-nowrap">
+                    EPS Campanhas
                   </h2>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Campanhas
-                  </p>
                 </div>
                 <button
                   onClick={() => setIsOpen(false)}
