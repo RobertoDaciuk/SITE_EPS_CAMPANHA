@@ -505,6 +505,8 @@ model RelatorioFinanceiro {
   criadoEm        DateTime        @default(now())
   /// Data da última atualização
   atualizadoEm    DateTime        @updatedAt
+  /// Data de exclusão lógica (Soft Delete)
+  deletedAt       DateTime?
   campanha        Campanha        @relation(fields: [campanhaId], references: [id], onDelete: Cascade)
   usuario         Usuario         @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   processadoPor   Usuario?        @relation("RelatoriosProcessados", fields: [processadoPorId], references: [id])
@@ -610,6 +612,7 @@ enum StatusEnvioVenda {
 enum StatusPagamento {
   PENDENTE
   PAGO
+  CANCELADO
 }
 
 /// Nível de gamificação do vendedor (baseado em rankingMoedinhas)

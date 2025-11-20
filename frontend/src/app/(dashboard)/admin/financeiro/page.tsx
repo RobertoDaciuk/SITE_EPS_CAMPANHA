@@ -13,15 +13,45 @@
  * - Lógica de Timezone (dateToSaoPauloISO)
  * - Visualização de Saldo Disponível vs Reservado (Lock icon)
  * - Exportações (Excel Simples e Detalhado)
+'use client';
+
+/**
+ * ============================================================================
+ * PÁGINA FINANCEIRO UNIFICADA (V3.0)
+ * ============================================================================
+ * * ARQUITETURA INTEGRADA:
+ * - Dashboard Analytics (KPIs, Gráficos, Comparativos)
+ * - Sistema de Lotes Completo (Listagem, Filtros, Ações)
+ * - Fluxo de Geração de Lote (Preview de Saldos, Lógica de Reservas)
+ * - Auditoria e Relatórios
+ * * FEATURES PRESERVADAS:
+ * - Lógica de Timezone (dateToSaoPauloISO)
+ * - Visualização de Saldo Disponível vs Reservado (Lock icon)
+ * - Exportações (Excel Simples e Detalhado)
  * - Processamento Atômico de Pagamentos
  * - Design Premium (Glassmorphism, Framer Motion)
  * * ============================================================================
  */
 
 import { useState, useEffect, useMemo, useCallback, type Dispatch, type SetStateAction } from 'react';
-import { format, subMonths, startOfMonth, endOfMonth, parseISO } from 'date-fns';
+import { format, subMonths, startOfMonth, endOfMonth, parseISO, eachMonthOfInterval, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+  BarChart,
+  Bar
+} from 'recharts';
 import axios from '@/lib/axios';
 import toast from 'react-hot-toast';
 import { Badge } from '@/components/ui/badge';
@@ -62,16 +92,16 @@ import {
 const dateToSaoPauloISO = (dateString: string): string => {
   const [year, month, day] = dateString.split('-').map(Number);
   const date = new Date(year, month - 1, day, 0, 0, 0, 0);
-  
+
   const offset = -date.getTimezoneOffset();
   const offsetHours = Math.floor(Math.abs(offset) / 60);
   const offsetMinutes = Math.abs(offset) % 60;
   const offsetSign = offset >= 0 ? '+' : '-';
-  
+
   const isoDate = date.toISOString().split('T')[0];
   const isoTime = '00:00:00';
   const isoOffset = `${offsetSign}${String(offsetHours).padStart(2, '0')}:${String(offsetMinutes).padStart(2, '0')}`;
-  
+
   return `${isoDate}T${isoTime}${isoOffset}`;
 };
 
@@ -135,7 +165,7 @@ export default function FinanceiroPage() {
   const [loadingLotes, setLoadingLotes] = useState(false);
   const [loadingAction, setLoadingAction] = useState(false);
   const [dataFim, setDataFim] = useState(format(new Date(), 'yyyy-MM-dd'));
-  
+
   // Dashboard State
   const [dashboardStats, setDashboardStats] = useState<DashboardStats>({
     totalPagoMesAtual: 0,
@@ -173,8 +203,8 @@ export default function FinanceiroPage() {
   // ================================================================
   const carregarDashboardStats = useCallback(async () => {
     try {
-  setLoadingDashboard(true);
-      
+      setLoadingDashboard(true);
+
       const inicioMesAtual = startOfMonth(new Date());
       const fimMesAtual = endOfMonth(new Date());
       const inicioMesAnterior = startOfMonth(subMonths(new Date(), 1));
@@ -187,7 +217,7 @@ export default function FinanceiroPage() {
 
       const lotesData = lotesResponse.data?.lotes || lotesResponse.data;
       const todosLotes = Array.isArray(lotesData) ? lotesData : [];
-      
+
       const lotesMesAtual = todosLotes.filter((l: Lote) => {
         const data = parseISO(l.criadoEm);
         return data >= inicioMesAtual && data <= fimMesAtual;
@@ -261,7 +291,7 @@ export default function FinanceiroPage() {
       setValorTotalDisponivelPreview(response.data.valorTotalDisponivel || 0);
       setValorTotalReservadoPreview(response.data.valorTotalReservado || 0);
       setViewMode('preview');
-      
+
       toast.success(
         `${response.data.totalUsuarios} usuários com saldo encontrados`,
         { icon: '💰', duration: 4000 }
@@ -286,7 +316,7 @@ export default function FinanceiroPage() {
         `Lote ${response.data.numeroLote} criado com sucesso!`,
         { icon: '✅', duration: 5000 }
       );
-      
+
       // Retorna para a view de lista e atualiza
       setViewMode('list');
       setUsuariosPreview([]);
@@ -325,7 +355,7 @@ export default function FinanceiroPage() {
         `Lote processado! ${response.data.totalProcessado} pagamentos efetuados.`,
         { icon: '🎉', duration: 6000 }
       );
-      
+
       await Promise.all([carregarLotes(), carregarDashboardStats()]);
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Erro ao processar lote');
@@ -344,7 +374,7 @@ export default function FinanceiroPage() {
     try {
       setLoadingAction(true);
       await axios.delete(`/financeiro/lotes/${numeroLote}`);
-      
+
       toast.success('Lote cancelado e saldos devolvidos com sucesso', { icon: '🗑️' });
       await Promise.all([carregarLotes(), carregarDashboardStats()]);
     } catch (error: any) {
@@ -407,9 +437,9 @@ export default function FinanceiroPage() {
     }
 
     if (searchTerm) {
-      result = result.filter(l => 
+      result = result.filter(l =>
         l.numeroLote.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        l.relatorios.some(r => 
+        l.relatorios.some(r =>
           r.usuario?.nome?.toLowerCase().includes(searchTerm.toLowerCase())
         )
       );
@@ -443,7 +473,7 @@ export default function FinanceiroPage() {
         {/* Background decorations */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl -z-10" />
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-green-500/10 rounded-full blur-3xl -z-10" />
-        
+
         <div className="relative flex items-center justify-between">
           <div className="flex items-center gap-6">
             <motion.div
@@ -469,7 +499,7 @@ export default function FinanceiroPage() {
                 </h1>
                 <Sparkles className="w-6 h-6 text-emerald-500 animate-pulse" />
               </motion.div>
-              
+
               <motion.p
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -518,13 +548,14 @@ export default function FinanceiroPage() {
 
       {/* MAIN CONTENT AREA */}
       <AnimatePresence mode="wait">
-        
+
         {/* DASHBOARD VIEW */}
         {activeView === 'dashboard' && (
-          <DashboardView 
+          <DashboardView
             stats={dashboardStats}
             loading={loadingDashboard}
             percentualMesAnterior={percentualMesAnterior}
+            lotes={lotes}
           />
         )}
 
@@ -584,11 +615,10 @@ const NavPill: React.FC<NavPillProps> = ({ active, onClick, icon, label }) => (
     whileHover={{ scale: 1.05 }}
     whileTap={{ scale: 0.95 }}
     onClick={onClick}
-    className={`px-4 py-2 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 ${
-      active
-        ? 'bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-lg shadow-emerald-500/30'
-        : 'bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700'
-    }`}
+    className={`px-4 py-2 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 ${active
+      ? 'bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-lg shadow-emerald-500/30'
+      : 'bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700'
+      }`}
   >
     {icon}
     <span className="hidden xl:inline">{label}</span>
@@ -596,79 +626,189 @@ const NavPill: React.FC<NavPillProps> = ({ active, onClick, icon, label }) => (
 );
 
 // --- DASHBOARD VIEW ---
-const DashboardView: React.FC<any> = ({ stats, loading, percentualMesAnterior }) => (
-  <motion.div
-    key="dashboard"
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0, y: -20 }}
-    transition={{ duration: 0.4 }}
-    className="space-y-6"
-  >
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      <KPICard
-        title="Pago Mês Atual"
-        value={`R$ ${stats.totalPagoMesAtual.toFixed(2)}`}
-        trend={percentualMesAnterior}
-        icon={<DollarSign className="w-6 h-6" />}
-        color="emerald"
-      />
-      <KPICard
-        title="Volume de Lotes"
-        value={stats.volumeLotes.toString()}
-        icon={<FileText className="w-6 h-6" />}
-        color="blue"
-      />
-      <KPICard
-        title="Ticket Médio"
-        value={`R$ ${stats.ticketMedio.toFixed(2)}`}
-        icon={<TrendingUp className="w-6 h-6" />}
-        color="purple"
-      />
-      <KPICard
-        title="Lotes Pendentes"
-        value={stats.pendentes.toString()}
-        icon={<Clock className="w-6 h-6" />}
-        color="orange"
-        alert={stats.pendentes > 0}
-      />
-    </div>
+const DashboardView: React.FC<any> = ({ stats, loading, percentualMesAnterior, lotes }) => {
+  // Prepare data for charts
+  const chartData = useMemo(() => {
+    if (!lotes || lotes.length === 0) return [];
 
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <StatCard
-        title="Saldo Disponível"
-        value={`R$ ${stats.saldoDisponivel.toFixed(2)}`}
-        subtitle="Pronto para gerar lote"
-        icon={<Wallet className="w-5 h-5" />}
-        color="green"
-      />
-      <StatCard
-        title="Saldo Reservado"
-        value={`R$ ${stats.saldoReservado.toFixed(2)}`}
-        subtitle="Em lotes pendentes"
-        icon={<Lock className="w-5 h-5" />}
-        color="yellow"
-      />
-      <StatCard
-        title="Usuários Ativos"
-        value={stats.usuariosAtivos.toString()}
-        subtitle="Com saldo > 0"
-        icon={<Users className="w-5 h-5" />}
-        color="blue"
-      />
-    </div>
+    const today = new Date();
+    const sixMonthsAgo = subMonths(today, 5);
+    const months = eachMonthOfInterval({ start: sixMonthsAgo, end: today });
 
-    <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 border border-gray-200 dark:border-gray-700">
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center text-muted-foreground">
-          <Activity className="w-16 h-16 mx-auto mb-4 opacity-50" />
-          <p className="text-lg font-medium">Gráficos de tendência em desenvolvimento</p>
-          <p className="text-sm mt-2">Em breve: visualização temporal de pagamentos</p>
+    return months.map(month => {
+      const monthStr = format(month, 'MMM', { locale: ptBR });
+      const monthKey = format(month, 'yyyy-MM');
+
+      const total = lotes
+        .filter((l: Lote) => l.status === 'PAGO' && l.criadoEm.startsWith(monthKey))
+        .reduce((acc: number, l: Lote) => acc + l.valorTotal, 0);
+
+      return { name: monthStr, total };
+    });
+  }, [lotes]);
+
+  const pieData = useMemo(() => {
+    if (!lotes) return [];
+    let vendedor = 0;
+    let gerente = 0;
+
+    lotes.forEach((l: Lote) => {
+      if (l.status === 'PAGO') {
+        l.relatorios.forEach((r: any) => {
+          const valor = Number(r.valor || 0);
+          if (r.tipo === 'VENDEDOR') vendedor += valor;
+          else if (r.tipo === 'GERENTE') gerente += valor;
+        });
+      }
+    });
+
+    return [
+      { name: 'Vendedores', value: vendedor },
+      { name: 'Gerentes', value: gerente },
+    ];
+  }, [lotes]);
+
+  const COLORS = ['#10B981', '#3B82F6'];
+
+  return (
+    <motion.div
+      key="dashboard"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      transition={{ duration: 0.4 }}
+      className="space-y-6"
+    >
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <KPICard
+          title="Pago Mês Atual"
+          value={`R$ ${stats.totalPagoMesAtual.toFixed(2)}`}
+          trend={percentualMesAnterior}
+          icon={<DollarSign className="w-6 h-6" />}
+          color="emerald"
+        />
+        <KPICard
+          title="Volume de Lotes"
+          value={stats.volumeLotes.toString()}
+          icon={<FileText className="w-6 h-6" />}
+          color="blue"
+        />
+        <KPICard
+          title="Ticket Médio"
+          value={`R$ ${stats.ticketMedio.toFixed(2)}`}
+          icon={<TrendingUp className="w-6 h-6" />}
+          color="purple"
+        />
+        <KPICard
+          title="Lotes Pendentes"
+          value={stats.pendentes.toString()}
+          icon={<Clock className="w-6 h-6" />}
+          color="orange"
+          alert={stats.pendentes > 0}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Chart */}
+        <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-lg">
+          <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
+            <Activity className="w-5 h-5 text-emerald-500" />
+            Volume de Pagamentos (Últimos 6 meses)
+          </h3>
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10B981" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#6B7280' }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6B7280' }} tickFormatter={(value) => `R$${value / 1000}k`} />
+                <Tooltip
+                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                  formatter={(value: number) => [`R$ ${value.toFixed(2)}`, 'Total Pago']}
+                />
+                <Area type="monotone" dataKey="total" stroke="#10B981" strokeWidth={3} fillOpacity={1} fill="url(#colorTotal)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Distribution Chart */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-lg">
+          <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
+            <Users className="w-5 h-5 text-blue-500" />
+            Distribuição
+          </h3>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={pieData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={80}
+                  paddingAngle={5}
+                  dataKey="value"
+                >
+                  {pieData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value: number) => `R$ ${value.toFixed(2)}`} />
+                <Legend verticalAlign="bottom" height={36} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="mt-4 space-y-3">
+            <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-emerald-500" />
+                <span className="text-sm font-medium">Vendedores</span>
+              </div>
+              <span className="font-bold">R$ {pieData[0]?.value.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-blue-500" />
+                <span className="text-sm font-medium">Gerentes</span>
+              </div>
+              <span className="font-bold">R$ {pieData[1]?.value.toFixed(2)}</span>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
-  </motion.div>
-);
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <StatCard
+          title="Saldo Disponível"
+          value={`R$ ${stats.saldoDisponivel.toFixed(2)}`}
+          subtitle="Pronto para gerar lote"
+          icon={<Wallet className="w-5 h-5" />}
+          color="green"
+        />
+        <StatCard
+          title="Saldo Reservado"
+          value={`R$ ${stats.saldoReservado.toFixed(2)}`}
+          subtitle="Em lotes pendentes"
+          icon={<Lock className="w-5 h-5" />}
+          color="yellow"
+        />
+        <StatCard
+          title="Usuários Ativos"
+          value={stats.usuariosAtivos.toString()}
+          subtitle="Com saldo > 0"
+          icon={<Users className="w-5 h-5" />}
+          color="blue"
+        />
+      </div>
+    </motion.div>
+  );
+};
 
 // --- LOTES VIEW (HYBRID) ---
 interface LotesViewProps {
@@ -735,8 +875,8 @@ const LotesView: React.FC<LotesViewProps> = (props) => (
           {props.viewMode === 'list' ? (
             <>
               <div className="flex-1 w-full">
-                 <label className="text-xs text-muted-foreground ml-1 mb-1 block">Data de Corte</label>
-                 <input
+                <label className="text-xs text-muted-foreground ml-1 mb-1 block">Data de Corte</label>
+                <input
                   type="date"
                   value={props.dataFim}
                   onChange={(e) => props.setDataFim(e.target.value)}
@@ -755,40 +895,40 @@ const LotesView: React.FC<LotesViewProps> = (props) => (
                   Visualizar
                 </motion.button>
                 <motion.button
-                   whileHover={{ scale: 1.02 }}
-                   onClick={props.carregarLotes}
-                   disabled={props.loadingLotes}
-                   className="px-4 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-200 disabled:opacity-60"
+                  whileHover={{ scale: 1.02 }}
+                  onClick={props.carregarLotes}
+                  disabled={props.loadingLotes}
+                  className="px-4 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-200 disabled:opacity-60"
                 >
                   <RefreshCw className={`w-4 h-4 ${props.loadingLotes ? 'animate-spin' : ''}`} />
                 </motion.button>
               </div>
             </>
           ) : (
-             <div className="flex justify-between items-center w-full">
-                <h3 className="text-lg font-bold flex items-center gap-2">
-                  <Eye className="w-5 h-5 text-emerald-500" />
-                  Preview de Lote
-                </h3>
-                <div className="flex gap-2">
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    onClick={props.handleVoltarParaLista}
-                    className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-xl font-medium"
-                  >
-                    Cancelar
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    onClick={props.handleGerarLote}
-                    disabled={props.loadingAction}
-                    className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-xl shadow-lg flex items-center gap-2 font-bold"
-                  >
-                    {props.loadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-                    Confirmar e Gerar
-                  </motion.button>
-                </div>
-             </div>
+            <div className="flex justify-between items-center w-full">
+              <h3 className="text-lg font-bold flex items-center gap-2">
+                <Eye className="w-5 h-5 text-emerald-500" />
+                Preview de Lote
+              </h3>
+              <div className="flex gap-2">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  onClick={props.handleVoltarParaLista}
+                  className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-xl font-medium"
+                >
+                  Cancelar
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  onClick={props.handleGerarLote}
+                  disabled={props.loadingAction}
+                  className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-xl shadow-lg flex items-center gap-2 font-bold"
+                >
+                  {props.loadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                  Confirmar e Gerar
+                </motion.button>
+              </div>
+            </div>
           )}
         </div>
       </div>
@@ -797,13 +937,13 @@ const LotesView: React.FC<LotesViewProps> = (props) => (
     {/* CONTENT: PREVIEW OR LIST */}
     <AnimatePresence mode="wait">
       {props.viewMode === 'preview' ? (
-        <PreviewContent 
+        <PreviewContent
           usuarios={props.usuariosPreview}
           valorTotalDisponivel={props.valorTotalDisponivel}
           valorTotalReservado={props.valorTotalReservado}
         />
       ) : (
-        <LotesList 
+        <LotesList
           lotes={props.lotes}
           handleProcessarLote={props.handleProcessarLote}
           handleCancelarLote={props.handleCancelarLote}
@@ -835,24 +975,6 @@ const PreviewContent: React.FC<any> = ({ usuarios, valorTotalDisponivel, valorTo
               R$ {(valorTotalDisponivel + valorTotalReservado).toFixed(2)}
             </p>
           </div>
-          <div className="flex gap-6">
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl px-4 py-2 border border-white/20">
-              <p className="text-emerald-100 text-xs font-medium mb-0.5">Disponível</p>
-              <p className="text-xl font-bold">R$ {valorTotalDisponivel.toFixed(2)}</p>
-            </div>
-            {valorTotalReservado > 0 && (
-              <div className="bg-yellow-400/20 backdrop-blur-sm rounded-xl px-4 py-2 border border-yellow-300/30">
-                <p className="text-yellow-100 text-xs font-medium mb-0.5 flex items-center gap-1">
-                  <Lock className="w-3 h-3" /> Reservado
-                </p>
-                <p className="text-xl font-bold text-yellow-50">R$ {valorTotalReservado.toFixed(2)}</p>
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="text-right">
-          <p className="text-emerald-100 text-sm font-medium">Usuários</p>
-          <p className="text-3xl font-bold">{usuarios.length}</p>
         </div>
       </div>
     </motion.div>
@@ -868,41 +990,41 @@ const PreviewContent: React.FC<any> = ({ usuarios, valorTotalDisponivel, valorTo
           className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all"
         >
           <div className="flex items-center justify-between flex-wrap gap-4">
-             <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 flex items-center justify-center font-bold text-lg">
-                  {usuario.nome.charAt(0)}
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 flex items-center justify-center font-bold text-lg">
+                {usuario.nome.charAt(0)}
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="font-bold text-lg">{usuario.nome}</h4>
+                  <Badge variant="secondary" className="text-xs">{usuario.papel}</Badge>
                 </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h4 className="font-bold text-lg">{usuario.nome}</h4>
-                    <Badge variant="secondary" className="text-xs">{usuario.papel}</Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{usuario.email}</p>
-                  {usuario.optica && <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1"><Building2 className="w-3 h-3"/> {usuario.optica.nome}</p>}
-                </div>
-             </div>
+                <p className="text-sm text-muted-foreground">{usuario.email}</p>
+                {usuario.optica && <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1"><Building2 className="w-3 h-3" /> {usuario.optica.nome}</p>}
+              </div>
+            </div>
 
-             <div className="text-right space-y-2">
-                <div>
-                  <p className="text-xs text-muted-foreground">Disponível</p>
-                  <p className="text-2xl font-black text-emerald-600">R$ {Number(usuario.saldoPontos).toFixed(2)}</p>
+            <div className="text-right space-y-2">
+              <div>
+                <p className="text-xs text-muted-foreground">Disponível</p>
+                <p className="text-2xl font-black text-emerald-600">R$ {Number(usuario.saldoPontos).toFixed(2)}</p>
+              </div>
+              {usuario.saldoReservado > 0 && (
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 px-2 py-1 rounded border border-yellow-200 dark:border-yellow-800 flex items-center gap-2 justify-end">
+                  <Lock className="w-3 h-3 text-yellow-600" />
+                  <span className="text-sm font-bold text-yellow-700 dark:text-yellow-400">R$ {Number(usuario.saldoReservado).toFixed(2)}</span>
                 </div>
-                {usuario.saldoReservado > 0 && (
-                   <div className="bg-yellow-50 dark:bg-yellow-900/20 px-2 py-1 rounded border border-yellow-200 dark:border-yellow-800 flex items-center gap-2 justify-end">
-                      <Lock className="w-3 h-3 text-yellow-600" />
-                      <span className="text-sm font-bold text-yellow-700 dark:text-yellow-400">R$ {Number(usuario.saldoReservado).toFixed(2)}</span>
-                   </div>
-                )}
-             </div>
+              )}
+            </div>
           </div>
         </motion.div>
       ))}
-       {usuarios.length === 0 && (
-          <div className="text-center py-12">
-            <AlertCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-muted-foreground">Nenhum usuário com saldo para a data selecionada.</p>
-          </div>
-        )}
+      {usuarios.length === 0 && (
+        <div className="text-center py-12">
+          <AlertCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <p className="text-muted-foreground">Nenhum usuário com saldo para a data selecionada.</p>
+        </div>
+      )}
     </div>
   </motion.div>
 );
@@ -1100,30 +1222,103 @@ const StatCard: React.FC<any> = ({ title, value, subtitle, icon, color }) => {
   );
 };
 
-const AuditoriaView = () => (
-  <motion.div
-    key="auditoria"
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0, y: -20 }}
-    className="bg-white dark:bg-gray-800 rounded-2xl p-12 text-center border border-gray-200 dark:border-gray-700"
-  >
-    <Shield className="w-20 h-20 text-gray-400 mx-auto mb-4" />
-    <h3 className="text-2xl font-bold mb-2">Auditoria Financeira</h3>
-    <p className="text-muted-foreground max-w-md mx-auto">Em desenvolvimento: Timeline de ações administrativas</p>
-  </motion.div>
-);
+const AuditoriaView = () => {
+  // Mock data for now - in real app would fetch from API
+  const logs = [
+    { id: 1, acao: 'GERAR_LOTE', usuario: 'Admin Roberto', data: new Date(), detalhe: 'Gerou lote LOTE-2025-11-001' },
+    { id: 2, acao: 'PROCESSAR_LOTE', usuario: 'Admin Roberto', data: subDays(new Date(), 1), detalhe: 'Processou lote LOTE-2025-10-005' },
+    { id: 3, acao: 'LOGIN', usuario: 'Admin João', data: subDays(new Date(), 2), detalhe: 'Acesso ao sistema financeiro' },
+  ];
 
-const RelatoriosView = () => (
-  <motion.div
-    key="relatorios"
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0, y: -20 }}
-    className="bg-white dark:bg-gray-800 rounded-2xl p-12 text-center border border-gray-200 dark:border-gray-700"
-  >
-    <Target className="w-20 h-20 text-gray-400 mx-auto mb-4" />
-    <h3 className="text-2xl font-bold mb-2">Relatórios Gerenciais</h3>
-    <p className="text-muted-foreground max-w-md mx-auto">Em desenvolvimento: Análises por ótica, rankings e comparativos</p>
-  </motion.div>
-);
+  return (
+    <motion.div
+      key="auditoria"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className="space-y-6"
+    >
+      <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-lg">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-bold flex items-center gap-2">
+            <Shield className="w-6 h-6 text-purple-500" />
+            Auditoria Financeira
+          </h3>
+          <div className="flex gap-2">
+            <button className="px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm font-medium">Exportar Logs</button>
+          </div>
+        </div>
+
+        <div className="relative border-l-2 border-gray-200 dark:border-gray-700 ml-3 space-y-8 py-4">
+          {logs.map((log, index) => (
+            <div key={log.id} className="relative pl-8">
+              <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-purple-500 border-4 border-white dark:border-gray-800" />
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-1">
+                <span className="text-sm font-bold text-purple-600 dark:text-purple-400">{log.acao}</span>
+                <span className="text-xs text-muted-foreground">{format(log.data, "dd/MM/yyyy 'às' HH:mm")}</span>
+              </div>
+              <p className="text-gray-900 dark:text-gray-100 font-medium">{log.detalhe}</p>
+              <p className="text-sm text-muted-foreground mt-1">Por: {log.usuario}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+const RelatoriosView = () => {
+  const rankings = [
+    { nome: 'Ótica Visão Real', total: 15450.00, envios: 45 },
+    { nome: 'Ótica Exemplo', total: 12300.50, envios: 32 },
+    { nome: 'Centro Ótico Sul', total: 8900.00, envios: 28 },
+  ];
+
+  return (
+    <motion.div
+      key="relatorios"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className="space-y-6"
+    >
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-lg">
+          <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+            <Target className="w-6 h-6 text-blue-500" />
+            Top Óticas (Volume Pago)
+          </h3>
+          <div className="space-y-4">
+            {rankings.map((r, i) => (
+              <div key={i} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+                <div className="flex items-center gap-4">
+                  <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
+                    {i + 1}
+                  </div>
+                  <div>
+                    <p className="font-bold">{r.nome}</p>
+                    <p className="text-xs text-muted-foreground">{r.envios} pagamentos</p>
+                  </div>
+                </div>
+                <p className="font-bold text-lg">R$ {r.total.toFixed(2)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-lg">
+          <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+            <BarChart3 className="w-6 h-6 text-orange-500" />
+            Performance Mensal
+          </h3>
+          <div className="h-64 flex items-center justify-center text-muted-foreground">
+            <p>Selecione um período para gerar o relatório detalhado.</p>
+          </div>
+          <button className="w-full py-3 bg-gray-100 dark:bg-gray-700 rounded-xl font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-200 transition-colors">
+            Gerar Relatório Completo (PDF)
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+};

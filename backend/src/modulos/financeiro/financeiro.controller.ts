@@ -31,11 +31,12 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { FinanceiroService } from './financeiro.service';
 import { VisualizarSaldosDto } from './dto/visualizar-saldos.dto';
 import { GerarLoteDto } from './dto/gerar-lote.dto';
 import { ProcessarLoteDto } from './dto/processar-lote.dto';
-import { ListarLotesDto } from './dto/listar-lotes.dto'; // ✅ M6
+import { ListarLotesDto } from './dto/listar-lotes.dto';
 import { Response } from 'express';
 import * as ExcelJS from 'exceljs';
 import { JwtAuthGuard } from '../comum/guards/jwt-auth.guard';
@@ -47,7 +48,16 @@ import { PapelUsuario } from '@prisma/client';
 @UseGuards(JwtAuthGuard, PapeisGuard)
 @Papeis(PapelUsuario.ADMIN)
 export class FinanceiroController {
-  constructor(private readonly financeiroService: FinanceiroService) {}
+  constructor(private readonly financeiroService: FinanceiroService) { }
+
+  private toNumber(value: any): number {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') return Number(value);
+    if (value && typeof value === 'object' && 'toNumber' in value) {
+      return value.toNumber();
+    }
+    return Number(value) || 0;
+  }
 
   /**
    * ========================================================================
@@ -72,6 +82,7 @@ export class FinanceiroController {
    * NÃO subtrai saldo ainda.
    */
   @Post('lotes')
+  @Throttle({ default: { limit: 5, ttl: 60000 } }) // Limite estrito para geração de lotes
   async gerarLote(@Body() dto: GerarLoteDto, @Req() req: any) {
     return this.financeiroService.gerarLote(dto, req.user.userId);
   }
@@ -110,6 +121,7 @@ export class FinanceiroController {
    * - Notifica usuários
    */
   @Patch('lotes/:numeroLote/processar')
+  @Throttle({ default: { limit: 5, ttl: 60000 } }) // Limite estrito para processamento
   async processarLote(
     @Param('numeroLote') numeroLote: string,
     @Body() dto: ProcessarLoteDto,
@@ -129,6 +141,7 @@ export class FinanceiroController {
    * Remove todos os relatórios do lote (apenas se PENDENTE).
    */
   @Delete('lotes/:numeroLote')
+  @Throttle({ default: { limit: 5, ttl: 60000 } }) // Limite estrito para cancelamento
   async cancelarLote(
     @Param('numeroLote') numeroLote: string,
     @Req() req: any
@@ -388,18 +401,17 @@ export class FinanceiroController {
       const envios = (rel as any).enviosDetalhados || [];
 
       for (const envio of envios) {
-        const valorOriginal = toNumber(envio.valorPontosReaisRecebido || 0);
-        const valorFinal = toNumber(envio.valorFinalComEvento || valorOriginal);
-        const multiplicador = envio.multiplicadorNumerico || toNumber(envio.multiplicadorAplicado || 1);
+        const valorOriginal = this.toNumber(envio.valorPontosReaisRecebido || 0);
+        const valorFinal = this.toNumber(envio.valorFinalComEvento || valorOriginal);
+        const multiplicador = envio.multiplicadorNumerico || this.toNumber(envio.multiplicadorAplicado || 1);
         const teveEvento = multiplicador > 1;
         const vendedor = envio.vendedor || {};
         const vendedorOptica = vendedor.optica || optica;
         const gerenteResponsavel = vendedor.gerente || gerente;
-        const multiplicadorLabel = `${
-          multiplicador % 1 === 0
-            ? multiplicador.toFixed(0)
-            : multiplicador.toFixed(2)
-        }x`;
+        const multiplicadorLabel = `${multiplicador % 1 === 0
+          ? multiplicador.toFixed(0)
+          : multiplicador.toFixed(2)
+          }x`;
 
         wsDetalhes.addRow({
           vendedorNome: vendedor.nome || usuario.nome || 'N/A',
@@ -457,7 +469,7 @@ export class FinanceiroController {
     wsInfo.addRow({ campo: 'Data de Corte', valor: new Date(loteDetalhado.dataCorte).toLocaleDateString('pt-BR') });
     wsInfo.addRow({ campo: 'Data de Criação', valor: new Date(loteDetalhado.criadoEm).toLocaleString('pt-BR') });
     wsInfo.addRow({ campo: 'Data de Processamento', valor: loteDetalhado.processadoEm ? new Date(loteDetalhado.processadoEm).toLocaleString('pt-BR') : 'Não processado' });
-  wsInfo.addRow({ campo: 'Valor Total', valor: `R$ ${loteValorTotal.toFixed(2)}` });
+    wsInfo.addRow({ campo: 'Valor Total', valor: `R$ ${loteValorTotal.toFixed(2)}` });
     wsInfo.addRow({ campo: 'Quantidade de Usuários', valor: loteDetalhado.relatorios.length });
     wsInfo.addRow({ campo: 'Quantidade Total de Pedidos', valor: totalEnviosDetalhado });
 
@@ -486,5 +498,48 @@ export class FinanceiroController {
     await workbook.xlsx.write(res);
     res.end();
   }
-}
 
+  /**
+   * ========================================================================
+   * GET /api/financeiro/auditoria - LISTAR AUDITORIA
+   * ========================================================================
+   * Lista registros de auditoria financeira com filtros e paginação.
+   */
+  @Get('auditoria')
+  async listarAuditoria(@Query() dto: any) {
+    return this.financeiroService.listarAuditoria(dto);
+  }
+
+  /**
+   * ========================================================================
+   * GET /api/financeiro/relatorios/metricas - MÉTRICAS GERAIS
+   * ========================================================================
+   * Retorna KPIs consolidados para dashboards e relatórios.
+   */
+  @Get('relatorios/metricas')
+  async obterMetricasGerais(@Query() dto: any) {
+    return this.financeiroService.obterMetricasGerais(dto);
+  }
+
+  /**
+   * ========================================================================
+   * GET /api/financeiro/relatorios/ranking-oticas - RANKING DE ÓTICAS
+   * ========================================================================
+   * Retorna ranking de óticas por valor total pago.
+   */
+  @Get('relatorios/ranking-oticas')
+  async obterRankingOticas(@Query() dto: any) {
+    return this.financeiroService.obterRankingOticasFinanceiro(dto);
+  }
+
+  /**
+   * ========================================================================
+   * GET /api/financeiro/relatorios/performance-vendedores - PERFORMANCE
+   * ========================================================================
+   * Retorna ranking de vendedores por valor recebido.
+   */
+  @Get('relatorios/performance-vendedores')
+  async obterPerformanceVendedores(@Query() dto: any) {
+    return this.financeiroService.obterPerformanceVendedores(dto);
+  }
+}

@@ -85,28 +85,32 @@
  *    - Snapshots antes/depois para análise forense
  *    - IP address + user agent para rastreamento
  *    - Metadata para métricas (tempo de execução, etc)
- *
- * ============================================================================
  */
 
 import {
   Injectable,
-  NotFoundException,
-  BadRequestException,
   Logger,
+  BadRequestException,
+  NotFoundException,
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { VisualizarSaldosDto } from './dto/visualizar-saldos.dto';
 import { GerarLoteDto } from './dto/gerar-lote.dto';
 import { ProcessarLoteDto } from './dto/processar-lote.dto';
-import { Prisma, PapelUsuario, StatusEnvioVenda } from '@prisma/client';
+import {
+  PapelUsuario,
+  Prisma,
+  RelatorioFinanceiro,
+  StatusPagamento,
+  StatusEnvioVenda,
+} from '@prisma/client';
 
 @Injectable()
 export class FinanceiroService {
   private readonly logger = new Logger(FinanceiroService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   /**
    * ============================================================================
@@ -131,12 +135,12 @@ export class FinanceiroService {
     this.logger.log(`Filtros: ${JSON.stringify(filtros)}`);
 
     // ✅ CORREÇÃO: Processar data de corte (fim do dia em São Paulo)
-    const dataFim = filtros.dataFim 
+    const dataFim = filtros.dataFim
       ? (() => {
-          const data = new Date(filtros.dataFim);
-          data.setHours(23, 59, 59, 999);
-          return data;
-        })()
+        const data = new Date(filtros.dataFim);
+        data.setHours(23, 59, 59, 999);
+        return data;
+      })()
       : new Date(); // Se não informado, usa data/hora atual
 
     this.logger.log(`📅 [FILTRO DATA] Data de Corte: ${dataFim.toISOString()} | Local: ${dataFim.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`);
@@ -241,10 +245,10 @@ export class FinanceiroService {
             const valorOriginal = Number(envio.valorPontosReaisRecebido || 0);
             const percentual = envio.campanha?.percentualGerente
               ? (typeof envio.campanha.percentualGerente === 'object' && 'toNumber' in envio.campanha.percentualGerente
-                  ? (envio.campanha.percentualGerente as any).toNumber()
-                  : Number(envio.campanha.percentualGerente))
+                ? (envio.campanha.percentualGerente as any).toNumber()
+                : Number(envio.campanha.percentualGerente))
               : 0;
-            
+
             const comissao = valorOriginal * percentual;
             return acc + comissao;
           }, 0);
@@ -252,9 +256,62 @@ export class FinanceiroService {
           this.logger.debug(`👤 [GERENTE] ${usuario.nome}: ${enviosSubordinados.length} envios subordinados | Comissão: R$ ${saldoCalculado.toFixed(2)}`);
         }
 
+        // ========================================================================
+        // CALCULAR SALDO RESERVADO (Vendas validadas aguardando conclusão de cartela)
+        // ========================================================================
+        let saldoReservadoCalculado = 0;
+
+        if (usuario.papel === PapelUsuario.VENDEDOR) {
+          const enviosPendentes = await this.prisma.envioVenda.findMany({
+            where: {
+              vendedorId: usuario.id,
+              status: StatusEnvioVenda.VALIDADO,
+              pontosAdicionadosAoSaldo: false, // Ainda não completou cartela
+              dataValidacao: { lte: dataFim },
+            },
+            select: {
+              valorFinalComEvento: true,
+              valorPontosReaisRecebido: true,
+            },
+          });
+
+          saldoReservadoCalculado = enviosPendentes.reduce((acc, envio) => {
+            const valor = Number(envio.valorFinalComEvento || envio.valorPontosReaisRecebido || 0);
+            return acc + valor;
+          }, 0);
+
+        } else if (usuario.papel === PapelUsuario.GERENTE) {
+          const enviosSubordinadosPendentes = await this.prisma.envioVenda.findMany({
+            where: {
+              vendedor: { gerenteId: usuario.id },
+              status: StatusEnvioVenda.VALIDADO,
+              pontosAdicionadosAoSaldo: false,
+              dataValidacao: { lte: dataFim },
+            },
+            select: {
+              valorPontosReaisRecebido: true,
+              campanha: {
+                select: { percentualGerente: true },
+              },
+            },
+          });
+
+          saldoReservadoCalculado = enviosSubordinadosPendentes.reduce((acc, envio) => {
+            const valorOriginal = Number(envio.valorPontosReaisRecebido || 0);
+            const percentual = envio.campanha?.percentualGerente
+              ? (typeof envio.campanha.percentualGerente === 'object' && 'toNumber' in envio.campanha.percentualGerente
+                ? (envio.campanha.percentualGerente as any).toNumber()
+                : Number(envio.campanha.percentualGerente))
+              : 0;
+
+            return acc + (valorOriginal * percentual);
+          }, 0);
+        }
+
         return {
           ...usuario,
-          saldoPontos: saldoCalculado, // Substituir pelo saldo recalculado
+          saldoPontos: saldoCalculado, // Saldo Disponível (Recalculado)
+          saldoReservado: saldoReservadoCalculado, // Saldo Reservado (Aguardando Cartela)
         };
       })
     );
@@ -267,11 +324,7 @@ export class FinanceiroService {
     // Calcular valores totais
     const valorTotalDisponivel = usuariosComSaldo.reduce((acc, u) => acc + u.saldoPontos, 0);
     const valorTotalReservado = usuariosComSaldo.reduce((acc, u) => {
-      const saldo =
-        typeof u.saldoReservado === 'object' && 'toNumber' in u.saldoReservado
-          ? (u.saldoReservado as any).toNumber()
-          : Number(u.saldoReservado);
-      return acc + saldo;
+      return acc + (Number(u.saldoReservado) || 0);
     }, 0);
 
     const valorTotal = valorTotalDisponivel + valorTotalReservado;
@@ -328,7 +381,7 @@ export class FinanceiroService {
     // Se receber "2025-11-18", deve pegar tudo até 23:59:59.999 do dia 18
     const dataCorte = new Date(dto.dataCorte);
     dataCorte.setHours(23, 59, 59, 999);
-    
+
     this.logger.log(`Data de Corte (processada): ${dataCorte.toISOString()} | Local: ${dataCorte.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`);
 
     return this.prisma.$transaction(async (tx) => {
@@ -384,26 +437,26 @@ export class FinanceiroService {
             // Envios de vendedores
             ...(vendedoresIds.length > 0
               ? [
-                  {
-                    vendedorId: { in: vendedoresIds },
-                    pontosAdicionadosAoSaldo: true,
-                    pontosLiquidados: false,
-                    dataValidacao: { lte: dataCorte }, // ✅ CRÍTICO: Filtrar até data de corte
-                  },
-                ]
+                {
+                  vendedorId: { in: vendedoresIds },
+                  pontosAdicionadosAoSaldo: true,
+                  pontosLiquidados: false,
+                  dataValidacao: { lte: dataCorte }, // ✅ CRÍTICO: Filtrar até data de corte
+                },
+              ]
               : []),
             // Envios dos subordinados de gerentes
             ...(gerentesIds.length > 0
               ? [
-                  {
-                    vendedor: {
-                      gerenteId: { in: gerentesIds },
-                    },
-                    pontosAdicionadosAoSaldo: true,
-                    pontosLiquidados: false,
-                    dataValidacao: { lte: dataCorte }, // ✅ CRÍTICO: Filtrar até data de corte
+                {
+                  vendedor: {
+                    gerenteId: { in: gerentesIds },
                   },
-                ]
+                  pontosAdicionadosAoSaldo: true,
+                  pontosLiquidados: false,
+                  dataValidacao: { lte: dataCorte }, // ✅ CRÍTICO: Filtrar até data de corte
+                },
+              ]
               : []),
           ],
         },
@@ -464,7 +517,7 @@ export class FinanceiroService {
         // 3.1: Verificar se já tem relatório PENDENTE
         // ============================================================
         const relatorioPendente = await tx.relatorioFinanceiro.findFirst({
-          where: { usuarioId: usuario.id, status: 'PENDENTE' },
+          where: { usuarioId: usuario.id, status: 'PENDENTE', deletedAt: null },
         });
 
         if (relatorioPendente) {
@@ -502,20 +555,20 @@ export class FinanceiroService {
               orderBy: { criadoEm: 'desc' },
               select: { id: true },
             });
-            
+
             if (!ultimaCampanha) {
               throw new BadRequestException(
                 `Não foi possível gerar relatório para ${usuario.nome}: nenhuma campanha encontrada no sistema.`
               );
             }
-            
+
             campanhaId = ultimaCampanha.id;
           }
         }
 
         const saldoNum =
           typeof usuario.saldoPontos === 'object' &&
-          'toNumber' in usuario.saldoPontos
+            'toNumber' in usuario.saldoPontos
             ? (usuario.saldoPontos as any).toNumber()
             : Number(usuario.saldoPontos);
 
@@ -796,7 +849,7 @@ export class FinanceiroService {
   async listarLotes(dto: {
     pagina?: number;
     porPagina?: number;
-    status?: 'PENDENTE' | 'PAGO';
+    status?: StatusPagamento;
     dataInicio?: string;
     dataFim?: string;
   } = {}) {
@@ -818,6 +871,7 @@ export class FinanceiroService {
     // ================================================================
     const where: Prisma.RelatorioFinanceiroWhereInput = {
       numeroLote: { not: null },
+      deletedAt: null,
     };
 
     if (dto.status) where.status = dto.status;
@@ -1145,7 +1199,7 @@ export class FinanceiroService {
             let eventoEspecial = null;
             const multiplicadorNumerico = Number(envio.multiplicadorAplicado || 1);
             const dataEnvioDate = envio.dataEnvio ? new Date(envio.dataEnvio) : null;
-            
+
             // Se teve multiplicador aplicado > 1, buscar evento ativo no período
             if (multiplicadorNumerico > 1 && dataEnvioDate) {
               const cacheKey = `${envio.campanha.id}:${dataEnvioDate
@@ -1172,7 +1226,7 @@ export class FinanceiroService {
 
               eventoEspecial = eventoCache.get(cacheKey);
             }
-            
+
             return { ...envio, eventoEspecial, multiplicadorNumerico };
           })
         );
@@ -1276,8 +1330,15 @@ export class FinanceiroService {
       // ================================================================
       // DELETAR RELATÓRIOS
       // ================================================================
-      const deletados = await tx.relatorioFinanceiro.deleteMany({
+      // ================================================================
+      // SOFT DELETE RELATÓRIOS (MARCAR COMO CANCELADO)
+      // ================================================================
+      const deletados = await tx.relatorioFinanceiro.updateMany({
         where: { numeroLote },
+        data: {
+          status: 'CANCELADO',
+          deletedAt: new Date(),
+        },
       });
 
       this.logger.log(`\n========== LOTE CANCELADO COM SUCESSO ==========`);
@@ -1328,5 +1389,383 @@ export class FinanceiroService {
     }
 
     return `${prefixo}${String(sequencia).padStart(3, '0')}`;
+  }
+
+  /**
+   * ============================================================================
+   * LISTAR AUDITORIA FINANCEIRA
+   * ============================================================================
+   *
+   * Lista registros de auditoria com filtros e paginação para a aba Auditoria.
+   *
+   * @param dto - Filtros e paginação
+   * @returns Auditorias paginadas com metadata
+   */
+  async listarAuditoria(dto: {
+    pagina?: number;
+    porPagina?: number;
+    acao?: any;
+    adminId?: string;
+    numeroLote?: string;
+    dataInicio?: string;
+    dataFim?: string;
+  }) {
+    const pagina = dto.pagina || 1;
+    const porPagina = dto.porPagina || 20;
+    const skip = (pagina - 1) * porPagina;
+
+    this.logger.log(`\n========== LISTANDO AUDITORIA FINANCEIRA ==========`);
+    this.logger.log(`Página: ${pagina} | Por página: ${porPagina}`);
+
+    // Construir filtros
+    const where: Prisma.AuditoriaFinanceiraWhereInput = {};
+
+    if (dto.acao) where.acao = dto.acao;
+    if (dto.adminId) where.adminId = dto.adminId;
+    if (dto.numeroLote) where.numeroLote = dto.numeroLote;
+
+    if (dto.dataInicio || dto.dataFim) {
+      where.criadoEm = {};
+      if (dto.dataInicio) where.criadoEm.gte = new Date(dto.dataInicio);
+      if (dto.dataFim) where.criadoEm.lte = new Date(dto.dataFim);
+    }
+
+    // Buscar total e auditorias
+    const [total, auditorias] = await Promise.all([
+      this.prisma.auditoriaFinanceira.count({ where }),
+      this.prisma.auditoriaFinanceira.findMany({
+        where,
+        include: {
+          admin: {
+            select: {
+              id: true,
+              nome: true,
+              email: true,
+            },
+          },
+        },
+        orderBy: { criadoEm: 'desc' },
+        skip,
+        take: porPagina,
+      }),
+    ]);
+
+    const totalPaginas = Math.ceil(total / porPagina);
+
+    this.logger.log(`✅ Retornando ${auditorias.length} auditorias (total: ${total})`);
+
+    return {
+      auditorias,
+      paginacao: {
+        pagina,
+        porPagina,
+        total,
+        totalPaginas,
+      },
+    };
+  }
+
+  /**
+   * ============================================================================
+   * OBTER MÉTRICAS GERAIS - RELATÓRIOS
+   * ============================================================================
+   *
+   * Retorna KPIs consolidados para a aba Relatórios:
+   * - Total pago no período
+   * - Total de lotes
+   * - Ticket médio
+   * - Usuários únicos pagos
+   * - Evolução temporal (últimos 6 meses)
+   */
+  async obterMetricasGerais(dto: {
+    dataInicio?: string;
+    dataFim?: string;
+    campanhaId?: string;
+  }) {
+    this.logger.log(`\n========== OBTENDO MÉTRICAS GERAIS ==========`);
+
+    // Construir filtros
+    const where: Prisma.RelatorioFinanceiroWhereInput = {
+      status: 'PAGO',
+      deletedAt: null,
+    };
+
+    if (dto.campanhaId) where.campanhaId = dto.campanhaId;
+
+    if (dto.dataInicio || dto.dataFim) {
+      where.dataPagamento = {};
+      if (dto.dataInicio) where.dataPagamento.gte = new Date(dto.dataInicio);
+      if (dto.dataFim) where.dataPagamento.lte = new Date(dto.dataFim);
+    }
+
+    // Buscar relatórios pagos
+    const relatorios = await this.prisma.relatorioFinanceiro.findMany({
+      where,
+      select: {
+        id: true,
+        valor: true,
+        numeroLote: true,
+        usuarioId: true,
+        dataPagamento: true,
+      },
+    });
+
+    // Calcular métricas
+    const totalPago = relatorios.reduce((acc, r) => {
+      const valorNum =
+        typeof r.valor === 'object' && 'toNumber' in r.valor
+          ? (r.valor as any).toNumber()
+          : Number(r.valor);
+      return acc + valorNum;
+    }, 0);
+
+    const lotesUnicos = new Set(relatorios.map((r) => r.numeroLote).filter(Boolean));
+    const usuariosUnicos = new Set(relatorios.map((r) => r.usuarioId));
+
+    const lotesPendentesData = await this.prisma.relatorioFinanceiro.findMany({
+      where: {
+        status: 'PENDENTE',
+        numeroLote: { not: null },
+        deletedAt: null,
+      },
+      select: { numeroLote: true },
+      distinct: ['numeroLote'],
+    });
+
+    const lotesPendentes = lotesPendentesData.length;
+
+    const ticketMedio = lotesUnicos.size > 0 ? totalPago / lotesUnicos.size : 0;
+
+    // Evolução temporal (últimos 6 meses por mês)
+    const seisMesesAtras = new Date();
+    seisMesesAtras.setMonth(seisMesesAtras.getMonth() - 6);
+
+    const evol = await this.prisma.relatorioFinanceiro.findMany({
+      where: {
+        status: 'PAGO',
+        dataPagamento: { gte: seisMesesAtras },
+        deletedAt: null,
+      },
+      select: {
+        dataPagamento: true,
+        valor: true,
+      },
+    });
+
+    // Agrupar por mês
+    const evolMap = new Map<string, { mes: string; total: number }>();
+    evol.forEach((r) => {
+      if (!r.dataPagamento) return;
+      const mesKey = r.dataPagamento.toISOString().substring(0, 7); // YYYY-MM
+      if (!evolMap.has(mesKey)) {
+        evolMap.set(mesKey, { mes: mesKey, total: 0 });
+      }
+      const valorNum =
+        typeof r.valor === 'object' && 'toNumber' in r.valor
+          ? (r.valor as any).toNumber()
+          : Number(r.valor);
+      evolMap.get(mesKey)!.total += valorNum;
+    });
+
+    const evolucaoTemporal = Array.from(evolMap.values()).sort((a, b) =>
+      a.mes.localeCompare(b.mes)
+    );
+
+    this.logger.log(`✅ Métricas calculadas: R$ ${totalPago.toFixed(2)}`);
+
+    return {
+      totalPago,
+      totalLotesPagos: lotesUnicos.size,
+      totalLotesPendentes: lotesPendentes,
+      ticketMedio,
+      usuariosUnicosPagos: usuariosUnicos.size,
+      evolucaoTemporal,
+    };
+  }
+
+  /**
+   * ============================================================================
+   * OBTER RANKING DE ÓTICAS - RELATÓRIOS
+   * ============================================================================
+   *
+   * Retorna top 10 óticas por valor total pago.
+   */
+  async obterRankingOticasFinanceiro(dto: {
+    dataInicio?: string;
+    dataFim?: string;
+    limite?: number;
+  }) {
+    this.logger.log(`\n========== OBTENDO RANKING DE ÓTICAS ==========`);
+
+    const limite = dto.limite || 10;
+
+    // Construir filtros
+    const where: Prisma.RelatorioFinanceiroWhereInput = {
+      status: 'PAGO',
+      deletedAt: null,
+    };
+
+    if (dto.dataInicio || dto.dataFim) {
+      where.dataPagamento = {};
+      if (dto.dataInicio) where.dataPagamento.gte = new Date(dto.dataInicio);
+      if (dto.dataFim) where.dataPagamento.lte = new Date(dto.dataFim);
+    }
+
+    // Buscar relatórios com ótica do usuário
+    const relatorios = await this.prisma.relatorioFinanceiro.findMany({
+      where,
+      select: {
+        valor: true,
+        usuario: {
+          select: {
+            optica: {
+              select: {
+                id: true,
+                nome: true,
+                cidade: true,
+                estado: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Agrupar por ótica
+    const oticasMap = new Map<
+      string,
+      {
+        optica: any;
+        totalPago: number;
+        numeroPagamentos: number;
+      }
+    >();
+
+    relatorios.forEach((r) => {
+      const optica = r.usuario.optica;
+      if (!optica) return;
+
+      const valorNum =
+        typeof r.valor === 'object' && 'toNumber' in r.valor
+          ? (r.valor as any).toNumber()
+          : Number(r.valor);
+
+      if (!oticasMap.has(optica.id)) {
+        oticasMap.set(optica.id, {
+          optica,
+          totalPago: 0,
+          numeroPagamentos: 0,
+        });
+      }
+
+      const item = oticasMap.get(optica.id)!;
+      item.totalPago += valorNum;
+      item.numeroPagamentos += 1;
+    });
+
+    // Ordenar e limitar
+    const ranking = Array.from(oticasMap.values())
+      .sort((a, b) => b.totalPago - a.totalPago)
+      .slice(0, limite)
+      .map((item, index) => ({
+        posicao: index + 1,
+        ...item,
+      }));
+
+    this.logger.log(`✅ Ranking de ${ranking.length} óticas gerado`);
+
+    return ranking;
+  }
+
+  /**
+   * ============================================================================
+   * OBTER PERFORMANCE DE VENDEDORES - RELATÓRIOS
+   * ============================================================================
+   *
+   * Retorna top 20 vendedores por valor recebido.
+   */
+  async obterPerformanceVendedores(dto: {
+    dataInicio?: string;
+    dataFim?: string;
+    limite?: number;
+  }) {
+    this.logger.log(`\n========== OBTENDO PERFORMANCE DE VENDEDORES ==========`);
+
+    const limite = dto.limite || 20;
+
+    // Construir filtros
+    const where: Prisma.RelatorioFinanceiroWhereInput = {
+      status: 'PAGO',
+      tipo: 'VENDEDOR',
+      deletedAt: null,
+    };
+
+    if (dto.dataInicio || dto.dataFim) {
+      where.dataPagamento = {};
+      if (dto.dataInicio) where.dataPagamento.gte = new Date(dto.dataInicio);
+      if (dto.dataFim) where.dataPagamento.lte = new Date(dto.dataFim);
+    }
+
+    // Buscar relatórios
+    const relatorios = await this.prisma.relatorioFinanceiro.findMany({
+      where,
+      select: {
+        valor: true,
+        usuario: {
+          select: {
+            id: true,
+            nome: true,
+            optica: {
+              select: {
+                id: true,
+                nome: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Agrupar por vendedor
+    const vendedoresMap = new Map<
+      string,
+      {
+        vendedor: any;
+        totalRecebido: number;
+        numeroPagamentos: number;
+      }
+    >();
+
+    relatorios.forEach((r) => {
+      const valorNum =
+        typeof r.valor === 'object' && 'toNumber' in r.valor
+          ? (r.valor as any).toNumber()
+          : Number(r.valor);
+
+      if (!vendedoresMap.has(r.usuario.id)) {
+        vendedoresMap.set(r.usuario.id, {
+          vendedor: r.usuario,
+          totalRecebido: 0,
+          numeroPagamentos: 0,
+        });
+      }
+
+      const item = vendedoresMap.get(r.usuario.id)!;
+      item.totalRecebido += valorNum;
+      item.numeroPagamentos += 1;
+    });
+
+    // Ordenar e limitar
+    const ranking = Array.from(vendedoresMap.values())
+      .sort((a, b) => b.totalRecebido - a.totalRecebido)
+      .slice(0, limite)
+      .map((item, index) => ({
+        posicao: index + 1,
+        ...item,
+      }));
+
+    this.logger.log(`✅ Performance de ${ranking.length} vendedores calculada`);
+
+    return ranking;
   }
 }
