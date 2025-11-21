@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { Target, Zap, ArrowRight, Sparkles } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { getImageUrl } from "@/lib/image-url";
 
@@ -52,6 +52,16 @@ interface CampanhasAtivasCarouselProps {
 export function CampanhasAtivasCarousel({ campanhas }: CampanhasAtivasCarouselProps) {
   const [campanhaAtiva, setCampanhaAtiva] = useState(0);
 
+  // Autoplay: avança para o próximo slide a cada 10 segundos
+  useEffect(() => {
+    if (!campanhas || campanhas.length <= 1) return;
+
+    const interval = setInterval(() => {
+      setCampanhaAtiva((prev) => (prev + 1) % campanhas.length);
+    }, 10000); // 10000ms = 10s
+
+    return () => clearInterval(interval);
+  }, [campanhas]);
   if (!campanhas || campanhas.length === 0) {
     return (
       <div className="rounded-3xl bg-card/50 backdrop-blur-sm border border-border/50 p-8 text-center">

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/ContextoAutenticacao";
 import api from "@/lib/axios";
 import toast from "react-hot-toast";
+import { TOKEN_KEY } from "@/lib/constantes";
 import {
   Users, UserPlus, Search, Filter, X, Crown, Shield, User,
   CheckCircle, Clock, Ban, Edit, Trash2, Key, Award,
@@ -151,21 +152,16 @@ export default function AdminUsuariosPage() {
 
     try {
       const response = await api.post(`/usuarios/${usuario.id}/personificar`);
-      const { token } = response.data;
-      
-      // Salva o token e recarrega a página
-      localStorage.setItem("eps_campanhas_token", token);
+      // Backend retorna STRING diretamente, não objeto { token }
+      const token = response.data;
+
+      // Salva o token usando a chave correta do sistema
+      localStorage.setItem(TOKEN_KEY, token);
       toast.success(`Agora você está logado como ${usuario.nome}`);
-      
-      // Redireciona baseado no papel do usuário
+
+      // Recarrega a página para atualizar o contexto de autenticação
       setTimeout(() => {
-        if (usuario.papel === "ADMIN") {
-          window.location.href = "/admin/dashboard";
-        } else if (usuario.papel === "GERENTE") {
-          window.location.href = "/gerente/dashboard";
-        } else {
-          window.location.href = "/dashboard";
-        }
+        window.location.href = "/";
       }, 1000);
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Erro ao personificar usuário");
@@ -329,7 +325,6 @@ export default function AdminUsuariosPage() {
                   <th className="px-6 py-4 text-left text-xs font-bold uppercase">Papel</th>
                   <th className="px-6 py-4 text-left text-xs font-bold uppercase">Status</th>
                   <th className="px-6 py-4 text-left text-xs font-bold uppercase">Ótica</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold uppercase">Gamificação</th>
                   <th className="px-6 py-4 text-right text-xs font-bold uppercase">Ações</th>
                 </tr>
               </thead>
@@ -383,17 +378,7 @@ export default function AdminUsuariosPage() {
                         <span className="text-xs text-muted-foreground">Sem ótica</span>
                       )}
                     </td>
-                    <td className="px-6 py-4">
-                      {u.papel === "VENDEDOR" && (
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <Award className={`w-4 h-4 ${getNivelColor(u.nivel)}`} />
-                            <span className={`text-xs font-bold ${getNivelColor(u.nivel)}`}>{u.nivel}</span>
-                          </div>
-                  
-                        </div>
-                      )}
-                    </td>
+                    {/* Coluna de Gamificação removida - não utilizada no sistema */}
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-2">
                         <button 

@@ -35,6 +35,7 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AutenticacaoService } from '../autenticacao/autenticacao.service';
 import { CriarUsuarioAdminDto } from './dto/criar-usuario-admin.dto';
@@ -70,10 +71,12 @@ export class UsuarioService {
   /**
    * Construtor do serviço.
    * @param prisma - Serviço Prisma para acesso ao banco de dados
+   * @param jwtService - Serviço JWT para geração de tokens (personificação)
    * @param autenticacaoService - Serviço de autenticação (para impersonação)
    */
   constructor(
     private readonly prisma: PrismaService,
+    private readonly jwtService: JwtService,
     @Inject(forwardRef(() => AutenticacaoService))
     private readonly autenticacaoService: AutenticacaoService,
   ) {}
@@ -595,6 +598,10 @@ export class UsuarioService {
 
   /**
    * Gera token JWT para outro usuário (impersonação).
+   *
+   * CORREÇÃO (Sprint Final): Retorna { token, usuario } igual ao login
+   * para permitir que o frontend salve ambos no localStorage e
+   * o ProvedorAutenticacao funcione corretamente após reload.
    */
   async personificar(idUsuarioAdmin: string, idUsuarioAlvo: string) {
     this.logger.log(
@@ -606,17 +613,49 @@ export class UsuarioService {
       );
       throw new BadRequestException('Você não pode personificar a si mesmo');
     }
-    const usuarioAlvo = await this.buscarPorId(idUsuarioAlvo);
-    const token = this.autenticacaoService.gerarToken({
-      id: usuarioAlvo.id,
+
+    // Busca usuário completo com ótica (mesma estrutura do login)
+    const usuarioAlvo = await this.prisma.usuario.findUnique({
+      where: { id: idUsuarioAlvo },
+      include: {
+        optica: {
+          select: {
+            id: true,
+            nome: true,
+            cnpj: true,
+            rankingVisivelParaVendedores: true,
+          },
+        },
+      },
+    });
+
+    if (!usuarioAlvo) {
+      throw new BadRequestException('Usuário alvo não encontrado');
+    }
+
+    // Gera token com todos os campos necessários (incluindo opticaId)
+    const token = this.jwtService.sign({
+      sub: usuarioAlvo.id,
       email: usuarioAlvo.email,
       papel: usuarioAlvo.papel,
-      
+      opticaId: usuarioAlvo.opticaId || null,
     });
+
+    // Monta objeto do usuário (mesma estrutura da resposta do login)
+    const usuarioResposta = {
+      id: usuarioAlvo.id,
+      nome: usuarioAlvo.nome,
+      email: usuarioAlvo.email,
+      papel: usuarioAlvo.papel,
+      optica: usuarioAlvo.optica,
+    };
+
     this.logger.log(
       `✅ Token de impersonação gerado: Admin personificando ${usuarioAlvo.nome} (${usuarioAlvo.email})`,
     );
-    return token;
+
+    // Retorna mesma estrutura do login: { token, usuario }
+    return { token, usuario: usuarioResposta };
   }
 
   /**

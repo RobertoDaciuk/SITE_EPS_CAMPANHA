@@ -128,6 +128,6 @@ import { PrismaModule } from '../../prisma/prisma.module';
   /**
    * Exports: Serviços disponíveis para outros módulos.
    */
-  exports: [AutenticacaoService],
+  exports: [AutenticacaoService, JwtModule],
 })
 export class AutenticacaoModule {}
