@@ -192,7 +192,8 @@ export function InformacoesPerfilCard() {
   if (!dadosPerfil) {
     // Skeleton
     return (
-      <div className="bg-card/70 backdrop-blur-lg border border-border/20 rounded-2xl p-6 shadow-lg shadow-black/5 animate-pulse">
+      <div className="bg-card/70 backdrop-blur-lg border border-border/20 rounded-2xl p-6 shadow-lg shadow-black/5 animate-pulse-custom relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent animate-shimmer pointer-events-none" />
         <div className="h-6 bg-muted-foreground/20 rounded-md w-1/3 mb-4"></div>
         <div className="space-y-4">
           <div className="h-10 bg-muted-foreground/20 rounded-md w-full"></div>
@@ -207,10 +208,10 @@ export function InformacoesPerfilCard() {
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
-      className="bg-gradient-to-br from-card/95 via-card/90 to-card/95 
-                 backdrop-blur-xl border border-border/30 rounded-3xl 
+      className="bg-gradient-to-br from-card/95 via-card/90 to-card/95
+                 backdrop-blur-xl border border-border/30 rounded-3xl
                  shadow-2xl shadow-primary/5 hover:shadow-primary/10
-                 transition-all duration-500 overflow-hidden"
+                 transition-shadow duration-300 overflow-hidden"
     >
       {/* Cabeçalho do Card com gradiente sutil */}
       <div className="relative p-6 md:p-8 border-b border-border/30 bg-gradient-to-r from-primary/5 via-transparent to-primary/5">
@@ -240,8 +241,8 @@ export function InformacoesPerfilCard() {
             Nome Completo
           </label>
           <div className="relative group">
-            <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-primary-light/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-            <User className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-hover:text-primary transition-colors duration-300 z-10" />
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-primary-light/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] pointer-events-none" />
+            <User className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-hover:text-primary transition-colors duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] z-10" />
             <input
               id="nome"
               type="text"
@@ -251,11 +252,11 @@ export function InformacoesPerfilCard() {
                          bg-background/60 dark:bg-background/40
                          border-2 rounded-xl
                          text-foreground placeholder:text-muted-foreground/50
-                         transition-all duration-300
+                         transition-[border-color,box-shadow,opacity] duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1.0)]
                          focus:outline-none focus:ring-4 focus:ring-primary/20
                          disabled:opacity-60 disabled:cursor-not-allowed
-                         ${errors.nome 
-                           ? "border-destructive focus:border-destructive" 
+                         ${errors.nome
+                           ? "border-destructive focus:border-destructive"
                            : "border-border/50 focus:border-primary hover:border-border"
                          }`}
               placeholder="Digite seu nome completo"
@@ -316,8 +317,8 @@ export function InformacoesPerfilCard() {
             WhatsApp <span className="text-muted-foreground font-normal text-xs">(Opcional)</span>
           </label>
           <div className="relative group">
-            <div className="absolute inset-0 bg-gradient-to-r from-success/10 to-success/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-            <Phone className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-hover:text-success transition-colors duration-300 z-10" />
+            <div className="absolute inset-0 bg-gradient-to-r from-success/10 to-success/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] pointer-events-none" />
+            <Phone className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-hover:text-success transition-colors duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] z-10" />
             <input
               id="whatsapp"
               type="tel"
@@ -328,7 +329,7 @@ export function InformacoesPerfilCard() {
                          bg-background/60 dark:bg-background/40
                          border-2 rounded-xl
                          text-foreground placeholder:text-muted-foreground/50
-                         transition-all duration-300
+                         transition-[border-color,box-shadow,opacity] duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1.0)]
                          focus:outline-none focus:ring-4 focus:ring-success/20
                          disabled:opacity-60 disabled:cursor-not-allowed
                          ${errors.whatsapp
@@ -359,8 +360,8 @@ export function InformacoesPerfilCard() {
             Data de Nascimento
           </label>
           <div className="relative group">
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-blue-400/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-            <Calendar className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-hover:text-blue-500 transition-colors duration-300 z-10" />
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-blue-400/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] pointer-events-none" />
+            <Calendar className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-hover:text-blue-500 transition-colors duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] z-10" />
             <input
               id="dataNascimento"
               type="date"
@@ -370,7 +371,7 @@ export function InformacoesPerfilCard() {
                          bg-background/60 dark:bg-background/40
                          border-2 rounded-xl
                          text-foreground placeholder:text-muted-foreground/50
-                         transition-all duration-300
+                         transition-[border-color,box-shadow,opacity] duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1.0)]
                          focus:outline-none focus:ring-4 focus:ring-blue-500/20
                          disabled:opacity-60 disabled:cursor-not-allowed
                          ${errors.dataNascimento
@@ -404,11 +405,11 @@ export function InformacoesPerfilCard() {
                        text-primary-foreground
                        shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/40
                        transform hover:scale-[1.02] active:scale-[0.98]
-                       transition-all duration-300
+                       transition-[transform,box-shadow] duration-200 ease-[cubic-bezier(0.34,1.25,0.64,1)]
                        disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100
                        overflow-hidden"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-primary-light to-primary opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <div className="absolute inset-0 bg-gradient-to-r from-primary-light to-primary opacity-0 group-hover:opacity-100 transition-opacity duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1.0)]" />
             <span className="relative flex items-center gap-2.5">
               {estaSalvando ? (
                 <>

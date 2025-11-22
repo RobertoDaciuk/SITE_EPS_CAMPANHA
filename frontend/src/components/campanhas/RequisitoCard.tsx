@@ -556,7 +556,10 @@ export default function RequisitoCard({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
+            transition={{
+              duration: 0.22, // Reduzido de 0.3 → 0.22 (27% mais rápido)
+              ease: [0.25, 0.1, 0.25, 1.0]
+            }}
             className="absolute inset-0 z-10 flex items-center justify-center"
           >
             {status === "COMPLETO" && (
@@ -564,7 +567,10 @@ export default function RequisitoCard({
                 initial={{ opacity: 0, scale: 0.5 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.5 }}
-                transition={{ duration: 0.4, type: "spring", stiffness: 200 }}
+                transition={{
+                  duration: 0.28, // Spring → Cubic-bezier (mais rápido e previsível)
+                  ease: [0.34, 1.45, 0.64, 1] // easeOutBack com bounce sutil
+                }}
                 className="flex flex-col items-center gap-2 rounded-lg bg-green-500/90 px-8 py-6 text-white shadow-lg"
               >
                 <Check className="h-12 w-12" />
@@ -576,7 +582,10 @@ export default function RequisitoCard({
                 initial={{ opacity: 0, scale: 0.5 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.5 }}
-                transition={{ duration: 0.4, type: "spring", stiffness: 200 }}
+                transition={{
+                  duration: 0.28, // Spring → Cubic-bezier (mais rápido e previsível)
+                  ease: [0.34, 1.45, 0.64, 1] // easeOutBack com bounce sutil
+                }}
                 className="flex flex-col items-center gap-2 rounded-lg bg-gray-500/90 px-8 py-6 text-white shadow-lg"
               >
                 <Lock className="h-12 w-12" />
@@ -628,14 +637,14 @@ export default function RequisitoCard({
           {/* Barra de progresso */}
           <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
             <div
-              className="h-full rounded-full bg-primary transition-all duration-300"
+              className="h-full rounded-full bg-primary transition-width duration-300"
               style={{ width: `${Math.min(progressoPercentual, 100)}%` }}
             />
           </div>
 
           {/* Meta e Unidade */}
           <div className="flex items-center justify-between text-sm">
-            <span className="font-medium text-foreground">
+            <span className="font-medium text-foreground" style={{ fontFeatureSettings: '"tnum"' }}>
               {progressoAtual} / {requisito.quantidade}
             </span>
             <span className="text-muted-foreground">
@@ -674,7 +683,7 @@ export default function RequisitoCard({
             <button
               type="submit"
               disabled={status !== "ATIVO" || isSubmitting}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors duration-200 hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isSubmitting ? (
                 <>
@@ -704,7 +713,7 @@ export default function RequisitoCard({
               {enviosExibidos.map((envio) => (
                 <div
                   key={envio.id}
-                  className={`rounded-lg border p-3 transition-colors ${getEstiloStatus(
+                  className={`rounded-lg border p-3 transition-colors duration-200 ${getEstiloStatus(
                     envio.status
                   )}`}
                 >
@@ -752,12 +761,12 @@ export default function RequisitoCard({
                             {(valorOriginal !== null || possuiBonus) && (
                               <div className="flex flex-wrap items-center gap-2 text-xs">
                                 {valorOriginal !== null && possuiBonus && (
-                                  <span className="inline-flex items-center whitespace-nowrap rounded-full bg-muted px-2 py-0.5 font-medium text-muted-foreground border border-border">
+                                  <span className="inline-flex items-center whitespace-nowrap rounded-full bg-muted px-2 py-0.5 font-medium text-muted-foreground border border-border" style={{ fontFeatureSettings: '"tnum"' }}>
                                     Base: {formatPoints(valorOriginal)} pts
                                   </span>
                                 )}
                                 {possuiBonus && (
-                                  <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-purple-500/10 px-2 py-0.5 font-semibold text-purple-600 dark:text-purple-300 border border-purple-500/20">
+                                  <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-purple-500/10 px-2 py-0.5 font-semibold text-purple-600 dark:text-purple-300 border border-purple-500/20" style={{ fontFeatureSettings: '"tnum"' }}>
                                     <Sparkles className="h-3 w-3" />
                                     Bônus x{multiplicador.toLocaleString("pt-BR", {
                                       minimumFractionDigits: 0,
@@ -777,6 +786,7 @@ export default function RequisitoCard({
                                       ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 border border-emerald-500/20"
                                       : "bg-amber-500/10 text-amber-600 dark:text-amber-300 border border-amber-500/20"
                                   }`}
+                                  style={{ fontFeatureSettings: '"tnum"' }}
                                 >
                                   <span className="font-bold">{formatPoints(valorFinal)}</span>
                                   {envio.pontosAdicionadosAoSaldo ? "Pontos Liberados" : "Pontos Pendentes"}
@@ -804,7 +814,7 @@ export default function RequisitoCard({
       {/* ========================================
           EFEITO VISUAL: Gradient Hover Glassmorphism
           ======================================== */}
-      <div className="pointer-events-none absolute inset-0 rounded-xl bg-gradient-to-br from-primary/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+      <div className="pointer-events-none absolute inset-0 rounded-xl bg-gradient-to-br from-primary/5 to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
     </div>
   );
 }

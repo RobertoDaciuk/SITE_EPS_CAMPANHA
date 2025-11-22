@@ -43,7 +43,10 @@ export function MiniRanking({ ranking }: MiniRankingProps) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
+      transition={{
+        duration: 0.28, // Reduzido de 0.5 → 0.28 (44% mais rápido)
+        ease: [0.25, 0.1, 0.25, 1.0]
+      }}
       className="rounded-3xl bg-card border border-border/50 shadow-xl overflow-hidden"
     >
       {/* Header */}
@@ -62,7 +65,10 @@ export function MiniRanking({ ranking }: MiniRankingProps) {
           </div>
           <Link href="/ranking">
             <motion.button
-              whileHover={{ scale: 1.05 }}
+              whileHover={{
+                scale: 1.05,
+                transition: { duration: 0.18, ease: [0.34, 1.25, 0.64, 1] }
+              }}
               whileTap={{ scale: 0.95 }}
               className="text-sm font-medium text-primary hover:text-primary/80 flex items-center gap-1"
             >
@@ -80,9 +86,13 @@ export function MiniRanking({ ranking }: MiniRankingProps) {
             key={vendedor.id}
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: idx * 0.1 }}
+            transition={{
+              delay: idx * 0.06, // Reduzido de 0.1 → 0.06 (40% mais rápido)
+              duration: 0.28,
+              ease: [0.25, 0.1, 0.25, 1.0]
+            }}
             className={cn(
-              "flex items-center gap-4 p-4 rounded-2xl transition-all duration-300",
+              "flex items-center gap-4 p-4 rounded-2xl transition-colors duration-200", // Corrigido: transition-all → transition-colors
               vendedor.ehUsuarioAtual
                 ? "bg-primary/10 border-2 border-primary/30 shadow-lg shadow-primary/10"
                 : "bg-card/50 hover:bg-card border border-border/30"
@@ -91,7 +101,7 @@ export function MiniRanking({ ranking }: MiniRankingProps) {
             {/* Posição */}
             <div className="flex items-center justify-center w-8">
               {ICONES_POSICAO[vendedor.posicao] || (
-                <span className="text-sm font-bold text-muted-foreground">
+                <span className="text-sm font-bold text-muted-foreground" style={{ fontFeatureSettings: '"tnum"' }}>
                   {vendedor.posicao}º
                 </span>
               )}
@@ -158,7 +168,8 @@ export function MiniRanking({ ranking }: MiniRankingProps) {
               <p className={cn(
                 "text-lg font-bold",
                 vendedor.ehUsuarioAtual ? "text-primary" : "text-foreground"
-              )}>
+              )}
+              style={{ fontFeatureSettings: '"tnum"' }}>
                 {vendedor.totalPontos.toLocaleString("pt-BR")}
               </p>
               <p className="text-xs text-muted-foreground">pontos</p>
@@ -171,7 +182,11 @@ export function MiniRanking({ ranking }: MiniRankingProps) {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
+            transition={{
+              delay: 0.30, // Reduzido de 0.5 → 0.30 (40% mais rápido)
+              duration: 0.28,
+              ease: [0.25, 0.1, 0.25, 1.0]
+            }}
             className="mt-4 p-4 rounded-2xl bg-muted/50 border border-border/50 text-center"
           >
             <p className="text-sm text-muted-foreground">
