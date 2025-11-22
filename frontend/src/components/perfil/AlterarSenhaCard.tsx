@@ -108,10 +108,10 @@ export function AlterarSenhaCard() {
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
-      className="bg-gradient-to-br from-card/95 via-card/90 to-card/95 
-                 backdrop-blur-xl border border-border/30 rounded-3xl 
+      className="bg-gradient-to-br from-card/95 via-card/90 to-card/95
+                 backdrop-blur-xl border border-border/30 rounded-3xl
                  shadow-2xl shadow-warning/5 hover:shadow-warning/10
-                 transition-all duration-500 overflow-hidden h-fit"
+                 transition-shadow duration-300 overflow-hidden h-fit"
     >
       {/* Cabeçalho do Card com gradiente sutil */}
       <div className="relative p-6 md:p-8 border-b border-border/30 bg-gradient-to-r from-warning/5 via-transparent to-warning/5">
@@ -141,8 +141,8 @@ export function AlterarSenhaCard() {
             Senha Atual
           </label>
           <div className="relative group">
-            <div className="absolute inset-0 bg-gradient-to-r from-warning/10 to-warning/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-            <Lock className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-hover:text-warning transition-colors duration-300 z-10" />
+            <div className="absolute inset-0 bg-gradient-to-r from-warning/10 to-warning/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] pointer-events-none" />
+            <Lock className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-hover:text-warning transition-colors duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] z-10" />
             <input
               id="senhaAtual"
               type="password"
@@ -153,11 +153,11 @@ export function AlterarSenhaCard() {
                          bg-background/60 dark:bg-background/40
                          border-2 rounded-xl
                          text-foreground placeholder:text-muted-foreground/50
-                         transition-all duration-300
+                         transition-[border-color,box-shadow,opacity] duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1.0)]
                          focus:outline-none focus:ring-4 focus:ring-warning/20
                          disabled:opacity-60 disabled:cursor-not-allowed
-                         ${errors.senhaAtual 
-                           ? "border-destructive focus:border-destructive" 
+                         ${errors.senhaAtual
+                           ? "border-destructive focus:border-destructive"
                            : "border-border/50 focus:border-warning hover:border-border"
                          }`}
             />
@@ -181,8 +181,8 @@ export function AlterarSenhaCard() {
             Nova Senha
           </label>
           <div className="relative group">
-            <div className="absolute inset-0 bg-gradient-to-r from-success/10 to-success/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-            <Key className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-hover:text-success transition-colors duration-300 z-10" />
+            <div className="absolute inset-0 bg-gradient-to-r from-success/10 to-success/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] pointer-events-none" />
+            <Key className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-hover:text-success transition-colors duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] z-10" />
             <input
               id="novaSenha"
               type="password"
@@ -193,11 +193,11 @@ export function AlterarSenhaCard() {
                          bg-background/60 dark:bg-background/40
                          border-2 rounded-xl
                          text-foreground placeholder:text-muted-foreground/50
-                         transition-all duration-300
+                         transition-[border-color,box-shadow,opacity] duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1.0)]
                          focus:outline-none focus:ring-4 focus:ring-success/20
                          disabled:opacity-60 disabled:cursor-not-allowed
-                         ${errors.novaSenha 
-                           ? "border-destructive focus:border-destructive" 
+                         ${errors.novaSenha
+                           ? "border-destructive focus:border-destructive"
                            : "border-border/50 focus:border-success hover:border-border"
                          }`}
             />
@@ -221,8 +221,8 @@ export function AlterarSenhaCard() {
             Confirmar Nova Senha
           </label>
           <div className="relative group">
-            <div className="absolute inset-0 bg-gradient-to-r from-success/10 to-success/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-            <CheckCircle2 className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-hover:text-success transition-colors duration-300 z-10" />
+            <div className="absolute inset-0 bg-gradient-to-r from-success/10 to-success/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] pointer-events-none" />
+            <CheckCircle2 className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-hover:text-success transition-colors duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] z-10" />
             <input
               id="confirmarNovaSenha"
               type="password"
@@ -233,11 +233,11 @@ export function AlterarSenhaCard() {
                          bg-background/60 dark:bg-background/40
                          border-2 rounded-xl
                          text-foreground placeholder:text-muted-foreground/50
-                         transition-all duration-300
+                         transition-[border-color,box-shadow,opacity] duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1.0)]
                          focus:outline-none focus:ring-4 focus:ring-success/20
                          disabled:opacity-60 disabled:cursor-not-allowed
-                         ${errors.confirmarNovaSenha 
-                           ? "border-destructive focus:border-destructive" 
+                         ${errors.confirmarNovaSenha
+                           ? "border-destructive focus:border-destructive"
                            : "border-border/50 focus:border-success hover:border-border"
                          }`}
             />
@@ -292,11 +292,11 @@ export function AlterarSenhaCard() {
                      text-warning-foreground
                      shadow-lg shadow-warning/25 hover:shadow-xl hover:shadow-warning/40
                      transform hover:scale-[1.02] active:scale-[0.98]
-                     transition-all duration-300
+                     transition-[transform,box-shadow] duration-200 ease-[cubic-bezier(0.34,1.25,0.64,1)]
                      disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100
                      overflow-hidden"
         >
-          <div className="absolute inset-0 bg-gradient-to-r from-warning/90 to-warning opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <div className="absolute inset-0 bg-gradient-to-r from-warning/90 to-warning opacity-0 group-hover:opacity-100 transition-opacity duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1.0)]" />
           <span className="relative flex items-center justify-center gap-2.5">
             {estaSalvando ? (
               <>
