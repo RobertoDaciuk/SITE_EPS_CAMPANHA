@@ -18,7 +18,7 @@
 export default function SkeletonRequisitoCard() {
   return (
     <div
-      className="group relative overflow-hidden rounded-xl border border-border/50 bg-card/50 p-4 backdrop-blur-sm transition-all hover:border-primary/50 hover:shadow-lg"
+      className="group relative overflow-hidden rounded-xl border border-border/50 bg-card/50 p-4 backdrop-blur-sm transition-[border-color,box-shadow] duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] hover:border-primary/50 hover:shadow-lg"
       aria-label="Carregando requisito..."
     >
       {/* Shimmer Overlay - Efeito de brilho animado */}
@@ -61,7 +61,7 @@ export default function SkeletonRequisitoCard() {
       {/* ========================================
           EFEITO VISUAL: Shimmer Glassmorphism
           ======================================== */}
-      <div className="pointer-events-none absolute inset-0 rounded-xl bg-gradient-to-br from-primary/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+      <div className="pointer-events-none absolute inset-0 rounded-xl bg-gradient-to-br from-primary/5 to-transparent opacity-0 transition-opacity duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] group-hover:opacity-100" />
     </div>
   );
 }
