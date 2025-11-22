@@ -97,6 +97,7 @@ export default function RankingAdminPage() {
     return "";
   };
 
+
   // Mostrar skeleton apenas no primeiro carregamento
   if (isLoading && !ranking) {
     return <RankingSkeleton />;

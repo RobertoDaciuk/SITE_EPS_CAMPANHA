@@ -36,7 +36,11 @@ export function PerformanceEquipeCard({ performance }: PerformanceEquipeCardProp
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: 0.1 }}
+      transition={{
+        duration: 0.28, // Reduzido de 0.5 → 0.28 (44% mais rápido)
+        delay: 0.06, // Reduzido de 0.1 → 0.06 (40% mais rápido)
+        ease: [0.25, 0.1, 0.25, 1.0]
+      }}
       className="rounded-2xl border border-border/40 bg-card/80 p-6 shadow-sm backdrop-blur-sm"
     >
       {/* Header */}
@@ -70,6 +74,7 @@ export function PerformanceEquipeCard({ performance }: PerformanceEquipeCardProp
                 ? "text-emerald-600 dark:text-emerald-400"
                 : "text-rose-600 dark:text-rose-400"
             }`}
+            style={{ fontFeatureSettings: '"tnum"' }}
           >
             {crescimentoPositivo ? "+" : ""}
             {percentFormatter.format(performance.crescimentoSemana / 100)}
@@ -85,7 +90,7 @@ export function PerformanceEquipeCard({ performance }: PerformanceEquipeCardProp
             <Trophy className="h-4 w-4" />
             <span>Total de Pontos</span>
           </div>
-          <p className="text-2xl font-bold text-foreground">
+          <p className="text-2xl font-bold text-foreground" style={{ fontFeatureSettings: '"tnum"' }}>
             {numberFormatter.format(performance.totalPontosEquipe)}
           </p>
           <p className="text-xs text-muted-foreground">Pontos acumulados</p>
@@ -97,7 +102,7 @@ export function PerformanceEquipeCard({ performance }: PerformanceEquipeCardProp
             <Users className="h-4 w-4" />
             <span>Média / Vendedor</span>
           </div>
-          <p className="text-2xl font-bold text-foreground">
+          <p className="text-2xl font-bold text-foreground" style={{ fontFeatureSettings: '"tnum"' }}>
             {numberFormatter.format(performance.mediaVendedorAtivo)}
           </p>
           <p className="text-xs text-muted-foreground">Pontos por ativo</p>
@@ -109,7 +114,7 @@ export function PerformanceEquipeCard({ performance }: PerformanceEquipeCardProp
             <Target className="h-4 w-4" />
             <span>Cartelas Completas</span>
           </div>
-          <p className="text-2xl font-bold text-foreground">
+          <p className="text-2xl font-bold text-foreground" style={{ fontFeatureSettings: '"tnum"' }}>
             {numberFormatter.format(performance.cartelasCompletas)}
           </p>
           <p className="text-xs text-muted-foreground">Total conquistado</p>
@@ -130,8 +135,12 @@ export function PerformanceEquipeCard({ performance }: PerformanceEquipeCardProp
                 key={index}
                 initial={{ height: 0 }}
                 animate={{ height: `${altura}%` }}
-                transition={{ delay: index * 0.01, duration: 0.3 }}
-                className="flex-1 bg-gradient-to-t from-blue-600 to-blue-400 dark:from-blue-500 dark:to-blue-300 rounded-t-sm min-h-[2px] hover:opacity-80 transition-opacity"
+                transition={{
+                  delay: index * 0.006, // Reduzido de 0.01 → 0.006 (40% mais rápido)
+                  duration: 0.22, // Reduzido de 0.3 → 0.22 (27% mais rápido)
+                  ease: [0.34, 1.35, 0.64, 1] // easeOutBack para bounce sutil
+                }}
+                className="flex-1 bg-gradient-to-t from-blue-600 to-blue-400 dark:from-blue-500 dark:to-blue-300 rounded-t-sm min-h-[2px] hover:opacity-80 transition-opacity duration-150"
                 title={`${item.pontos} pontos em ${new Date(item.data).toLocaleDateString("pt-BR")}`}
               />
             );
