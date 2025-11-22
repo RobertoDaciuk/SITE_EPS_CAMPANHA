@@ -90,7 +90,8 @@ export function InfoOticaCard() {
   // Skeleton enquanto carrega
   if (!dadosPerfil) {
     return (
-      <div className="bg-card/70 backdrop-blur-lg border border-border/20 rounded-3xl p-6 shadow-lg shadow-black/5 animate-pulse">
+      <div className="bg-card/70 backdrop-blur-lg border border-border/20 rounded-3xl p-6 shadow-lg shadow-black/5 animate-pulse-custom relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent animate-shimmer pointer-events-none" />
         <div className="h-6 bg-muted-foreground/20 rounded-md w-1/2 mb-4"></div>
         <div className="space-y-4">
           <div className="h-14 bg-muted-foreground/20 rounded-md w-full"></div>
@@ -102,10 +103,10 @@ export function InfoOticaCard() {
 
   return (
     <div
-      className="bg-gradient-to-br from-card/95 via-card/90 to-card/95 
-                 backdrop-blur-xl border border-border/30 rounded-3xl 
+      className="bg-gradient-to-br from-card/95 via-card/90 to-card/95
+                 backdrop-blur-xl border border-border/30 rounded-3xl
                  shadow-2xl shadow-success/5 hover:shadow-success/10
-                 transition-all duration-500 overflow-hidden h-fit"
+                 transition-shadow duration-300 overflow-hidden h-fit"
     >
       {/* Cabeçalho do Card com gradiente sutil */}
       <div className="relative p-6 md:p-8 border-b border-border/30 bg-gradient-to-r from-success/5 via-transparent to-success/5">
