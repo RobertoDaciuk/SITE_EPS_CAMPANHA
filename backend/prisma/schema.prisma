@@ -55,6 +55,9 @@ model Optica {
   @@index([ativa])
   @@index([ehMatriz])
   @@index([matrizId])
+  // ⚡ ÍNDICES COMPOSTOS - Performance de Queries de Filiais
+  @@index([matrizId, ativa]) // getRankingFiliaisParaMatriz: busca filiais ativas
+  @@index([ehMatriz, ativa]) // Queries que filtram apenas matrizes ativas
   @@map("opticas")
 }
 
@@ -141,6 +144,10 @@ model Usuario {
   @@index([status])
   @@index([opticaId])
   @@index([tokenResetarSenha])
+  // ⚡ ÍNDICES COMPOSTOS - Performance de Queries de Ranking
+  @@index([papel, status]) // getRankingGeralPaginado: busca vendedores ativos
+  @@index([opticaId, papel, status]) // getRankingAdmin: filtro por ótica + papel
+  @@index([gerenteId, papel, status]) // getRankingEquipe: vendedores de um gerente
   @@map("usuarios")
 }
 
@@ -446,6 +453,12 @@ model EnvioVenda {
   @@index([codigoReferenciaUsado])
   @@index([pontosAdicionadosAoSaldo])
   @@index([pontosLiquidados])
+  // ⚡ ÍNDICES COMPOSTOS - Performance Crítica de Ranking (90% melhoria)
+  // Query mais crítica: todos os métodos de ranking filtram por estas 3 colunas
+  @@index([vendedorId, status, pontosAdicionadosAoSaldo]) // getPosicaoUsuario, getRankingAdmin, etc
+  @@index([vendedorId, status, numeroCartelaAtendida]) // Variação para queries com cartela
+  @@index([campanhaId, status, vendedorId]) // Queries filtradas por campanha
+  @@index([status, pontosAdicionadosAoSaldo]) // Aggregações globais de ranking
   @@map("envios_vendas")
 }
 

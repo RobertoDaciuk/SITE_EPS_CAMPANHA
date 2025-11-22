@@ -31,13 +31,15 @@ interface KpisAdminProps {
 
 /**
  * Variantes de animação para o container (stagger).
+ * OTIMIZADO: Reduzido stagger de 0.1 → 0.06 (40% mais rápido)
  */
 const containerVariantes = {
   oculto: { opacity: 0 },
   visivel: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.1,
+      staggerChildren: 0.06, // Reduzido de 0.1 → 0.06 (40% mais rápido)
+      ease: [0.25, 0.1, 0.25, 1.0],
     },
   },
 };

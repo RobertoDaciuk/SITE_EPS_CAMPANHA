@@ -80,7 +80,11 @@ export function AlertasEquipeCard({ alertas }: AlertasEquipeCardProps) {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
+        transition={{
+          duration: 0.28, // Reduzido de 0.5 → 0.28 (44% mais rápido)
+          delay: 0.12, // Reduzido de 0.2 → 0.12 (40% mais rápido)
+          ease: [0.25, 0.1, 0.25, 1.0]
+        }}
         className="rounded-2xl border border-border/40 bg-card/80 p-8 shadow-sm backdrop-blur-sm text-center"
       >
         <div className="flex flex-col items-center gap-3">
@@ -102,14 +106,18 @@ export function AlertasEquipeCard({ alertas }: AlertasEquipeCardProps) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: 0.2 }}
+      transition={{
+        duration: 0.28, // Reduzido de 0.5 → 0.28 (44% mais rápido)
+        delay: 0.12, // Reduzido de 0.2 → 0.12 (40% mais rápido)
+        ease: [0.25, 0.1, 0.25, 1.0]
+      }}
       className="rounded-2xl border border-border/40 bg-card/80 p-6 shadow-sm backdrop-blur-sm"
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h3 className="text-lg font-semibold text-foreground">Alertas da Equipe</h3>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground" style={{ fontFeatureSettings: '"tnum"' }}>
             {totalAlertas} {totalAlertas === 1 ? "alerta ativo" : "alertas ativos"}
           </p>
         </div>
@@ -117,12 +125,12 @@ export function AlertasEquipeCard({ alertas }: AlertasEquipeCardProps) {
         {/* Badges de Resumo */}
         <div className="flex items-center gap-2">
           {alertas.criticos.length > 0 && (
-            <span className="rounded-full bg-rose-600 px-3 py-1 text-xs font-bold text-white">
+            <span className="rounded-full bg-rose-600 px-3 py-1 text-xs font-bold text-white" style={{ fontFeatureSettings: '"tnum"' }}>
               {alertas.criticos.length} críticos
             </span>
           )}
           {alertas.atencao.length > 0 && (
-            <span className="rounded-full bg-amber-600 px-3 py-1 text-xs font-bold text-white">
+            <span className="rounded-full bg-amber-600 px-3 py-1 text-xs font-bold text-white" style={{ fontFeatureSettings: '"tnum"' }}>
               {alertas.atencao.length} atenção
             </span>
           )}
@@ -141,9 +149,9 @@ export function AlertasEquipeCard({ alertas }: AlertasEquipeCardProps) {
               animate={{ opacity: 1, x: 0, scale: 1 }}
               whileHover={{ scale: 1.02, x: 4 }}
               transition={{
-                delay: index * 0.08,
-                duration: 0.4,
-                ease: "easeOut"
+                delay: index * 0.04, // Otimizado: 0.08 → 0.04 (50% mais rápido)
+                duration: 0.24, // Otimizado: 0.4 → 0.24 (40% mais rápido)
+                ease: [0.25, 0.1, 0.25, 1.0]
               }}
               className={`group rounded-xl border p-4 cursor-pointer hover:shadow-xl transition-all duration-300 ${estilo.container}`}
             >

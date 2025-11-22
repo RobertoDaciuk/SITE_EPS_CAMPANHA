@@ -1,11 +1,13 @@
 ﻿"use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import useSWR from "swr";
 import { motion } from "framer-motion";
 import api from "@/lib/axios";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Trophy, Store, Coins, ChevronLeft, ChevronRight, Filter } from "lucide-react";
+import { Trophy, Store, ChevronLeft, ChevronRight, Filter } from "lucide-react";
 import toast from "react-hot-toast";
+import RankingSkeleton from "@/components/admin/ranking/RankingSkeleton";
 
 interface Vendedor {
   id: string;
@@ -30,43 +32,45 @@ interface Otica {
   cnpj: string;
 }
 
+// Fetcher genérico para SWR
+const fetcher = (url: string) => api.get(url).then((res) => res.data);
+
 export default function RankingAdminPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [ranking, setRanking] = useState<RankingResponse | null>(null);
-  const [oticas, setOticas] = useState<Otica[]>([]);
   const [oticaSelecionada, setOticaSelecionada] = useState<string>("");
-  const [carregando, setCarregando] = useState(true);
   const paginaAtual = parseInt(searchParams.get("pagina") || "1");
 
-  useEffect(() => {
-    const carregarOticas = async () => {
-      try {
-        const response = await api.get("/oticas");
-        setOticas(response.data);
-      } catch (error: any) {
-        toast.error("Erro ao carregar lista de óticas");
-      }
-    };
-    carregarOticas();
-  }, []);
+  // Buscar óticas com SWR (cache de 5 minutos)
+  const { data: oticas = [], error: erroOticas } = useSWR<Otica[]>(
+    "/oticas",
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 300000, // 5 minutos sem re-request
+      onError: () => toast.error("Erro ao carregar lista de óticas"),
+    }
+  );
 
-  useEffect(() => {
-    const carregarRanking = async () => {
-      setCarregando(true);
-      try {
-        const params: any = { pagina: paginaAtual, limite: 50 };
-        if (oticaSelecionada) params.oticaId = oticaSelecionada;
-        const response = await api.get("/ranking/admin", { params });
-        setRanking(response.data);
-      } catch (error: any) {
-        toast.error(error.response?.data?.message || "Erro ao carregar ranking");
-      } finally {
-        setCarregando(false);
-      }
-    };
-    carregarRanking();
-  }, [paginaAtual, oticaSelecionada]);
+  // Buscar ranking com SWR (atualização automática)
+  const rankingUrl = `/ranking/admin?pagina=${paginaAtual}&limite=50${
+    oticaSelecionada ? `&oticaId=${oticaSelecionada}` : ""
+  }`;
+
+  const {
+    data: ranking,
+    error: erroRanking,
+    isLoading
+  } = useSWR<RankingResponse>(
+    rankingUrl,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 10000, // 10 segundos sem re-request
+      keepPreviousData: true, // Mantém dados antigos enquanto revalida (Optimistic UI)
+      onError: (err: any) => toast.error(err.response?.data?.message || "Erro ao carregar ranking"),
+    }
+  );
 
   const mudarPagina = (novaPagina: number) => {
     const params = new URLSearchParams(searchParams);
@@ -74,18 +78,12 @@ export default function RankingAdminPage() {
     router.push(`/admin/ranking?${params.toString()}`);
   };
 
-  const formatarValor = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
-  
   const formatarCNPJ = (c: string) => c.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
-  const getNivelColor = (n: string) => n === "DIAMANTE" ? "text-cyan-400" : n === "OURO" ? "text-yellow-400" : n === "PRATA" ? "text-gray-400" : "text-orange-400";
-  const getPosicaoMedal = (p: number) => p === 1 ? "" : p === 2 ? "" : p === 3 ? "" : null;
+  const getPosicaoMedal = (p: number) => p === 1 ? "🥇" : p === 2 ? "🥈" : p === 3 ? "🥉" : null;
 
-  if (carregando && !ranking) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-warning" />
-      </div>
-    );
+  // Mostrar skeleton apenas no primeiro carregamento
+  if (isLoading && !ranking) {
+    return <RankingSkeleton />;
   }
 
   return (
