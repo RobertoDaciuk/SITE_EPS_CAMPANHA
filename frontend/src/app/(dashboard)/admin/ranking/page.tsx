@@ -1,11 +1,13 @@
 ﻿"use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import useSWR from "swr";
 import { motion, AnimatePresence } from "framer-motion";
 import api from "@/lib/axios";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Trophy, Store, Coins, ChevronLeft, ChevronRight, Filter, Award } from "lucide-react";
+import { Trophy, Store, ChevronLeft, ChevronRight, Filter, Award } from "lucide-react";
 import toast from "react-hot-toast";
+import RankingSkeleton from "@/components/admin/ranking/RankingSkeleton";
 import ButtonWithLoading from "@/components/ui/ButtonWithLoading";
 
 interface Vendedor {
@@ -31,43 +33,45 @@ interface Otica {
   cnpj: string;
 }
 
+// Fetcher genérico para SWR
+const fetcher = (url: string) => api.get(url).then((res) => res.data);
+
 export default function RankingAdminPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [ranking, setRanking] = useState<RankingResponse | null>(null);
-  const [oticas, setOticas] = useState<Otica[]>([]);
   const [oticaSelecionada, setOticaSelecionada] = useState<string>("");
-  const [carregando, setCarregando] = useState(true);
   const paginaAtual = parseInt(searchParams.get("pagina") || "1");
 
-  useEffect(() => {
-    const carregarOticas = async () => {
-      try {
-        const response = await api.get("/oticas");
-        setOticas(response.data);
-      } catch (error: any) {
-        toast.error("Erro ao carregar lista de óticas");
-      }
-    };
-    carregarOticas();
-  }, []);
+  // Buscar óticas com SWR (cache de 5 minutos)
+  const { data: oticas = [], error: erroOticas } = useSWR<Otica[]>(
+    "/oticas",
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 300000, // 5 minutos sem re-request
+      onError: () => toast.error("Erro ao carregar lista de óticas"),
+    }
+  );
 
-  useEffect(() => {
-    const carregarRanking = async () => {
-      setCarregando(true);
-      try {
-        const params: any = { pagina: paginaAtual, limite: 50 };
-        if (oticaSelecionada) params.oticaId = oticaSelecionada;
-        const response = await api.get("/ranking/admin", { params });
-        setRanking(response.data);
-      } catch (error: any) {
-        toast.error(error.response?.data?.message || "Erro ao carregar ranking");
-      } finally {
-        setCarregando(false);
-      }
-    };
-    carregarRanking();
-  }, [paginaAtual, oticaSelecionada]);
+  // Buscar ranking com SWR (atualização automática)
+  const rankingUrl = `/ranking/admin?pagina=${paginaAtual}&limite=50${
+    oticaSelecionada ? `&oticaId=${oticaSelecionada}` : ""
+  }`;
+
+  const {
+    data: ranking,
+    error: erroRanking,
+    isLoading
+  } = useSWR<RankingResponse>(
+    rankingUrl,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 10000, // 10 segundos sem re-request
+      keepPreviousData: true, // Mantém dados antigos enquanto revalida (Optimistic UI)
+      onError: (err: any) => toast.error(err.response?.data?.message || "Erro ao carregar ranking"),
+    }
+  );
 
   const mudarPagina = (novaPagina: number) => {
     const params = new URLSearchParams(searchParams);
@@ -75,12 +79,9 @@ export default function RankingAdminPage() {
     router.push(`/admin/ranking?${params.toString()}`);
   };
 
-  const formatarValor = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
-
   const formatarCNPJ = (c: string) => c.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
-  const getNivelColor = (n: string) => n === "DIAMANTE" ? "text-cyan-400" : n === "OURO" ? "text-yellow-400" : n === "PRATA" ? "text-gray-400" : "text-orange-400";
 
-  // Retorna medalha emoji para Top 3
+  // Função para retornar medalhas (com suporte a emoji)
   const getPosicaoMedal = (p: number) => {
     if (p === 1) return "🥇";
     if (p === 2) return "🥈";
@@ -88,7 +89,7 @@ export default function RankingAdminPage() {
     return null;
   };
 
-  // Classes de destaque para Top 3
+  // Função para retornar classes de gradiente para Top 3
   const getTopClassNames = (p: number) => {
     if (p === 1) return "bg-gradient-to-r from-yellow-500/10 to-amber-500/10 border-l-4 border-yellow-500";
     if (p === 2) return "bg-gradient-to-r from-gray-400/10 to-slate-400/10 border-l-4 border-gray-400";
@@ -96,12 +97,9 @@ export default function RankingAdminPage() {
     return "";
   };
 
-  if (carregando && !ranking) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-warning" />
-      </div>
-    );
+  // Mostrar skeleton apenas no primeiro carregamento
+  if (isLoading && !ranking) {
+    return <RankingSkeleton />;
   }
 
   return (
@@ -144,7 +142,7 @@ export default function RankingAdminPage() {
             <AnimatePresence mode="popLayout">
               {ranking?.dados.map((v, index) => {
                 const medal = getPosicaoMedal(v.posicao);
-                const topClass = getTopClassNames(v.posicao);
+                const topClasses = getTopClassNames(v.posicao);
 
                 return (
                   <motion.tr
@@ -154,7 +152,7 @@ export default function RankingAdminPage() {
                     exit={{ opacity: 0, x: 20 }}
                     transition={{ delay: index * 0.03, duration: 0.3 }}
                     whileHover={{ scale: 1.01, x: 4 }}
-                    className={`hover:bg-warning/5 transition-all ${topClass}`}
+                    className={`hover:bg-warning/5 transition-colors ${topClasses}`}
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
@@ -168,7 +166,7 @@ export default function RankingAdminPage() {
                             {medal}
                           </motion.span>
                         ) : (
-                          <span className="text-muted-foreground font-semibold">#{v.posicao}</span>
+                          <span className="text-sm font-bold text-muted-foreground">#{v.posicao}</span>
                         )}
                       </div>
                     </td>
@@ -176,20 +174,18 @@ export default function RankingAdminPage() {
                       <div className="flex items-center gap-3">
                         <motion.div
                           whileHover={{ scale: 1.1, rotate: [0, -5, 5, -5, 0] }}
-                          transition={{ duration: 0.3 }}
-                          className={`w-10 h-10 rounded-full ${
+                          transition={{ duration: 0.5 }}
+                          className={`w-10 h-10 rounded-full flex items-center justify-center ${
                             v.posicao <= 3
-                              ? "bg-gradient-to-br from-warning to-amber-500 shadow-lg shadow-warning/30"
+                              ? "bg-gradient-to-br from-warning to-amber-500"
                               : "bg-warning/20"
-                          } flex items-center justify-center`}
+                          }`}
                         >
                           <span className={`text-sm font-bold ${v.posicao <= 3 ? "text-white" : "text-warning"}`}>
                             {v.nome.charAt(0)}
                           </span>
                         </motion.div>
-                        <span className={`font-semibold ${v.posicao <= 3 ? "text-warning" : ""}`}>
-                          {v.nome}
-                        </span>
+                        <span className="font-semibold">{v.nome}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -202,12 +198,7 @@ export default function RankingAdminPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <motion.span
-                        whileHover={{ scale: 1.05 }}
-                        className={`text-lg font-bold ${v.posicao <= 3 ? "text-warning" : "text-success"}`}
-                      >
-                        {v.valorTotal.toLocaleString('pt-BR')}
-                      </motion.span>
+                      <span className="text-lg font-bold text-success">{v.valorTotal.toLocaleString('pt-BR')}</span>
                     </td>
                   </motion.tr>
                 );
@@ -218,9 +209,7 @@ export default function RankingAdminPage() {
 
         {ranking && ranking.totalPaginas > 1 && (
           <div className="px-6 py-4 border-t border-border/20 flex justify-between items-center">
-            <p className="text-sm text-muted-foreground">
-              Página {ranking.paginaAtual} de {ranking.totalPaginas} • {ranking.totalRegistros} vendedores
-            </p>
+            <p className="text-sm text-muted-foreground">Página {ranking.paginaAtual} de {ranking.totalPaginas}</p>
             <div className="flex gap-2">
               <ButtonWithLoading
                 icon={ChevronLeft}
@@ -229,7 +218,7 @@ export default function RankingAdminPage() {
                 disabled={paginaAtual === 1}
                 variant="ghost"
                 size="sm"
-                className="border hover:bg-warning/10"
+                className="px-4 py-2 rounded-lg border hover:bg-warning/10"
               />
               <ButtonWithLoading
                 icon={ChevronRight}
@@ -238,7 +227,7 @@ export default function RankingAdminPage() {
                 disabled={paginaAtual === ranking.totalPaginas}
                 variant="ghost"
                 size="sm"
-                className="border hover:bg-warning/10"
+                className="px-4 py-2 rounded-lg border hover:bg-warning/10"
               />
             </div>
           </div>
