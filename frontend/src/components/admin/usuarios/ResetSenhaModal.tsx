@@ -160,7 +160,7 @@ export default function ResetSenhaModal({
                     type="button"
                     onClick={onClose}
                     disabled={isLoading}
-                    className="rounded-lg p-2 text-white/80 transition-colors hover:bg-white/20 hover:text-white disabled:opacity-50"
+                    className="rounded-lg p-2 text-white/80 transition-colors duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] hover:bg-white/20 hover:text-white disabled:opacity-50"
                   >
                     <X className="h-5 w-5" />
                   </button>
@@ -198,7 +198,7 @@ export default function ResetSenhaModal({
                     <button
                       onClick={handleGerarToken}
                       disabled={isLoading}
-                      className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-gradient-to-r from-amber-600 to-orange-600 text-white font-semibold shadow-lg shadow-amber-500/30 hover:from-amber-700 hover:to-orange-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-gradient-to-r from-amber-600 to-orange-600 text-white font-semibold shadow-lg shadow-amber-500/30 hover:from-amber-700 hover:to-orange-700 transition-[background-color,box-shadow,opacity] duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isLoading ? (
                         <>
@@ -240,7 +240,7 @@ export default function ResetSenhaModal({
                           />
                           <button
                             onClick={handleCopiarToken}
-                            className={`absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-md transition-all ${
+                            className={`absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-md transition-[background-color,color] duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] ${
                               copiado
                                 ? 'bg-green-100 text-green-700'
                                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -262,7 +262,7 @@ export default function ResetSenhaModal({
                       {/* Botão: Copiar Token (Grande) */}
                       <button
                         onClick={handleCopiarToken}
-                        className={`w-full flex items-center justify-center gap-2 px-5 py-3 rounded-lg font-semibold shadow-lg transition-all ${
+                        className={`w-full flex items-center justify-center gap-2 px-5 py-3 rounded-lg font-semibold shadow-lg transition-[background-color,box-shadow] duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] ${
                           copiado
                             ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-green-500/30'
                             : 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-amber-500/30 hover:from-amber-700 hover:to-orange-700'
@@ -287,7 +287,7 @@ export default function ResetSenhaModal({
                   <div className="mt-6 pt-6 border-t border-gray-200">
                     <button
                       onClick={onClose}
-                      className="w-full px-5 py-2.5 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                      className="w-full px-5 py-2.5 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1.0)]"
                     >
                       {tokenGerado ? 'Fechar' : 'Cancelar'}
                     </button>
