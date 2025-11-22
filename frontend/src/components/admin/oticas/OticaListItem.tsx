@@ -20,6 +20,9 @@
  */
 
 import { Building2, Edit, Power, MapPin, Network, Phone, Mail } from 'lucide-react';
+import { useState } from 'react';
+import ButtonWithLoading from '@/components/ui/ButtonWithLoading';
+import { motion } from 'framer-motion';
 
 // ============================================================================
 // INTERFACES
@@ -79,11 +82,22 @@ export default function OticaListItem({
   onToggleAtiva,
 }: OticaListItemProps) {
   // ==========================================================================
+  // ESTADOS
+  // ==========================================================================
+
+  const [isToggling, setIsToggling] = useState(false);
+
+  // ==========================================================================
   // HANDLERS
   // ==========================================================================
 
   const handleToggle = async () => {
-    await onToggleAtiva(otica.id, !otica.ativa);
+    setIsToggling(true);
+    try {
+      await onToggleAtiva(otica.id, !otica.ativa);
+    } finally {
+      setIsToggling(false);
+    }
   };
 
   // ==========================================================================
@@ -91,7 +105,13 @@ export default function OticaListItem({
   // ==========================================================================
 
   return (
-    <div className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-all duration-200">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -2 }}
+      transition={{ duration: 0.2 }}
+      className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-all duration-200"
+    >
       {/* Barra de Status (Lateral Esquerda) */}
       <div
         className={`absolute left-0 top-0 bottom-0 w-1 ${
@@ -210,31 +230,35 @@ export default function OticaListItem({
         {/* Ações */}
         <div className="flex flex-wrap gap-2 pt-3 border-t border-gray-100">
           {/* Botão: Editar */}
-          <button
+          <ButtonWithLoading
+            icon={Edit}
             onClick={() => onEdit(otica)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-colors"
+            variant="primary"
+            size="sm"
+            className="text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200"
           >
-            <Edit className="h-4 w-4" />
             Editar
-          </button>
+          </ButtonWithLoading>
 
           {/* Botão: Desativar/Reativar */}
-          <button
+          <ButtonWithLoading
+            icon={Power}
             onClick={handleToggle}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-              otica.ativa
-                ? 'text-red-700 bg-red-50 hover:bg-red-100 border border-red-200'
-                : 'text-green-700 bg-green-50 hover:bg-green-100 border border-green-200'
-            }`}
+            isLoading={isToggling}
+            variant={otica.ativa ? "danger" : "success"}
+            size="sm"
+            className={otica.ativa
+              ? "text-red-700 bg-red-50 hover:bg-red-100 border border-red-200"
+              : "text-green-700 bg-green-50 hover:bg-green-100 border border-green-200"
+            }
           >
-            <Power className="h-4 w-4" />
             {otica.ativa ? 'Desativar' : 'Reativar'}
-          </button>
+          </ButtonWithLoading>
         </div>
       </div>
 
       {/* Efeito de Hover (Brilho) */}
       <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-transparent via-blue-50/0 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-    </div>
+    </motion.div>
   );
 }
