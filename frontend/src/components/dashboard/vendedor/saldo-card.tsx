@@ -1,7 +1,8 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Wallet, TrendingUp, DollarSign, Lock, Info } from "lucide-react";
+import { useState } from "react";
 
 interface SaldoCardProps {
   saldo: {
@@ -10,6 +11,46 @@ interface SaldoCardProps {
     total: number;
     ganhosMes: number;
   };
+}
+
+/**
+ * Componente reutilizável de Tooltip com animação suave
+ * @param text - Texto do tooltip
+ * @param colorClass - Classe de cor do ícone (ex: "text-primary")
+ */
+function InfoTooltip({ text, colorClass }: { text: string; colorClass: string }) {
+  const [isVisible, setIsVisible] = useState(false);
+
+  return (
+    <div
+      className="relative"
+      onMouseEnter={() => setIsVisible(true)}
+      onMouseLeave={() => setIsVisible(false)}
+    >
+      <Info className={`w-3.5 h-3.5 ${colorClass}/50 hover:${colorClass} transition-colors duration-150 cursor-help`} />
+
+      <AnimatePresence>
+        {isVisible && (
+          <motion.div
+            initial={{ opacity: 0, y: -8, scale: 0.94 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4, scale: 0.96 }}
+            transition={{
+              duration: 0.15,
+              ease: [0.16, 1, 0.3, 1], // easeOutExpo - suave e elegante
+            }}
+            className="absolute top-full right-0 mt-2 z-50 w-40 pointer-events-none"
+            role="tooltip"
+            aria-live="polite"
+          >
+            <div className="bg-popover text-popover-foreground text-xs rounded-lg p-2 shadow-lg border backdrop-blur-sm">
+              {text}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
 }
 
 export function SaldoCard({ saldo }: SaldoCardProps) {
@@ -41,21 +82,17 @@ export function SaldoCard({ saldo }: SaldoCardProps) {
               duration: 0.32,
               ease: [0.22, 0.61, 0.36, 1] // "easeOutCubic" - mais natural
             }}
-            className="p-4 rounded-2xl bg-primary/10 border border-primary/20 group relative overflow-visible"
+            className="p-4 rounded-2xl bg-primary/10 border border-primary/20"
           >
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <Wallet className="w-4 h-4 text-primary" />
                 <span className="text-xs font-medium text-primary">Total de Pontos</span>
               </div>
-              <div className="relative">
-                <Info className="w-3.5 h-3.5 text-primary/50 hover:text-primary transition-colors cursor-help" />
-                <div className="absolute top-full right-0 mt-2 hidden group-hover:block z-50 w-40">
-                  <div className="bg-popover text-popover-foreground text-xs rounded-lg p-2 shadow-lg border">
-                    Total de pontos já pagos desde o início
-                  </div>
-                </div>
-              </div>
+              <InfoTooltip
+                text="Total de pontos já pagos desde o início"
+                colorClass="text-primary"
+              />
             </div>
             <p className="text-2xl font-bold text-primary">
               {Math.floor(total).toLocaleString("pt-BR")} pts
@@ -71,21 +108,17 @@ export function SaldoCard({ saldo }: SaldoCardProps) {
               duration: 0.32,
               ease: [0.22, 0.61, 0.36, 1]
             }}
-            className="p-4 rounded-2xl bg-success/10 border border-success/20 group relative overflow-visible"
+            className="p-4 rounded-2xl bg-success/10 border border-success/20"
           >
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <DollarSign className="w-4 h-4 text-success" />
                 <span className="text-xs font-medium text-success">Pontos Disponíveis</span>
               </div>
-              <div className="relative">
-                <Info className="w-3.5 h-3.5 text-success/50 hover:text-success transition-colors cursor-help" />
-                <div className="absolute top-full right-0 mt-2 hidden group-hover:block z-50 w-40">
-                  <div className="bg-popover text-popover-foreground text-xs rounded-lg p-2 shadow-lg border">
-                    Total de pontos liberados para pagamento
-                  </div>
-                </div>
-              </div>
+              <InfoTooltip
+                text="Total de pontos liberados para pagamento"
+                colorClass="text-success"
+              />
             </div>
             <p className="text-2xl font-bold text-success">
               {Math.floor(disponivel).toLocaleString("pt-BR")} pts
@@ -101,21 +134,17 @@ export function SaldoCard({ saldo }: SaldoCardProps) {
               duration: 0.32,
               ease: [0.22, 0.61, 0.36, 1]
             }}
-            className="p-4 rounded-2xl bg-warning/10 border border-warning/20 group relative overflow-visible"
+            className="p-4 rounded-2xl bg-warning/10 border border-warning/20"
           >
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <Lock className="w-4 h-4 text-warning" />
                 <span className="text-xs font-medium text-warning">Pontos Pendentes</span>
               </div>
-              <div className="relative">
-                <Info className="w-3.5 h-3.5 text-warning/50 hover:text-warning transition-colors cursor-help" />
-                <div className="absolute top-full right-0 mt-2 hidden group-hover:block z-50 w-40">
-                  <div className="bg-popover text-popover-foreground text-xs rounded-lg p-2 shadow-lg border">
-                    Vendas validadas aguardando conclusão de cartela
-                  </div>
-                </div>
-              </div>
+              <InfoTooltip
+                text="Vendas validadas aguardando conclusão de cartela"
+                colorClass="text-warning"
+              />
             </div>
             <p className="text-2xl font-bold text-warning">
               {Math.floor(reservado).toLocaleString("pt-BR")} pts
@@ -131,21 +160,17 @@ export function SaldoCard({ saldo }: SaldoCardProps) {
               duration: 0.32,
               ease: [0.22, 0.61, 0.36, 1]
             }}
-            className="p-4 rounded-2xl bg-primary/10 border border-primary/20 group relative overflow-visible"
+            className="p-4 rounded-2xl bg-primary/10 border border-primary/20"
           >
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-primary" />
                 <span className="text-xs font-medium text-primary">Neste mês</span>
               </div>
-              <div className="relative">
-                <Info className="w-3.5 h-3.5 text-primary/50 hover:text-primary transition-colors cursor-help" />
-                <div className="absolute top-full right-0 mt-2 hidden group-hover:block z-50 w-40">
-                  <div className="bg-popover text-popover-foreground text-xs rounded-lg p-2 shadow-lg border">
-                    Pontos conquistados no mês atual
-                  </div>
-                </div>
-              </div>
+              <InfoTooltip
+                text="Pontos conquistados no mês atual"
+                colorClass="text-primary"
+              />
             </div>
             <p className="text-2xl font-bold text-primary">
               {Math.floor(ganhosMes).toLocaleString("pt-BR")} pts
