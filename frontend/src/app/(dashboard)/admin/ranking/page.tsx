@@ -1,11 +1,12 @@
 ﻿"use client";
 
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import api from "@/lib/axios";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Trophy, Store, Coins, ChevronLeft, ChevronRight, Filter } from "lucide-react";
+import { Trophy, Store, Coins, ChevronLeft, ChevronRight, Filter, Award } from "lucide-react";
 import toast from "react-hot-toast";
+import ButtonWithLoading from "@/components/ui/ButtonWithLoading";
 
 interface Vendedor {
   id: string;
@@ -75,10 +76,25 @@ export default function RankingAdminPage() {
   };
 
   const formatarValor = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
-  
+
   const formatarCNPJ = (c: string) => c.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
   const getNivelColor = (n: string) => n === "DIAMANTE" ? "text-cyan-400" : n === "OURO" ? "text-yellow-400" : n === "PRATA" ? "text-gray-400" : "text-orange-400";
-  const getPosicaoMedal = (p: number) => p === 1 ? "" : p === 2 ? "" : p === 3 ? "" : null;
+
+  // Retorna medalha emoji para Top 3
+  const getPosicaoMedal = (p: number) => {
+    if (p === 1) return "🥇";
+    if (p === 2) return "🥈";
+    if (p === 3) return "🥉";
+    return null;
+  };
+
+  // Classes de destaque para Top 3
+  const getTopClassNames = (p: number) => {
+    if (p === 1) return "bg-gradient-to-r from-yellow-500/10 to-amber-500/10 border-l-4 border-yellow-500";
+    if (p === 2) return "bg-gradient-to-r from-gray-400/10 to-slate-400/10 border-l-4 border-gray-400";
+    if (p === 3) return "bg-gradient-to-r from-orange-600/10 to-amber-700/10 border-l-4 border-orange-600";
+    return "";
+  };
 
   if (carregando && !ranking) {
     return (
@@ -125,43 +141,105 @@ export default function RankingAdminPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border/20">
-            {ranking?.dados.map((v) => (
-              <tr key={v.id} className="hover:bg-warning/5">
-                <td className="px-6 py-4">{getPosicaoMedal(v.posicao) || `#${v.posicao}`}</td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-warning/20 flex items-center justify-center">
-                      <span className="text-sm font-bold text-warning">{v.nome.charAt(0)}</span>
-                    </div>
-                    <span className="font-semibold">{v.nome}</span>
-                  </div>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-2">
-                    <Store className="w-4 h-4 text-muted-foreground" />
-                    <div>
-                      <p className="text-sm font-medium">{v.optica.nome}</p>
-                      <p className="text-xs text-muted-foreground">{formatarCNPJ(v.optica.cnpj)}</p>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 text-right"><span className="text-lg font-bold text-success">{v.valorTotal.toLocaleString('pt-BR')}</span></td>
-                
-              </tr>
-            ))}
+            <AnimatePresence mode="popLayout">
+              {ranking?.dados.map((v, index) => {
+                const medal = getPosicaoMedal(v.posicao);
+                const topClass = getTopClassNames(v.posicao);
+
+                return (
+                  <motion.tr
+                    key={v.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    transition={{ delay: index * 0.03, duration: 0.3 }}
+                    whileHover={{ scale: 1.01, x: 4 }}
+                    className={`hover:bg-warning/5 transition-all ${topClass}`}
+                  >
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        {medal ? (
+                          <motion.span
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            transition={{ type: "spring", stiffness: 200, delay: index * 0.03 + 0.2 }}
+                            className="text-2xl"
+                          >
+                            {medal}
+                          </motion.span>
+                        ) : (
+                          <span className="text-muted-foreground font-semibold">#{v.posicao}</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <motion.div
+                          whileHover={{ scale: 1.1, rotate: [0, -5, 5, -5, 0] }}
+                          transition={{ duration: 0.3 }}
+                          className={`w-10 h-10 rounded-full ${
+                            v.posicao <= 3
+                              ? "bg-gradient-to-br from-warning to-amber-500 shadow-lg shadow-warning/30"
+                              : "bg-warning/20"
+                          } flex items-center justify-center`}
+                        >
+                          <span className={`text-sm font-bold ${v.posicao <= 3 ? "text-white" : "text-warning"}`}>
+                            {v.nome.charAt(0)}
+                          </span>
+                        </motion.div>
+                        <span className={`font-semibold ${v.posicao <= 3 ? "text-warning" : ""}`}>
+                          {v.nome}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <Store className="w-4 h-4 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm font-medium">{v.optica.nome}</p>
+                          <p className="text-xs text-muted-foreground">{formatarCNPJ(v.optica.cnpj)}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <motion.span
+                        whileHover={{ scale: 1.05 }}
+                        className={`text-lg font-bold ${v.posicao <= 3 ? "text-warning" : "text-success"}`}
+                      >
+                        {v.valorTotal.toLocaleString('pt-BR')}
+                      </motion.span>
+                    </td>
+                  </motion.tr>
+                );
+              })}
+            </AnimatePresence>
           </tbody>
         </table>
 
         {ranking && ranking.totalPaginas > 1 && (
-          <div className="px-6 py-4 border-t border-border/20 flex justify-between">
-            <p className="text-sm text-muted-foreground">Página {ranking.paginaAtual} de {ranking.totalPaginas}</p>
+          <div className="px-6 py-4 border-t border-border/20 flex justify-between items-center">
+            <p className="text-sm text-muted-foreground">
+              Página {ranking.paginaAtual} de {ranking.totalPaginas} • {ranking.totalRegistros} vendedores
+            </p>
             <div className="flex gap-2">
-              <button onClick={() => mudarPagina(paginaAtual - 1)} disabled={paginaAtual === 1} className="px-4 py-2 rounded-lg border hover:bg-warning/10 disabled:opacity-50">
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <button onClick={() => mudarPagina(paginaAtual + 1)} disabled={paginaAtual === ranking.totalPaginas} className="px-4 py-2 rounded-lg border hover:bg-warning/10 disabled:opacity-50">
-                <ChevronRight className="w-5 h-5" />
-              </button>
+              <ButtonWithLoading
+                icon={ChevronLeft}
+                iconOnly
+                onClick={() => mudarPagina(paginaAtual - 1)}
+                disabled={paginaAtual === 1}
+                variant="ghost"
+                size="sm"
+                className="border hover:bg-warning/10"
+              />
+              <ButtonWithLoading
+                icon={ChevronRight}
+                iconOnly
+                onClick={() => mudarPagina(paginaAtual + 1)}
+                disabled={paginaAtual === ranking.totalPaginas}
+                variant="ghost"
+                size="sm"
+                className="border hover:bg-warning/10"
+              />
             </div>
           </div>
         )}
