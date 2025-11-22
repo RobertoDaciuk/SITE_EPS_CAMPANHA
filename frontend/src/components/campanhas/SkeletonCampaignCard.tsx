@@ -1,12 +1,18 @@
 /**
  * Skeleton Loader para Card de Campanha
- * 
+ *
  * Componente de loading que simula a estrutura do CampaignCard
- * enquanto os dados estão sendo carregados da API
+ * enquanto os dados estão sendo carregados da API.
+ *
+ * OTIMIZADO:
+ * - Usa animate-pulse-custom (1.4s vs 2s padrão) - 30% mais rápido
+ * - Shimmer effect para percepção de "progresso ativo"
  */
 export default function SkeletonCampaignCard() {
   return (
-    <div className="glass rounded-xl p-5 border border-border/50 animate-pulse">
+    <div className="glass rounded-xl p-5 border border-border/50 animate-pulse-custom relative overflow-hidden">
+      {/* Shimmer Overlay - Efeito de brilho animado */}
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent animate-shimmer pointer-events-none" />
       {/* Header - Título e Badge */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1">
