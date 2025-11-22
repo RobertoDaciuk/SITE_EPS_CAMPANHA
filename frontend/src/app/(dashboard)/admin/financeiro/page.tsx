@@ -37,6 +37,7 @@ import { useState, useEffect, useMemo, useCallback, type Dispatch, type SetState
 import { format, subMonths, startOfMonth, endOfMonth, parseISO, eachMonthOfInterval, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useLotesFinanceiros, useDashboardFinanceiro } from '@/hooks/useFinanceiro';
 import {
   AreaChart,
   Area,
@@ -250,26 +251,19 @@ export default function FinanceiroPage() {
   // ================================================================
   // STATE MANAGEMENT
   // ================================================================
+  // ⚡ SWR HOOKS - Cache automático e deduping
+  // ================================================================
+  const { lotes, isLoading: loadingLotes, mutate: revalidarLotes } = useLotesFinanceiros();
+  const { stats: dashboardStats, isLoading: loadingDashboard } = useDashboardFinanceiro();
+
+  // ================================================================
+  // UI STATE
+  // ================================================================
   const [activeView, setActiveView] = useState<'dashboard' | 'lotes' | 'auditoria' | 'relatorios'>('dashboard');
-  const [loadingDashboard, setLoadingDashboard] = useState(false);
-  const [loadingLotes, setLoadingLotes] = useState(false);
   const [loadingAction, setLoadingAction] = useState(false);
   const [dataFim, setDataFim] = useState(format(new Date(), 'yyyy-MM-dd'));
 
-  // Dashboard State
-  const [dashboardStats, setDashboardStats] = useState<DashboardStats>({
-    totalPagoMesAtual: 0,
-    totalPagoMesAnterior: 0,
-    volumeLotes: 0,
-    ticketMedio: 0,
-    saldoDisponivel: 0,
-    saldoReservado: 0,
-    usuariosAtivos: 0,
-    pendentes: 0,
-  });
-
-  // Lotes State
-  const [lotes, setLotes] = useState<Lote[]>([]);
+  // Filtros de Lotes
   const [filteredLotes, setFilteredLotes] = useState<Lote[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDENTE' | 'PAGO'>('ALL');
@@ -323,85 +317,10 @@ export default function FinanceiroPage() {
   }, [dashboardStats.totalPagoMesAtual, dashboardStats.totalPagoMesAnterior]);
 
   // ================================================================
-  // API CALLS
+  // API CALLS - Agora gerenciados por SWR hooks
   // ================================================================
-  const carregarDashboardStats = useCallback(async () => {
-    try {
-      setLoadingDashboard(true);
-
-      const inicioMesAtual = startOfMonth(new Date());
-      const fimMesAtual = endOfMonth(new Date());
-      const inicioMesAnterior = startOfMonth(subMonths(new Date(), 1));
-      const fimMesAnterior = endOfMonth(subMonths(new Date(), 1));
-
-      const [lotesResponse, saldosResponse] = await Promise.all([
-        axios.get('/financeiro/lotes'),
-        axios.get('/financeiro/saldos'),
-      ]);
-
-      const lotesData = lotesResponse.data?.lotes || lotesResponse.data;
-      const todosLotes = Array.isArray(lotesData) ? lotesData : [];
-
-      const lotesMesAtual = todosLotes.filter((l: Lote) => {
-        const data = parseISO(l.criadoEm);
-        return data >= inicioMesAtual && data <= fimMesAtual;
-      });
-
-      const lotesMesAnterior = todosLotes.filter((l: Lote) => {
-        const data = parseISO(l.criadoEm);
-        return data >= inicioMesAnterior && data <= fimMesAnterior;
-      });
-
-      const totalPagoMesAtual = lotesMesAtual
-        .filter((l: Lote) => l.status === 'PAGO')
-        .reduce((acc: number, l: Lote) => acc + l.valorTotal, 0);
-
-      const totalPagoMesAnterior = lotesMesAnterior
-        .filter((l: Lote) => l.status === 'PAGO')
-        .reduce((acc: number, l: Lote) => acc + l.valorTotal, 0);
-
-      const lotesPagos = todosLotes.filter((l: Lote) => l.status === 'PAGO');
-      const ticketMedio = lotesPagos.length > 0
-        ? lotesPagos.reduce((acc: number, l: Lote) => acc + l.valorTotal, 0) / lotesPagos.length
-        : 0;
-
-      const pendentes = todosLotes.filter((l: Lote) => l.status === 'PENDENTE').length;
-
-      setDashboardStats({
-        totalPagoMesAtual,
-        totalPagoMesAnterior,
-        volumeLotes: todosLotes.length,
-        ticketMedio,
-        saldoDisponivel: saldosResponse.data.valorTotalDisponivel || 0,
-        saldoReservado: saldosResponse.data.valorTotalReservado || 0,
-        usuariosAtivos: saldosResponse.data.totalUsuarios || 0,
-        pendentes,
-      });
-
-    } catch (error: any) {
-      console.error('Erro ao carregar dashboard:', error);
-      toast.error('Erro ao carregar estatísticas do dashboard');
-    } finally {
-      setLoadingDashboard(false);
-    }
-  }, []);
-
-  const carregarLotes = useCallback(async () => {
-    try {
-      setLoadingLotes(true);
-      const response = await axios.get('/financeiro/lotes');
-      const lotesData = response.data?.lotes || response.data;
-      const lotesFinal = Array.isArray(lotesData) ? lotesData : [];
-      setLotes(lotesFinal);
-      setFilteredLotes(lotesFinal);
-    } catch (error: any) {
-      toast.error('Erro ao carregar lotes');
-      setLotes([]);
-      setFilteredLotes([]);
-    } finally {
-      setLoadingLotes(false);
-    }
-  }, []);
+  // ✅ carregarDashboardStats() removido - substituído por useDashboardFinanceiro()
+  // ✅ carregarLotes() removido - substituído por useLotesFinanceiros()
 
   // Lógica V1: Visualizar Saldos (Phase 1)
   const handleVisualizarSaldos = async () => {
@@ -444,7 +363,7 @@ export default function FinanceiroPage() {
       // Retorna para a view de lista e atualiza
       setViewMode('list');
       setUsuariosPreview([]);
-      await Promise.all([carregarLotes(), carregarDashboardStats()]);
+      await revalidarLotes(); // SWR revalida cache automaticamente
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Erro ao gerar lote');
     } finally {
@@ -480,7 +399,7 @@ export default function FinanceiroPage() {
         { icon: '🎉', duration: 6000 }
       );
 
-      await Promise.all([carregarLotes(), carregarDashboardStats()]);
+      await revalidarLotes(); // SWR revalida cache automaticamente
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Erro ao processar lote');
     } finally {
@@ -500,7 +419,7 @@ export default function FinanceiroPage() {
       await axios.delete(`/financeiro/lotes/${numeroLote}`);
 
       toast.success('Lote cancelado e saldos devolvidos com sucesso', { icon: '🗑️' });
-      await Promise.all([carregarLotes(), carregarDashboardStats()]);
+      await revalidarLotes(); // SWR revalida cache automaticamente
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Erro ao cancelar lote');
     } finally {
@@ -694,12 +613,9 @@ export default function FinanceiroPage() {
   }, [lotes, statusFilter, searchTerm]);
 
   // ================================================================
-  // INITIAL LOAD
+  // INITIAL LOAD - Agora automático via SWR hooks
   // ================================================================
-  useEffect(() => {
-    carregarDashboardStats();
-    carregarLotes();
-  }, [carregarDashboardStats, carregarLotes]);
+  // ✅ useEffect removido - SWR busca automaticamente no mount
 
   // ================================================================
   // RENDER
@@ -831,7 +747,7 @@ export default function FinanceiroPage() {
             handleCancelarLote={handleCancelarLote}
             handleExportarExcel={handleExportarExcel}
             handleExportarExcelDetalhado={handleExportarExcelDetalhado}
-            carregarLotes={carregarLotes}
+            carregarLotes={revalidarLotes}
           />
         )}
 
