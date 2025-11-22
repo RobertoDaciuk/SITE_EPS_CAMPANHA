@@ -76,11 +76,21 @@ const RankingListItem: React.FC<Props> = ({ user, metric, isCurrentUser = false 
     <motion.div
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
-      whileHover={{ scale: 1.01, x: 4 }}
+      transition={{
+        duration: 0.22, // Reduzido de 0.4 → 0.22 (45% mais rápido - crítico para listas)
+        ease: [0.25, 0.1, 0.25, 1.0]
+      }}
+      whileHover={{
+        scale: 1.01,
+        x: 4,
+        transition: {
+          duration: 0.18,
+          ease: [0.34, 1.25, 0.64, 1] // easeOutBack suave
+        }
+      }}
       className={`
         relative glass rounded-xl p-4 border
-        hover:shadow-glass-lg transition-all duration-300
+        hover:shadow-glass-lg transition-shadow duration-200
         flex items-center gap-4 group overflow-hidden
         ${
           isCurrentUser
@@ -101,9 +111,9 @@ const RankingListItem: React.FC<Props> = ({ user, metric, isCurrentUser = false 
             opacity: [0.5, 1, 0.5],
           }}
           transition={{
-            duration: 2,
+            duration: 1.4, // Reduzido de 2 → 1.4 (30% mais rápido)
             repeat: Infinity,
-            ease: 'easeInOut',
+            ease: [0.45, 0, 0.55, 1], // easeInOutQuad (mais natural que easeInOut genérico)
           }}
           className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-primary rounded-r-full"
         />
@@ -180,7 +190,8 @@ const RankingListItem: React.FC<Props> = ({ user, metric, isCurrentUser = false 
         <div className="flex items-center gap-2 min-w-[120px]">
             <Star className={`h-5 w-5 text-green-400`} />
             <div className="flex flex-col items-start">
-                <span className="text-lg font-bold text-foreground leading-none">
+                <span className="text-lg font-bold text-foreground leading-none"
+                      style={{ fontFeatureSettings: '"tnum"' }}>
                     {valorFormatado}
                 </span>
                 <span className="text-xs text-muted-foreground">
@@ -193,7 +204,7 @@ const RankingListItem: React.FC<Props> = ({ user, metric, isCurrentUser = false 
       {/* Hover Glow Effect */}
       <div
         className={`
-          absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10
+          absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200 -z-10
           ${isCurrentUser ? 'bg-primary/5' : 'bg-primary/3'}
         `}
       />
