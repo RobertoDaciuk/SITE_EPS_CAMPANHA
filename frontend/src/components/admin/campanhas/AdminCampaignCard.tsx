@@ -132,18 +132,18 @@ export default function AdminCampaignCard({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
+      transition={{ duration: 0.28, ease: [0.25, 0.1, 0.25, 1.0] }}
       whileHover={{ y: -5 }}
       className="h-full"
     >
-      <div className="h-full glass rounded-xl overflow-hidden border border-border/50 hover:shadow-glass-lg hover:border-primary/30 transition-all duration-300 group">
+      <div className="h-full glass rounded-xl overflow-hidden border border-border/50 hover:shadow-glass-lg hover:border-primary/30 transition-[box-shadow,border-color] duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] group">
         {/* Imagem da Campanha */}
         {imagemUrl && (
           <div className="relative w-full h-40 overflow-hidden">
             <img
               src={imagemUrl}
               alt={campanha.titulo}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1.0)]"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-background/20 to-transparent" />
             
@@ -173,7 +173,7 @@ export default function AdminCampaignCard({
         <div className="p-5 space-y-4">
           {/* Header - Título e Descrição */}
           <div className="space-y-2">
-            <h3 className="text-lg font-bold text-foreground line-clamp-1 group-hover:text-blue-400 transition-colors">
+            <h3 className="text-lg font-bold text-foreground line-clamp-1 group-hover:text-blue-400 transition-colors duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1.0)]">
               {campanha.titulo}
             </h3>
             <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
@@ -272,14 +272,14 @@ export default function AdminCampaignCard({
           <div className="flex items-center gap-2 pt-3 border-t border-border/30">
             <button
               onClick={() => onEdit(campanha)}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 hover:border-blue-500/40 rounded-xl transition-all backdrop-blur-sm"
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 hover:border-blue-500/40 rounded-xl transition-[background-color,border-color] duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] backdrop-blur-sm"
             >
               <Edit className="w-4 h-4" />
               Editar
             </button>
             <button
               onClick={() => onView(campanha.id)}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 hover:border-purple-500/40 rounded-xl transition-all backdrop-blur-sm"
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 hover:border-purple-500/40 rounded-xl transition-[background-color,border-color] duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] backdrop-blur-sm"
             >
               <BarChart3 className="w-4 h-4" />
               Ver Analytics
@@ -287,7 +287,7 @@ export default function AdminCampaignCard({
             {onViewHistory && (
               <button
                 onClick={() => onViewHistory(campanha.id, campanha.titulo)}
-                className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-orange-400 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 hover:border-orange-500/40 rounded-xl transition-all backdrop-blur-sm"
+                className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-orange-400 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 hover:border-orange-500/40 rounded-xl transition-[background-color,border-color] duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] backdrop-blur-sm"
                 title="Ver histórico de alterações"
               >
                 <Clock className="w-4 h-4" />
