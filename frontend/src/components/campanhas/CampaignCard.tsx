@@ -128,7 +128,7 @@ export default function CampaignCard({ campanha }: CampaignCardProps) {
     >
       <Link
         href={`/campanhas/${campanha.id}`}
-        className="block h-full glass rounded-xl overflow-hidden border border-border/50 hover:shadow-glass-lg hover:border-primary/30 transition-all duration-300 group"
+        className="block h-full glass rounded-xl overflow-hidden border border-border/50 hover:shadow-glass-lg hover:border-primary/30 transition-[box-shadow,border-color] duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] group"
       >
         {/* Imagem 16:9 ou Gradiente de Fallback */}
         <div className="relative w-full h-40 overflow-hidden">
@@ -136,7 +136,7 @@ export default function CampaignCard({ campanha }: CampaignCardProps) {
             <img
               src={getImageUrl(campanha.imagemCampanha16x9Url)}
               alt={campanha.titulo}
-              className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-103"
+              className="w-full h-full object-cover transition-transform duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] group-hover:scale-103"
             />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-primary/20 via-purple-500/20 to-pink-500/20 flex items-center justify-center">
@@ -152,7 +152,7 @@ export default function CampaignCard({ campanha }: CampaignCardProps) {
           {/* Header - Título e Badges */}
           <div className="flex items-start justify-between mb-3">
             <div className="flex-1 min-w-0 mr-3">
-              <h3 className="text-lg font-semibold mb-1 group-hover:text-primary transition-colors line-clamp-1">
+              <h3 className="text-lg font-semibold mb-1 group-hover:text-primary transition-colors duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] line-clamp-1">
                 {campanha.titulo}
               </h3>
               <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
@@ -222,10 +222,10 @@ export default function CampaignCard({ campanha }: CampaignCardProps) {
           )}
 
           {/* Indicador de Link (aparece no hover) */}
-          <div className="mt-3 pt-3 border-t border-border/30 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+          <div className="mt-3 pt-3 border-t border-border/30 opacity-0 group-hover:opacity-100 transition-opacity duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1.0)]">
             <div className="flex items-center justify-between text-xs">
               <span className="text-muted-foreground">Ver detalhes</span>
-              <ChevronRight className="w-4 h-4 text-primary transform group-hover:translate-x-1 transition-transform duration-200" />
+              <ChevronRight className="w-4 h-4 text-primary transform group-hover:translate-x-1 transition-transform duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1.0)]" />
             </div>
           </div>
         </div>
