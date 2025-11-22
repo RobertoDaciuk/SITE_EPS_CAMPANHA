@@ -86,7 +86,10 @@ export function FeedDeAtividades({ historico, notificacoes }: FeedDeAtividadesPr
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
+      transition={{
+        duration: 0.28, // Reduzido de 0.5 → 0.28 (44% mais rápido)
+        ease: [0.25, 0.1, 0.25, 1.0]
+      }}
       className="rounded-3xl bg-card border border-border/50 shadow-xl overflow-hidden h-full flex flex-col"
     >
       {/* Header */}
@@ -96,9 +99,9 @@ export function FeedDeAtividades({ historico, notificacoes }: FeedDeAtividadesPr
             <div className="p-3 rounded-2xl bg-primary/10 backdrop-blur-sm relative">
               <Activity className="w-6 h-6 text-primary" />
               {notificacoes.totalNaoLidas > 0 && (
-                <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-destructive 
+                <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-destructive
                                flex items-center justify-center">
-                  <span className="text-xs font-bold text-white">
+                  <span className="text-xs font-bold text-white" style={{ fontFeatureSettings: '"tnum"' }}>
                     {notificacoes.totalNaoLidas > 9 ? "9+" : notificacoes.totalNaoLidas}
                   </span>
                 </div>
@@ -130,9 +133,13 @@ export function FeedDeAtividades({ historico, notificacoes }: FeedDeAtividadesPr
                   key={notif.id}
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: idx * 0.1 }}
-                  className="p-4 rounded-2xl bg-primary/5 border border-primary/20 hover:bg-primary/10 
-                           transition-all duration-300 cursor-pointer group"
+                  transition={{
+                    delay: idx * 0.06, // Reduzido de 0.1 → 0.06 (40% mais rápido)
+                    duration: 0.28,
+                    ease: [0.25, 0.1, 0.25, 1.0]
+                  }}
+                  className="p-4 rounded-2xl bg-primary/5 border border-primary/20 hover:bg-primary/10
+                           transition-colors duration-200 cursor-pointer group"
                   onClick={() => {
                     if (notif.linkUrl) {
                       window.location.href = notif.linkUrl;
@@ -175,9 +182,13 @@ export function FeedDeAtividades({ historico, notificacoes }: FeedDeAtividadesPr
                     key={venda.id}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: (notificacoes.itens.length + idx) * 0.1 }}
+                    transition={{
+                      delay: (notificacoes.itens.length + idx) * 0.06, // Reduzido de 0.1 → 0.06 (40% mais rápido)
+                      duration: 0.28,
+                      ease: [0.25, 0.1, 0.25, 1.0]
+                    }}
                     className={cn(
-                      "p-4 rounded-2xl border transition-all duration-300",
+                      "p-4 rounded-2xl border transition-colors duration-200",
                       config?.bg,
                       config?.border
                     )}
@@ -215,14 +226,14 @@ export function FeedDeAtividades({ historico, notificacoes }: FeedDeAtividadesPr
                       {venda.status === "VALIDADO" && (
                         <div className="flex items-center gap-2 mt-2">
                           <DollarSign className="w-4 h-4 text-success" />
-                          <span className="text-sm font-bold text-success">
-                            +R$ {venda.valorFinal.toLocaleString("pt-BR", { 
-                              minimumFractionDigits: 2 
+                          <span className="text-sm font-bold text-success" style={{ fontFeatureSettings: '"tnum"' }}>
+                            +R$ {venda.valorFinal.toLocaleString("pt-BR", {
+                              minimumFractionDigits: 2
                             })}
                           </span>
                           {venda.multiplicadorAplicado > 1 && (
-                            <span className="px-2 py-0.5 rounded-full bg-warning/20 text-warning 
-                                         text-xs font-bold">
+                            <span className="px-2 py-0.5 rounded-full bg-warning/20 text-warning
+                                         text-xs font-bold" style={{ fontFeatureSettings: '"tnum"' }}>
                               {venda.multiplicadorAplicado}x
                             </span>
                           )}

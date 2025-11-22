@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import CriarEditarUsuarioModal from "@/components/admin/usuarios/CriarEditarUsuarioModal";
 import ResetSenhaModal from "@/components/admin/usuarios/ResetSenhaModal";
+import ButtonWithLoading from "@/components/ui/ButtonWithLoading";
 
 interface Usuario {
   id: string;
@@ -63,15 +64,15 @@ export default function AdminUsuariosPage() {
   const [usuarioParaEditar, setUsuarioParaEditar] = useState<Usuario | null>(null);
   const [usuarioParaResetar, setUsuarioParaResetar] = useState<Usuario | null>(null);
 
+  // Estados de loading para ações individuais
+  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
+
   useEffect(() => {
     if (!isAuthLoading && (!usuario || usuario.papel !== "ADMIN")) {
       router.push("/");
       toast.error("Acesso negado");
     }
   }, [isAuthLoading, usuario, router]);
-
-  // ✅ fetchOticas() removido - substituído por useOticas()
-  // ✅ fetchUsuarios() removido - substituído por useUsuarios()
 
   const limparFiltros = () => {
     setFiltroNome("");
@@ -110,12 +111,17 @@ export default function AdminUsuariosPage() {
       return;
     }
 
+    const loadingKey = `delete-${usuario.id}`;
+    setLoadingStates(prev => ({ ...prev, [loadingKey]: true }));
+
     try {
       await api.delete(`/usuarios/${usuario.id}`);
       toast.success("Usuário deletado com sucesso!");
       revalidarUsuarios(); // SWR revalida cache
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Erro ao deletar usuário");
+    } finally {
+      setLoadingStates(prev => ({ ...prev, [loadingKey]: false }));
     }
   };
 
@@ -123,6 +129,9 @@ export default function AdminUsuariosPage() {
     if (!confirm(`Deseja entrar como ${usuario.nome}?`)) {
       return;
     }
+
+    const loadingKey = `personify-${usuario.id}`;
+    setLoadingStates(prev => ({ ...prev, [loadingKey]: true }));
 
     try {
       const response = await api.post(`/usuarios/${usuario.id}/personificar`);
@@ -139,6 +148,7 @@ export default function AdminUsuariosPage() {
       }, 1000);
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Erro ao personificar usuário");
+      setLoadingStates(prev => ({ ...prev, [loadingKey]: false }));
     }
   };
 
@@ -220,11 +230,22 @@ export default function AdminUsuariosPage() {
           { label: "Pendentes", value: stats.pendentes, icon: Clock, color: "from-amber-500 to-orange-500" },
           { label: "Bloqueados", value: stats.bloqueados, icon: Ban, color: "from-red-500 to-pink-500" },
         ].map((stat, idx) => (
-          <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.1 }} className="bg-card/70 backdrop-blur-lg border border-border/20 rounded-2xl p-6">
+          <motion.div
+            key={stat.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: idx * 0.1 }}
+            whileHover={{ scale: 1.05, y: -4 }}
+            className="bg-card/70 backdrop-blur-lg border border-border/20 rounded-2xl p-6 cursor-default hover:shadow-xl hover:border-border/40 transition-all duration-300"
+          >
             <div className="flex items-center justify-between mb-3">
-              <div className={`p-3 rounded-xl bg-gradient-to-br ${stat.color} shadow-lg`}>
+              <motion.div
+                whileHover={{ rotate: [0, -10, 10, -10, 0] }}
+                transition={{ duration: 0.5 }}
+                className={`p-3 rounded-xl bg-gradient-to-br ${stat.color} shadow-lg`}
+              >
                 <stat.icon className="w-6 h-6 text-white" />
-              </div>
+              </motion.div>
               <TrendingUp className="w-5 h-5 text-muted-foreground" />
             </div>
             <p className="text-3xl font-black">{stat.value}</p>
@@ -355,34 +376,42 @@ export default function AdminUsuariosPage() {
                     {/* Coluna de Gamificação removida - não utilizada no sistema */}
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-2">
-                        <button 
+                        <ButtonWithLoading
+                          icon={LogIn}
+                          iconOnly
+                          size="sm"
+                          variant="ghost"
+                          isLoading={loadingStates[`personify-${u.id}`]}
                           onClick={() => handlePersonificar(u)}
-                          className="p-2 rounded-lg hover:bg-indigo-100 text-indigo-600 transition-colors"
                           title="Entrar como este usuário"
-                        >
-                          <LogIn className="w-4 h-4" />
-                        </button>
-                        <button 
+                          className="text-indigo-600 hover:bg-indigo-100"
+                        />
+                        <ButtonWithLoading
+                          icon={Edit}
+                          iconOnly
+                          size="sm"
+                          variant="ghost"
                           onClick={() => abrirModalEditar(u)}
-                          className="p-2 rounded-lg hover:bg-primary/10 text-primary transition-colors"
                           title="Editar usuário"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button 
+                        />
+                        <ButtonWithLoading
+                          icon={Key}
+                          iconOnly
+                          size="sm"
+                          variant="ghost"
                           onClick={() => abrirModalReset(u)}
-                          className="p-2 rounded-lg hover:bg-amber-100 text-amber-600 transition-colors"
                           title="Resetar senha"
-                        >
-                          <Key className="w-4 h-4" />
-                        </button>
-                        <button 
+                          className="text-amber-600 hover:bg-amber-100"
+                        />
+                        <ButtonWithLoading
+                          icon={Trash2}
+                          iconOnly
+                          size="sm"
+                          variant="danger"
+                          isLoading={loadingStates[`delete-${u.id}`]}
                           onClick={() => handleDeletar(u)}
-                          className="p-2 rounded-lg hover:bg-destructive/10 text-destructive transition-colors"
                           title="Deletar usuário"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        />
                       </div>
                     </td>
                   </motion.tr>

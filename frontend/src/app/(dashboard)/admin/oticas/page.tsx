@@ -31,6 +31,7 @@ import { motion } from 'framer-motion';
 import OticaListItem from '@/components/admin/oticas/OticaListItem';
 import CriarEditarOticaModal from '@/components/admin/oticas/CriarEditarOticaModal';
 import ImportarOticasModal from '@/components/admin/oticas/ImportarOticasModal';
+import { useDebounce } from '@/hooks/useDebounce';
 
 // ============================================================================
 // INTERFACES
@@ -79,6 +80,10 @@ export default function AdminOticasPage() {
   const [filtroStatus, setFiltroStatus] = useState<'todos' | 'ativa' | 'inativa'>('todos');
   const [filtroTipo, setFiltroTipo] = useState<'todos' | 'matriz' | 'filial'>('todos');
   const [showFilters, setShowFilters] = useState(false);
+
+  // Debounce nos filtros de busca (reduz re-renders e chamadas ao useMemo)
+  const filtroNomeDebounced = useDebounce(filtroNome, 500);
+  const filtroCnpjDebounced = useDebounce(filtroCnpj, 500);
 
   // ==========================================================================
   // PROTEÇÃO DE ROTA
@@ -169,18 +174,18 @@ export default function AdminOticasPage() {
 
   const oticasFiltradas = useMemo(() => {
     return oticas.filter((otica) => {
-      // Filtro: Nome
+      // Filtro: Nome (debounced)
       if (
-        filtroNome &&
-        !otica.nome.toLowerCase().includes(filtroNome.toLowerCase())
+        filtroNomeDebounced &&
+        !otica.nome.toLowerCase().includes(filtroNomeDebounced.toLowerCase())
       ) {
         return false;
       }
 
-      // Filtro: CNPJ
+      // Filtro: CNPJ (debounced)
       if (
-        filtroCnpj &&
-        !otica.cnpj.includes(filtroCnpj.replace(/\D/g, ''))
+        filtroCnpjDebounced &&
+        !otica.cnpj.includes(filtroCnpjDebounced.replace(/\D/g, ''))
       ) {
         return false;
       }
@@ -195,7 +200,7 @@ export default function AdminOticasPage() {
 
       return true;
     });
-  }, [oticas, filtroNome, filtroCnpj, filtroStatus, filtroTipo]);
+  }, [oticas, filtroNomeDebounced, filtroCnpjDebounced, filtroStatus, filtroTipo]);
 
   // ==========================================================================
   // RENDER: Loading Inicial
@@ -367,9 +372,9 @@ export default function AdminOticasPage() {
             <div className="flex items-center gap-3">
               <Filter className="h-5 w-5 text-gray-600" />
               <span className="font-semibold text-gray-900">Filtros</span>
-              {(filtroNome || filtroCnpj || filtroStatus !== 'todos' || filtroTipo !== 'todos') && (
+              {(filtroNomeDebounced || filtroCnpjDebounced || filtroStatus !== 'todos' || filtroTipo !== 'todos') && (
                 <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold">
-                  Ativos
+                  {oticasFiltradas.length} resultados
                 </span>
               )}
             </div>

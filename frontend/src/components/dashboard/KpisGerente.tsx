@@ -34,13 +34,15 @@ interface KpisGerenteProps {
 
 /**
  * Variantes de animação para o container (stagger).
+ * OTIMIZADO: Reduzido stagger de 0.1 → 0.06 (40% mais rápido)
  */
 const containerVariantes = {
   oculto: { opacity: 0 },
   visivel: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.1,
+      staggerChildren: 0.06, // Reduzido de 0.1 → 0.06 (40% mais rápido)
+      ease: [0.25, 0.1, 0.25, 1.0],
     },
   },
 };
@@ -98,7 +100,11 @@ export function KpisGerente({ dados }: KpisGerenteProps) {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4, duration: 0.5 }}
+        transition={{
+          delay: 0.24, // Reduzido de 0.4 → 0.24 (40% mais rápido)
+          duration: 0.28, // Reduzido de 0.5 → 0.28 (44% mais rápido)
+          ease: [0.25, 0.1, 0.25, 1.0]
+        }}
         className="rounded-2xl border border-primary/30 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-6"
       >
         <div className="flex items-center justify-between">
@@ -112,7 +118,7 @@ export function KpisGerente({ dados }: KpisGerenteProps) {
           </div>
           <a
             href="/gerente"
-            className="rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-all hover:scale-105 shadow-lg shadow-primary/20"
+            className="rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-all duration-200 hover:scale-105 shadow-lg shadow-primary/20"
           >
             Ver Dashboard Completo →
           </a>

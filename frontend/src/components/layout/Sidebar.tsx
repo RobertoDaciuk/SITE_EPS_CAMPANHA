@@ -102,7 +102,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             onClick={onClick}
             className={`
               flex items-center space-x-3 px-4 py-3 rounded-xl
-              transition-all duration-200 group
+              transition-colors duration-200 group
               ${
                 active
                   ? "bg-primary text-primary-foreground shadow-md"
@@ -111,7 +111,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             `}
           >
             <Icon
-              className={`w-5 h-5 transition-transform group-hover:scale-110 ${
+              className={`w-5 h-5 transition-transform duration-200 group-hover:scale-110 ${
                 active ? "text-primary-foreground" : ""
               }`}
             />
@@ -133,20 +133,20 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             key={link.href}
             href={link.href}
             onClick={onClick}
-            className={`flex items-center space-x-3 px-4 py-3 rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200 group ${
+            className={`flex items-center space-x-3 px-4 py-3 rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground transition-colors duration-200 group ${
               active ? "bg-accent" : ""
             }`}
           >
-            <Icon className="w-5 h-5 transition-transform group-hover:scale-110" />
+            <Icon className="w-5 h-5 transition-transform duration-200 group-hover:scale-110" />
             <span className="font-medium">{link.label}</span>
           </Link>
         );
       })}
       <button
         onClick={handleLogout}
-        className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all duration-200 group"
+        className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors duration-200 group"
       >
-        <LogOut className="w-5 h-5 transition-transform group-hover:scale-110" />
+        <LogOut className="w-5 h-5 transition-transform duration-200 group-hover:scale-110" />
         <span className="font-medium">Sair</span>
       </button>
     </>
@@ -161,7 +161,10 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{
+              duration: 0.18, // Reduzido de 0.2 → 0.18 (10% mais rápido)
+              ease: [0.25, 0.1, 0.25, 1.0]
+            }}
             onClick={() => setIsOpen(false)}
             className="fixed inset-0 bg-black/50 z-40 md:hidden"
           />
@@ -192,7 +195,10 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             initial={{ x: "-100%" }}
             animate={{ x: 0 }}
             exit={{ x: "-100%" }}
-            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            transition={{
+              duration: 0.28, // Otimizado: Spring → Cubic-bezier controlado (mais rápido e previsível)
+              ease: [0.25, 0.1, 0.25, 1.0]
+            }}
             className="fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border md:hidden"
           >
             <div className="flex flex-col h-full p-6">

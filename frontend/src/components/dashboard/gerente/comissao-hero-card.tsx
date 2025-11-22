@@ -42,7 +42,10 @@ export function ComissaoHeroCard({ comissao }: ComissaoHeroCardProps) {
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.5 }}
+      transition={{
+        duration: 0.28, // Reduzido de 0.5 → 0.28 (44% mais rápido)
+        ease: [0.25, 0.1, 0.25, 1.0] // Cubic-bezier customizado
+      }}
       className="relative overflow-hidden rounded-3xl border border-purple-500/20 bg-gradient-to-br from-purple-600 via-purple-700 to-indigo-800 p-8 shadow-2xl shadow-purple-500/20"
     >
       {/* Background Pattern */}
@@ -80,8 +83,13 @@ export function ComissaoHeroCard({ comissao }: ComissaoHeroCardProps) {
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.5 }}
+            transition={{
+              delay: 0.08, // Reduzido de 0.2 → 0.08 (60% mais rápido)
+              duration: 0.32, // Reduzido de 0.5 → 0.32 (36% mais rápido)
+              ease: [0.25, 0.1, 0.25, 1.0]
+            }}
             className="text-6xl font-extrabold text-white drop-shadow-lg"
+            style={{ fontFeatureSettings: '"tnum"' }}
           >
             {numberFormatter.format(comissao.pendente)} <span className="text-3xl">pts</span>
           </motion.h2>
@@ -97,8 +105,13 @@ export function ComissaoHeroCard({ comissao }: ComissaoHeroCardProps) {
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3, duration: 0.4 }}
-              className="rounded-2xl bg-white/10 p-4 backdrop-blur-sm"
+              whileHover={{ scale: 1.03, y: -2 }}
+              transition={{
+                delay: 0.12, // Otimizado: 0.3 → 0.12 (60% mais rápido)
+                duration: 0.28, // Otimizado: 0.4 → 0.28 (30% mais rápido)
+                ease: [0.25, 0.1, 0.25, 1.0]
+              }}
+              className="rounded-2xl bg-white/10 p-4 backdrop-blur-sm cursor-pointer hover:bg-white/15 hover:shadow-lg hover:shadow-purple-500/20 transition-all duration-300"
             >
               <div className="flex items-center gap-2 mb-2">
                 <Calendar className="h-4 w-4 text-purple-300" />
@@ -106,7 +119,7 @@ export function ComissaoHeroCard({ comissao }: ComissaoHeroCardProps) {
                   Próximo Pagamento
                 </p>
               </div>
-              <p className="text-2xl font-bold text-white">
+              <p className="text-2xl font-bold text-white" style={{ fontFeatureSettings: '"tnum"' }}>
                 {currencyFormatter.format(comissao.proximoPagamento.valor)}
               </p>
             </motion.div>
@@ -116,8 +129,13 @@ export function ComissaoHeroCard({ comissao }: ComissaoHeroCardProps) {
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4, duration: 0.4 }}
-            className="rounded-2xl bg-white/10 p-4 backdrop-blur-sm"
+            whileHover={{ scale: 1.03, y: -2 }}
+            transition={{
+              delay: 0.16, // Otimizado: 0.4 → 0.16 (60% mais rápido)
+              duration: 0.28,
+              ease: [0.25, 0.1, 0.25, 1.0]
+            }}
+            className="rounded-2xl bg-white/10 p-4 backdrop-blur-sm cursor-pointer hover:bg-white/15 hover:shadow-lg hover:shadow-purple-500/20 transition-all duration-300"
           >
             <div className="flex items-center gap-2 mb-2">
               <History className="h-4 w-4 text-purple-300" />
@@ -125,7 +143,7 @@ export function ComissaoHeroCard({ comissao }: ComissaoHeroCardProps) {
                 Recebido (30 dias)
               </p>
             </div>
-            <p className="text-2xl font-bold text-white">
+            <p className="text-2xl font-bold text-white" style={{ fontFeatureSettings: '"tnum"' }}>
               {currencyFormatter.format(comissao.historico30Dias)}
             </p>
           </motion.div>
@@ -134,8 +152,13 @@ export function ComissaoHeroCard({ comissao }: ComissaoHeroCardProps) {
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5, duration: 0.4 }}
-            className="rounded-2xl bg-white/10 p-4 backdrop-blur-sm"
+            whileHover={{ scale: 1.03, y: -2 }}
+            transition={{
+              delay: 0.20, // Otimizado: 0.5 → 0.20 (60% mais rápido)
+              duration: 0.28,
+              ease: [0.25, 0.1, 0.25, 1.0]
+            }}
+            className="rounded-2xl bg-white/10 p-4 backdrop-blur-sm cursor-pointer hover:bg-white/15 hover:shadow-lg hover:shadow-purple-500/20 transition-all duration-300"
           >
             <div className="flex items-center gap-2 mb-2">
               <TrendingUp className="h-4 w-4 text-purple-300" />
@@ -143,7 +166,7 @@ export function ComissaoHeroCard({ comissao }: ComissaoHeroCardProps) {
                 Pontos Pendentes
               </p>
             </div>
-            <p className="text-2xl font-bold text-white">
+            <p className="text-2xl font-bold text-white" style={{ fontFeatureSettings: '"tnum"' }}>
               {numberFormatter.format(comissao.pontosPendentesEquipe)} pts
             </p>
             <p className="text-xs text-purple-200 mt-1">

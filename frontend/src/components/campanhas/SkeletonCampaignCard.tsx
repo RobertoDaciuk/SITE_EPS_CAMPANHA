@@ -1,3 +1,5 @@
+import { motion } from "framer-motion";
+
 /**
  * Skeleton Loader para Card de Campanha
  *
@@ -7,10 +9,16 @@
  * OTIMIZADO:
  * - Usa animate-pulse-custom (1.4s vs 2s padrão) - 30% mais rápido
  * - Shimmer effect para percepção de "progresso ativo"
+ * - Micro-animação de entrada para suavidade
  */
 export default function SkeletonCampaignCard() {
   return (
-    <div className="glass rounded-xl p-5 border border-border/50 animate-pulse-custom relative overflow-hidden">
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.2 }}
+      className="glass rounded-xl p-5 border border-border/50 animate-pulse-custom relative overflow-hidden"
+    >
       {/* Shimmer Overlay - Efeito de brilho animado */}
       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent animate-shimmer pointer-events-none" />
       {/* Header - Título e Badge */}
@@ -45,6 +53,6 @@ export default function SkeletonCampaignCard() {
         <div className="w-4 h-4 bg-muted/50 rounded" />
         <div className="h-3 bg-muted/40 rounded w-32" />
       </div>
-    </div>
+    </motion.div>
   );
 }

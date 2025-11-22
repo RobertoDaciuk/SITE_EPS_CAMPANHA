@@ -90,7 +90,10 @@ export function CampanhasAtivasCarousel({ campanhas }: CampanhasAtivasCarouselPr
         </h2>
         <Link href="/campanhas">
           <motion.button
-            whileHover={{ scale: 1.05 }}
+            whileHover={{
+              scale: 1.05,
+              transition: { duration: 0.18, ease: [0.34, 1.25, 0.64, 1] }
+            }}
             whileTap={{ scale: 0.95 }}
             className="text-sm font-medium text-primary hover:text-primary/80 flex items-center gap-1"
           >
@@ -107,7 +110,10 @@ export function CampanhasAtivasCarousel({ campanhas }: CampanhasAtivasCarouselPr
           initial={{ opacity: 0, x: 50 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -50 }}
-          transition={{ duration: 0.4 }}
+          transition={{
+            duration: 0.26, // Reduzido de 0.4 → 0.26 (35% mais rápido)
+            ease: [0.25, 0.1, 0.25, 1.0] // Cubic-bezier customizado
+          }}
           className="rounded-3xl overflow-hidden bg-card border border-border/50 shadow-2xl"
         >
           {/* Imagem da Campanha */}
@@ -146,7 +152,7 @@ export function CampanhasAtivasCarousel({ campanhas }: CampanhasAtivasCarouselPr
                 <span className="text-white font-semibold text-sm">
                   Progresso Geral
                 </span>
-                <span className="text-white font-bold text-sm">
+                <span className="text-white font-bold text-sm" style={{ fontFeatureSettings: '"tnum"' }}>
                   {cartelasCompletas}/{totalCartelas} Cartelas
                 </span>
               </div>
@@ -154,7 +160,11 @@ export function CampanhasAtivasCarousel({ campanhas }: CampanhasAtivasCarouselPr
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${progressoGeral}%` }}
-                  transition={{ duration: 1, delay: 0.3 }}
+                  transition={{
+                    duration: 0.5, // Reduzido de 1 → 0.5 (50% mais rápido)
+                    delay: 0.15, // Reduzido de 0.3 → 0.15 (50% mais rápido)
+                    ease: [0.34, 1.35, 0.64, 1] // easeOutBack para bounce sutil no final
+                  }}
                   className="h-full bg-gradient-to-r from-success to-primary rounded-full"
                 />
               </div>
@@ -192,7 +202,7 @@ export function CampanhasAtivasCarousel({ campanhas }: CampanhasAtivasCarouselPr
                   <div
                     key={cartela.id}
                     className={cn(
-                      "p-4 rounded-2xl border transition-all duration-300",
+                      "p-4 rounded-2xl border transition-colors duration-200",
                       cartela.completa
                         ? "bg-success/10 border-success/30"
                         : "bg-card/50 border-border/30 hover:border-primary/30"
@@ -205,7 +215,8 @@ export function CampanhasAtivasCarousel({ campanhas }: CampanhasAtivasCarouselPr
                       <span className={cn(
                         "text-xs font-bold",
                         cartela.completa ? "text-success" : "text-muted-foreground"
-                      )}>
+                      )}
+                      style={{ fontFeatureSettings: '"tnum"' }}>
                         {cartela.progresso}%
                       </span>
                     </div>
@@ -213,7 +224,11 @@ export function CampanhasAtivasCarousel({ campanhas }: CampanhasAtivasCarouselPr
                       <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${cartela.progresso}%` }}
-                        transition={{ duration: 0.8, delay: 0.2 }}
+                        transition={{
+                          duration: 0.42, // Reduzido de 0.8 → 0.42 (47% mais rápido)
+                          delay: 0.12, // Reduzido de 0.2 → 0.12 (40% mais rápido)
+                          ease: [0.34, 1.25, 0.64, 1] // easeOutBack sutil
+                        }}
                         className={cn(
                           "h-full rounded-full",
                           cartela.completa
@@ -230,11 +245,14 @@ export function CampanhasAtivasCarousel({ campanhas }: CampanhasAtivasCarouselPr
             {/* CTA */}
             <Link href={`/campanhas/${campanha.id}`}>
               <motion.button
-                whileHover={{ scale: 1.02 }}
+                whileHover={{
+                  scale: 1.02,
+                  transition: { duration: 0.2, ease: [0.34, 1.25, 0.64, 1] }
+                }}
                 whileTap={{ scale: 0.98 }}
                 className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-2xl
                          bg-primary text-primary-foreground font-semibold
-                         hover:bg-primary/90 transition-all duration-300
+                         hover:bg-primary/90 transition-colors duration-200
                          shadow-lg shadow-primary/20"
               >
                 Ver Detalhes da Campanha
@@ -252,7 +270,7 @@ export function CampanhasAtivasCarousel({ campanhas }: CampanhasAtivasCarouselPr
                 key={idx}
                 onClick={() => setCampanhaAtiva(idx)}
                 className={cn(
-                  "h-2 rounded-full transition-all duration-300",
+                  "h-2 rounded-full transition-[width,background-color] duration-200 ease-out",
                   idx === campanhaAtiva
                     ? "w-8 bg-primary"
                     : "w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50"
