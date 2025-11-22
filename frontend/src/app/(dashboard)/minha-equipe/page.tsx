@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import useSWR from "swr";
 import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -147,14 +147,107 @@ function formatarDataRelativa(data?: Date | null | string): string {
 const fetcher = (url: string) => api.get<MinhaEquipeResponse>(url).then((res) => res.data);
 
 // ============================================================================
+// CUSTOM HOOKS
+// ============================================================================
+
+/**
+ * Hook personalizado para debounce
+ * Retarda a atualização do valor até que o usuário pare de digitar
+ */
+function useDebounce<T>(value: T, delay: number = 300): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
+// ============================================================================
 // SUB-COMPONENTES
 // ============================================================================
 
 function LoadingState() {
   return (
-    <div className="flex h-full min-h-[400px] w-full flex-col items-center justify-center space-y-4 animate-pulse">
-      <Loader2 className="h-10 w-10 animate-spin text-primary" />
-      <p className="text-sm text-muted-foreground">Carregando equipe...</p>
+    <div className="space-y-8">
+      {/* Header Skeleton */}
+      <div className="space-y-4">
+        <div className="h-8 w-48 rounded-full bg-muted/60 animate-pulse" />
+        <div className="h-4 w-96 rounded-full bg-muted/40 animate-pulse" />
+      </div>
+
+      {/* Info do Gerente Skeleton */}
+      <div className="relative overflow-hidden rounded-2xl border border-border/20 bg-gradient-to-br from-primary/5 to-primary/10 p-6">
+        <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-foreground/5 to-transparent" />
+        <div className="flex items-center gap-4">
+          <div className="h-14 w-14 rounded-full bg-primary/20" />
+          <div className="space-y-2">
+            <div className="h-4 w-32 rounded-full bg-muted/40" />
+            <div className="h-6 w-48 rounded-full bg-muted/60" />
+            <div className="h-3 w-40 rounded-full bg-muted/40" />
+          </div>
+        </div>
+      </div>
+
+      {/* Filtros Skeleton */}
+      <div className="rounded-2xl border border-border/20 bg-card/70 p-5">
+        <div className="relative overflow-hidden">
+          <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite_0.1s] bg-gradient-to-r from-transparent via-foreground/5 to-transparent" />
+          <div className="h-10 w-full max-w-sm rounded-full bg-muted/40" />
+        </div>
+      </div>
+
+      {/* Grid de Cards Skeleton */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {[1, 2, 3, 4, 5, 6].map((i) => (
+          <div
+            key={i}
+            className="relative overflow-hidden rounded-2xl border border-border/20 bg-card/70 p-6"
+          >
+            {/* Shimmer effect escalonado */}
+            <div
+              className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-foreground/5 to-transparent"
+              style={{ animationDelay: `${i * 0.1}s` }}
+            />
+
+            {/* Header com Avatar */}
+            <div className="flex items-start gap-4 mb-6">
+              <div className="h-16 w-16 rounded-full bg-muted/60" />
+              <div className="flex-1 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="h-5 w-32 rounded-full bg-muted/60" />
+                  <div className="h-6 w-16 rounded-full bg-muted/40" />
+                </div>
+                <div className="h-3 w-48 rounded-full bg-muted/40" />
+                <div className="h-3 w-40 rounded-full bg-muted/30" />
+              </div>
+            </div>
+
+            {/* Métricas */}
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              {[1, 2, 3].map((j) => (
+                <div key={j} className="rounded-xl bg-background/40 p-3">
+                  <div className="h-3 w-12 rounded-full bg-muted/40 mx-auto mb-2" />
+                  <div className="h-6 w-16 rounded-full bg-muted/60 mx-auto" />
+                </div>
+              ))}
+            </div>
+
+            {/* Info Adicional */}
+            <div className="space-y-2 border-t border-border/20 pt-4">
+              <div className="h-3 w-full rounded-full bg-muted/30" />
+              <div className="h-3 w-3/4 rounded-full bg-muted/30" />
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -234,7 +327,7 @@ function DestaqueCard({
   );
 }
 
-function MembroCard({ membro }: { membro: MembroEquipe }) {
+function MembroCard({ membro, index }: { membro: MembroEquipe; index: number }) {
   const diasDesdeUltimaVenda = useMemo(() => {
     if (!membro.ultimaVenda) return null;
     const date = typeof membro.ultimaVenda === "string" ? new Date(membro.ultimaVenda) : membro.ultimaVenda;
@@ -246,11 +339,23 @@ function MembroCard({ membro }: { membro: MembroEquipe }) {
   const alertaInatividade = diasDesdeUltimaVenda !== null && diasDesdeUltimaVenda > 7;
 
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-border/40 bg-card/80 p-6 shadow-sm transition-all hover:border-primary/40 hover:shadow-lg">
+    <motion.div
+      initial={{ opacity: 0, y: 20, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      whileHover={{ scale: 1.02, y: -4 }}
+      transition={{
+        duration: 0.4,
+        delay: index * 0.05, // Delay escalonado: 50ms entre cada card
+        ease: "easeOut",
+      }}
+      className="group relative overflow-hidden rounded-2xl border border-border/40 bg-card/80 p-6 shadow-sm hover:border-primary/50 hover:shadow-2xl hover:shadow-primary/10 hover:bg-card transition-all cursor-pointer">
+      {/* Glow effect ao hover */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/0 via-primary/0 to-primary/0 group-hover:from-primary/5 group-hover:via-primary/3 group-hover:to-transparent transition-all duration-500" />
+
       {/* Header com Avatar e Info Básica */}
-      <div className="flex items-start gap-4">
+      <div className="relative flex items-start gap-4">
         <div className="relative shrink-0">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/10 text-2xl font-bold text-primary ring-2 ring-primary/20">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/10 text-2xl font-bold text-primary ring-2 ring-primary/20 group-hover:ring-4 group-hover:ring-primary/40 group-hover:scale-110 transition-all duration-300">
             {membro.nome
               .split(" ")
               .slice(0, 2)
@@ -258,9 +363,15 @@ function MembroCard({ membro }: { membro: MembroEquipe }) {
               .join("")}
           </div>
           {alertaInatividade && (
-            <div className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white" title="Inativo há mais de 7 dias">
+            <motion.div
+              initial={{ scale: 1 }}
+              animate={{ scale: [1, 1.1, 1] }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+              className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white shadow-lg shadow-red-500/50"
+              title="Inativo há mais de 7 dias"
+            >
               <AlertTriangle className="h-3.5 w-3.5" />
-            </div>
+            </motion.div>
           )}
         </div>
         <div className="min-w-0 flex-1">
@@ -289,19 +400,31 @@ function MembroCard({ membro }: { membro: MembroEquipe }) {
       </div>
 
       {/* Métricas Principais */}
-      <div className="mt-6 grid grid-cols-3 gap-3">
-        <div className="rounded-xl bg-background/60 p-3 text-center">
+      <div className="relative mt-6 grid grid-cols-3 gap-3">
+        <motion.div
+          whileHover={{ scale: 1.05, y: -2 }}
+          transition={{ duration: 0.2 }}
+          className="rounded-xl bg-background/60 p-3 text-center hover:bg-background/80 hover:shadow-md transition-all cursor-pointer"
+        >
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Pontos</p>
           <p className="mt-1 text-lg font-bold text-foreground">{membro.totalPontosReais.toLocaleString("pt-BR")}</p>
-        </div>
-        <div className="rounded-xl bg-background/60 p-3 text-center">
+        </motion.div>
+        <motion.div
+          whileHover={{ scale: 1.05, y: -2 }}
+          transition={{ duration: 0.2 }}
+          className="rounded-xl bg-background/60 p-3 text-center hover:bg-background/80 hover:shadow-md transition-all cursor-pointer"
+        >
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Cartelas</p>
           <p className="mt-1 text-lg font-bold text-foreground">{membro.cartelasConcluidas}</p>
-        </div>
-        <div className="rounded-xl bg-background/60 p-3 text-center">
+        </motion.div>
+        <motion.div
+          whileHover={{ scale: 1.05, y: -2 }}
+          transition={{ duration: 0.2 }}
+          className="rounded-xl bg-background/60 p-3 text-center hover:bg-background/80 hover:shadow-md transition-all cursor-pointer"
+        >
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Vendas 30d</p>
           <p className="mt-1 text-lg font-bold text-foreground">{membro.vendasUltimos30Dias}</p>
-        </div>
+        </motion.div>
       </div>
 
       {/* Info Adicional */}
@@ -342,7 +465,7 @@ function MembroCard({ membro }: { membro: MembroEquipe }) {
           </button>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }
 
@@ -355,6 +478,9 @@ export default function MinhaEquipePage() {
   const [busca, setBusca] = useState("");
   const [filtroStatus, setFiltroStatus] = useState<StatusFiltro>("TODOS");
   const [ordenacao, setOrdenacao] = useState<OrdenacaoTipo>("nome");
+
+  // ✨ Debounce na busca para otimizar performance (300ms de delay)
+  const buscaDebounced = useDebounce(busca, 300);
 
   const podeCarregar = usuario?.papel === "GERENTE";
 
@@ -382,9 +508,9 @@ export default function MinhaEquipePage() {
       resultado = resultado.filter((membro) => membro.status === filtroStatus);
     }
 
-    // Filtro de busca
-    if (busca.trim()) {
-      const termo = busca.toLowerCase().trim();
+    // Filtro de busca (usando valor debounced para performance)
+    if (buscaDebounced.trim()) {
+      const termo = buscaDebounced.toLowerCase().trim();
       resultado = resultado.filter(
         (membro) =>
           membro.nome.toLowerCase().includes(termo) ||
@@ -415,7 +541,7 @@ export default function MinhaEquipePage() {
     });
 
     return resultado;
-  }, [equipeOrdenada, filtroStatus, busca, ordenacao]);
+  }, [equipeOrdenada, filtroStatus, buscaDebounced, ordenacao]);
 
   const limparFiltros = () => {
     setBusca("");
@@ -573,11 +699,17 @@ export default function MinhaEquipePage() {
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <input
                     type="text"
-                    className="w-full rounded-full border border-border/40 bg-background/60 py-2 pl-10 pr-4 text-sm focus:border-primary focus:outline-none"
+                    className="w-full rounded-full border border-border/40 bg-background/60 py-2 pl-10 pr-10 text-sm focus:border-primary focus:outline-none transition-all duration-300"
                     placeholder="Nome, e-mail ou ótica"
                     value={busca}
                     onChange={(e) => setBusca(e.target.value)}
                   />
+                  {/* Indicador de debouncing */}
+                  {busca !== buscaDebounced && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <div className="h-3 w-3 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -593,8 +725,8 @@ export default function MinhaEquipePage() {
             <EmptyState onClear={limparFiltros} />
           ) : (
             <section className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {equipeFiltrada.map((membro) => (
-                <MembroCard key={membro.id} membro={membro} />
+              {equipeFiltrada.map((membro, index) => (
+                <MembroCard key={membro.id} membro={membro} index={index} />
               ))}
             </section>
           )}
