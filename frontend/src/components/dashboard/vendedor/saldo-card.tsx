@@ -19,13 +19,15 @@ export function SaldoCard({ saldo }: SaldoCardProps) {
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.5, type: "spring" }}
+      transition={{
+        duration: 0.28, // Reduzido de 0.5 → 0.28 (40% mais rápido, abaixo do limiar de 300ms)
+        ease: [0.25, 0.1, 0.25, 1.0] // Cubic-bezier customizado: início rápido, fim suave (substitui spring)
+      }}
       className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/10 via-primary/5 to-background
                  border border-primary/20 shadow-2xl shadow-primary/10"
     >
-      {/* Efeito de brilho animado */}
-      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent 
-                      animate-shimmer" />
+      {/* Efeito de brilho sutil (shimmer removido - sem definição CSS) */}
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/3 to-transparent opacity-60" />
       
       <div className="relative p-8">
         {/* Grid de Cards */}
@@ -34,7 +36,11 @@ export function SaldoCard({ saldo }: SaldoCardProps) {
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
+            transition={{
+              delay: 0.08, // Reduzido: easing exponencial (0.08, 0.12, 0.16, 0.20)
+              duration: 0.32,
+              ease: [0.22, 0.61, 0.36, 1] // "easeOutCubic" - mais natural
+            }}
             className="p-4 rounded-2xl bg-primary/10 border border-primary/20 group relative overflow-visible"
           >
             <div className="flex items-center justify-between mb-2">
@@ -60,7 +66,11 @@ export function SaldoCard({ saldo }: SaldoCardProps) {
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.3 }}
+            transition={{
+              delay: 0.12,
+              duration: 0.32,
+              ease: [0.22, 0.61, 0.36, 1]
+            }}
             className="p-4 rounded-2xl bg-success/10 border border-success/20 group relative overflow-visible"
           >
             <div className="flex items-center justify-between mb-2">
@@ -86,7 +96,11 @@ export function SaldoCard({ saldo }: SaldoCardProps) {
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.4 }}
+            transition={{
+              delay: 0.16,
+              duration: 0.32,
+              ease: [0.22, 0.61, 0.36, 1]
+            }}
             className="p-4 rounded-2xl bg-warning/10 border border-warning/20 group relative overflow-visible"
           >
             <div className="flex items-center justify-between mb-2">
@@ -112,7 +126,11 @@ export function SaldoCard({ saldo }: SaldoCardProps) {
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.5 }}
+            transition={{
+              delay: 0.20,
+              duration: 0.32,
+              ease: [0.22, 0.61, 0.36, 1]
+            }}
             className="p-4 rounded-2xl bg-primary/10 border border-primary/20 group relative overflow-visible"
           >
             <div className="flex items-center justify-between mb-2">
