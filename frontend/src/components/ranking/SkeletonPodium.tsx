@@ -7,6 +7,10 @@ import React from 'react'
  * Layout responsivo que imita a estrutura do pódio real:
  * - Mobile: Cards empilhados verticalmente
  * - Desktop: 3 cards em linha (2º, 1º, 3º)
+ *
+ * OTIMIZADO:
+ * - Usa animate-pulse-custom (1.4s vs 2s padrão) - 30% mais rápido
+ * - Shimmer effect para percepção de "progresso ativo"
  */
 const SkeletonPodium: React.FC = () => {
   return (
@@ -14,7 +18,8 @@ const SkeletonPodium: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 max-w-6xl mx-auto items-end">
         {/* 2º Lugar - Skeleton */}
         <div className="order-2 md:order-1 md:pb-8">
-          <div className="glass rounded-3xl p-6 animate-pulse border-2 border-border/30 mx-auto max-w-[280px]">
+          <div className="glass rounded-3xl p-6 animate-pulse-custom border-2 border-border/30 mx-auto max-w-[280px] relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent animate-shimmer pointer-events-none" />
             {/* Icon Badge */}
             <div className="h-12 w-12 rounded-full bg-muted/50 mx-auto mb-4" />
 
@@ -41,7 +46,8 @@ const SkeletonPodium: React.FC = () => {
 
         {/* 1º Lugar - Skeleton (Maior) */}
         <div className="order-1 md:order-2">
-          <div className="glass rounded-3xl p-8 animate-pulse border-2 border-border/30 mx-auto max-w-[300px]">
+          <div className="glass rounded-3xl p-8 animate-pulse-custom border-2 border-border/30 mx-auto max-w-[300px] relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-yellow-400/5 to-transparent animate-shimmer pointer-events-none" />
             {/* Icon Badge */}
             <div className="h-14 w-14 rounded-full bg-muted/50 mx-auto mb-4" />
 
@@ -68,7 +74,8 @@ const SkeletonPodium: React.FC = () => {
 
         {/* 3º Lugar - Skeleton */}
         <div className="order-3 md:pb-8">
-          <div className="glass rounded-3xl p-6 animate-pulse border-2 border-border/30 mx-auto max-w-[280px]">
+          <div className="glass rounded-3xl p-6 animate-pulse-custom border-2 border-border/30 mx-auto max-w-[280px] relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent animate-shimmer pointer-events-none" />
             {/* Icon Badge */}
             <div className="h-12 w-12 rounded-full bg-muted/50 mx-auto mb-4" />
 

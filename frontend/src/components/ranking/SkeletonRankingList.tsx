@@ -5,11 +5,17 @@ interface Props {
   count?: number
 }
 
+/**
+ * OTIMIZADO:
+ * - Usa animate-pulse-custom (1.4s vs 2s padrão) - 30% mais rápido
+ * - Shimmer effect para percepção de "progresso ativo"
+ */
 const SkeletonRankingList: React.FC<Props> = ({ count = 8 }) => {
   return (
     <div className="space-y-3">
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="glass rounded-lg p-3 animate-pulse flex items-center gap-4">
+        <div key={i} className="glass rounded-lg p-3 animate-pulse-custom flex items-center gap-4 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent animate-shimmer pointer-events-none" />
           <div className="w-8 text-center font-mono bg-muted/50 h-8 rounded" />
           <div className="w-12 h-12 rounded-full bg-muted/50" />
           <div className="flex-1 space-y-2">

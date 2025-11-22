@@ -166,7 +166,19 @@ const PodiumCard: React.FC<Props> = ({ user, metric, size: propSize }) => {
     <motion.div
       initial={{ opacity: 0, y: 50 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: posicao * 0.1 }}
+      transition={{
+        duration: 0.32, // Reduzido de 0.5 → 0.32 (36% mais rápido)
+        delay: posicao * 0.06, // Reduzido de 0.1 → 0.06 (40% mais rápido no stagger)
+        ease: [0.25, 0.1, 0.25, 1.0]
+      }}
+      whileHover={{
+        scale: 1.02, // Reduzido de 1.05 → 1.02 (60% mais sutil)
+        y: -4, // Adiciona lift vertical sutil
+        transition: {
+          duration: 0.24,
+          ease: [0.34, 1.25, 0.64, 1] // easeOutBack suave (overshoot reduzido)
+        }
+      }}
       className={`
         relative flex flex-col items-center
         ${classes.card} w-full
@@ -175,7 +187,6 @@ const PodiumCard: React.FC<Props> = ({ user, metric, size: propSize }) => {
         border ${style.border}
         rounded-3xl
         ${style.glow} ${style.ring}
-        hover:scale-105 transition-transform duration-300
         pt-10
       `}
     >
@@ -198,7 +209,11 @@ const PodiumCard: React.FC<Props> = ({ user, metric, size: propSize }) => {
           <motion.div
             initial={{ scale: 0, rotate: -180 }}
             animate={{ scale: 1, rotate: 0 }}
-            transition={{ type: 'spring', stiffness: 200, delay: 0.2 }}
+            transition={{
+              duration: 0.4,
+              delay: 0.15 + (posicao * 0.06), // Sincronizado com o card
+              ease: [0.34, 1.4, 0.64, 1] // easeOutBack com overshoot controlado
+            }}
             className={`
               ${classes.iconBadge}
               rounded-full
@@ -261,7 +276,8 @@ const PodiumCard: React.FC<Props> = ({ user, metric, size: propSize }) => {
 
       {/* Valor da Métrica */}
       <div className="mt-4 flex flex-col items-center gap-1">
-        <span className={`${classes.points} font-bold bg-gradient-to-r from-primary to-primary-light bg-clip-text text-transparent`}>
+        <span className={`${classes.points} font-bold bg-gradient-to-r from-primary to-primary-light bg-clip-text text-transparent`}
+              style={{ fontFeatureSettings: '"tnum"' }}>
           {valorFormatado}
         </span>
         <span className="text-xs text-muted-foreground uppercase tracking-wider">

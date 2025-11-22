@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Tag, CalendarDays, TrendingUp, GiftIcon } from "lucide-react";
+import { Tag, CalendarDays, TrendingUp, GiftIcon, ChevronRight } from "lucide-react";
 import { formatarDataBR, estaEntreBR } from "@/lib/timezone";
 import { getImageUrl } from "@/lib/image-url";
 import { Badge } from "@/components/ui/badge";
@@ -113,8 +113,17 @@ export default function CampaignCard({ campanha }: CampaignCardProps) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      whileHover={{ y: -5 }}
+      transition={{
+        duration: 0.28, // Reduzido de 0.4 → 0.28 (30% mais rápido, abaixo do limiar crítico)
+        ease: [0.25, 0.1, 0.25, 1.0] // Cubic-bezier customizado
+      }}
+      whileHover={{
+        y: -6, // Aumentado levemente para compensar o easing mais suave
+        transition: {
+          duration: 0.22,
+          ease: [0.34, 1.56, 0.64, 1] // easeOutBack - micro-bounce elegante
+        }
+      }}
       className="h-full"
     >
       <Link
@@ -127,7 +136,7 @@ export default function CampaignCard({ campanha }: CampaignCardProps) {
             <img
               src={getImageUrl(campanha.imagemCampanha16x9Url)}
               alt={campanha.titulo}
-              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+              className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-103"
             />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-primary/20 via-purple-500/20 to-pink-500/20 flex items-center justify-center">
@@ -213,22 +222,10 @@ export default function CampaignCard({ campanha }: CampaignCardProps) {
           )}
 
           {/* Indicador de Link (aparece no hover) */}
-          <div className="mt-3 pt-3 border-t border-border/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          <div className="mt-3 pt-3 border-t border-border/30 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
             <div className="flex items-center justify-between text-xs">
               <span className="text-muted-foreground">Ver detalhes</span>
-              <svg
-                className="w-4 h-4 text-primary transform group-hover:translate-x-1 transition-transform"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
+              <ChevronRight className="w-4 h-4 text-primary transform group-hover:translate-x-1 transition-transform duration-200" />
             </div>
           </div>
         </div>

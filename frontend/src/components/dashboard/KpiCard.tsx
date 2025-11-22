@@ -88,10 +88,13 @@ export function KpiCard({
 
   return (
     <motion.div
-      variants={cardVariantes} // Corrigido
-      className="bg-card/70 backdrop-blur-lg 
-                 border border-border/20 rounded-2xl 
-                 p-5 md:p-6 shadow-lg shadow-black/5"
+      variants={cardVariantes}
+      className="bg-card/70 backdrop-blur-lg
+                 border border-border/20 rounded-2xl
+                 p-5 md:p-6
+                 shadow-[0_1px_2px_rgba(0,0,0,0.05),0_4px_8px_rgba(0,0,0,0.04),0_12px_24px_rgba(0,0,0,0.03)]
+                 hover:shadow-[0_2px_4px_rgba(0,0,0,0.06),0_8px_16px_rgba(0,0,0,0.05),0_16px_32px_rgba(0,0,0,0.04)]
+                 transition-shadow duration-300"
     >
       <div className="flex items-center justify-between mb-4">
         {/* Título */}
@@ -100,7 +103,7 @@ export function KpiCard({
         </span>
         {/* Ícone */}
         <div
-          className={`p-2 bg-background rounded-full ${corValor} bg-opacity-50`}
+          className={`p-2 bg-background/50 rounded-full ${corValor}`}
         >
           <Icone className="w-5 h-5" />
         </div>

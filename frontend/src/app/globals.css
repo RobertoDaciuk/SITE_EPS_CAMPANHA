@@ -118,10 +118,14 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     /* Suaviza a transição entre temas */
-    transition: background-color 0.3s ease, color 0.3s ease;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    /* Otimização de renderização */
+    text-rendering: optimizeLegibility;
+    -webkit-font-feature-settings: "kern" 1;
+    font-feature-settings: "kern" 1;
   }
 
-  /* Scrollbar personalizada (Webkit) */
+  /* Scrollbar personalizada (Webkit) - Suave e elegante */
   ::-webkit-scrollbar {
     width: 0.5rem;
   }
@@ -133,6 +137,7 @@
   ::-webkit-scrollbar-thumb {
     background-color: hsl(var(--muted-foreground) / 0.3);
     border-radius: 9999px;
+    transition: background-color 0.2s ease;
   }
 
   ::-webkit-scrollbar-thumb:hover {
@@ -242,6 +247,47 @@
 
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--primary) / 0.5);
+  }
+
+  /* ==========================================
+     ANIMAÇÕES CUSTOMIZADAS
+     ========================================== */
+
+  /* Shimmer Effect - Usado em cards premium */
+  @keyframes shimmer {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  .animate-shimmer {
+    animation: shimmer 3s infinite;
+  }
+
+  /* Pulse suave customizado - Alternativa ao pulse padrão (2s → 1.4s) */
+  @keyframes pulse-custom {
+    0%, 100% {
+      opacity: 0.5;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+
+  .animate-pulse-custom {
+    animation: pulse-custom 1.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  }
+
+  /* Scale-103 customizado (Tailwind só tem scale-105/110) */
+  .hover\:scale-103:hover {
+    transform: scale(1.03);
+  }
+
+  .group:hover .group-hover\:scale-103 {
+    transform: scale(1.03);
   }
 }
 
