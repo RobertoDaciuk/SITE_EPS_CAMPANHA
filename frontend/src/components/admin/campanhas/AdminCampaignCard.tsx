@@ -5,6 +5,7 @@ import { Tag, CalendarDays, TrendingUp, DollarSign, Edit, Eye, Target, Percent, 
 import { formatarDataBR, formatarMoeda, formatarNumero, estaEntreBR } from "@/lib/timezone";
 import { getImageUrl } from "@/lib/image-url";
 import { Badge } from "@/components/ui/badge";
+import ButtonWithLoading from "@/components/ui/ButtonWithLoading";
 
 /**
  * Interface da Campanha (Admin View)
@@ -207,11 +208,18 @@ export default function AdminCampaignCard({
           {/* Métricas - Pontos e Percentual Gerente */}
           <div className="grid grid-cols-2 gap-3">
             {/* Pontos (R$) */}
-            <div className="glass rounded-lg p-3 border border-border/30">
+            <motion.div
+              whileHover={{ scale: 1.02, y: -2 }}
+              className="glass rounded-lg p-3 border border-border/30 cursor-default"
+            >
               <div className="flex items-center gap-2 mb-1">
-                <div className="w-8 h-8 rounded-lg bg-success/10 flex items-center justify-center">
+                <motion.div
+                  whileHover={{ rotate: [0, -10, 10, -10, 0] }}
+                  transition={{ duration: 0.5 }}
+                  className="w-8 h-8 rounded-lg bg-success/10 flex items-center justify-center"
+                >
                   <GiftIcon className="h-4 w-4 text-success" />
-                </div>
+                </motion.div>
                 <p className="text-xs text-muted-foreground">Pontos Máx</p>
               </div>
               <p className="text-sm font-bold text-success">
@@ -219,18 +227,25 @@ export default function AdminCampaignCard({
                   ? formatarMoeda(campanha.pontosReaisMaximo)
                   : formatarMoeda(campanha.pontosReaisPorCartela || 0)}
               </p>
-            </div>
+            </motion.div>
 
             {/* Percentual Gerente */}
-            <div className="glass rounded-lg p-3 border border-border/30">
+            <motion.div
+              whileHover={{ scale: 1.02, y: -2 }}
+              className="glass rounded-lg p-3 border border-border/30 cursor-default"
+            >
               <div className="flex items-center gap-2 mb-1">
-                <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                <motion.div
+                  whileHover={{ rotate: [0, -10, 10, -10, 0] }}
+                  transition={{ duration: 0.5 }}
+                  className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center"
+                >
                   <Percent className="w-4 h-4 text-purple-400" />
-                </div>
+                </motion.div>
                 <p className="text-xs text-muted-foreground">Comissão</p>
               </div>
               <p className="text-sm font-bold text-purple-400">{formatarPercentual(campanha.percentualGerente)}</p>
-            </div>
+            </motion.div>
           </div>
 
           {/* Targeting */}
@@ -270,28 +285,36 @@ export default function AdminCampaignCard({
 
           {/* Botões de Ação */}
           <div className="flex items-center gap-2 pt-3 border-t border-border/30">
-            <button
+            <ButtonWithLoading
+              icon={Edit}
               onClick={() => onEdit(campanha)}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 hover:border-blue-500/40 rounded-xl transition-all backdrop-blur-sm"
+              variant="primary"
+              size="sm"
+              className="flex-1 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 hover:border-blue-500/40 backdrop-blur-sm"
             >
-              <Edit className="w-4 h-4" />
               Editar
-            </button>
-            <button
+            </ButtonWithLoading>
+
+            <ButtonWithLoading
+              icon={BarChart3}
               onClick={() => onView(campanha.id)}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 hover:border-purple-500/40 rounded-xl transition-all backdrop-blur-sm"
+              variant="primary"
+              size="sm"
+              className="flex-1 text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 hover:border-purple-500/40 backdrop-blur-sm"
             >
-              <BarChart3 className="w-4 h-4" />
-              Ver Analytics
-            </button>
+              Analytics
+            </ButtonWithLoading>
+
             {onViewHistory && (
-              <button
+              <ButtonWithLoading
+                icon={Clock}
+                iconOnly
                 onClick={() => onViewHistory(campanha.id, campanha.titulo)}
-                className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-orange-400 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 hover:border-orange-500/40 rounded-xl transition-all backdrop-blur-sm"
+                variant="primary"
+                size="sm"
+                className="text-orange-400 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 hover:border-orange-500/40 backdrop-blur-sm"
                 title="Ver histórico de alterações"
-              >
-                <Clock className="w-4 h-4" />
-              </button>
+              />
             )}
           </div>
         </div>

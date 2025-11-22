@@ -56,6 +56,7 @@ import {
 import axios from '@/lib/axios';
 import toast from 'react-hot-toast';
 import { Badge } from '@/components/ui/badge';
+import ButtonWithLoading from '@/components/ui/ButtonWithLoading';
 import {
   Eye,
   FileDown,
@@ -1071,24 +1072,23 @@ const LotesView: React.FC<LotesViewProps> = (props) => (
                 />
               </div>
               <div className="flex gap-2 w-full sm:w-auto">
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                <ButtonWithLoading
+                  icon={Eye}
                   onClick={props.handleVisualizarSaldos}
-                  disabled={props.loadingAction}
-                  className="flex-1 sm:flex-none px-4 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 flex items-center justify-center gap-2 font-semibold shadow-lg"
+                  isLoading={props.loadingAction}
+                  variant="primary"
+                  className="flex-1 sm:flex-none px-4 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 shadow-lg font-semibold"
                 >
-                  {props.loadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
                   Visualizar
-                </motion.button>
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
+                </ButtonWithLoading>
+                <ButtonWithLoading
+                  icon={RefreshCw}
+                  iconOnly
                   onClick={props.carregarLotes}
-                  disabled={props.loadingLotes}
-                  className="px-4 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-200 disabled:opacity-60"
-                >
-                  <RefreshCw className={`w-4 h-4 ${props.loadingLotes ? 'animate-spin' : ''}`} />
-                </motion.button>
+                  isLoading={props.loadingLotes}
+                  variant="ghost"
+                  className="px-4 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-200"
+                />
               </div>
             </>
           ) : (
@@ -1098,22 +1098,22 @@ const LotesView: React.FC<LotesViewProps> = (props) => (
                 Preview de Lote
               </h3>
               <div className="flex gap-2">
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
+                <ButtonWithLoading
                   onClick={props.handleVoltarParaLista}
+                  variant="ghost"
                   className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-xl font-medium"
                 >
                   Cancelar
-                </motion.button>
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
+                </ButtonWithLoading>
+                <ButtonWithLoading
+                  icon={Zap}
                   onClick={props.handleGerarLote}
-                  disabled={props.loadingAction}
-                  className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-xl shadow-lg flex items-center gap-2 font-bold"
+                  isLoading={props.loadingAction}
+                  variant="success"
+                  className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-xl shadow-lg font-bold"
                 >
-                  {props.loadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
                   Confirmar e Gerar
-                </motion.button>
+                </ButtonWithLoading>
               </div>
             </div>
           )}
@@ -1322,20 +1322,46 @@ const LoteCard: React.FC<LoteCardProps> = ({ lote, index, onProcessar, onCancela
         <div className="flex flex-wrap gap-2">
           {lote.status === 'PENDENTE' && (
             <>
-              <motion.button whileHover={{ scale: 1.05 }} onClick={() => onProcessar(lote.numeroLote)} disabled={isActionLoading} className="px-3 py-2 bg-emerald-500 text-white rounded-lg flex items-center gap-1 text-sm font-medium disabled:opacity-60">
-                <CheckCircle className="w-4 h-4" /> Processar
-              </motion.button>
-              <motion.button whileHover={{ scale: 1.05 }} onClick={() => onCancelar(lote.numeroLote)} disabled={isActionLoading} className="px-3 py-2 bg-red-500 text-white rounded-lg flex items-center gap-1 text-sm font-medium disabled:opacity-60">
-                <Trash2 className="w-4 h-4" /> Cancelar
-              </motion.button>
+              <ButtonWithLoading
+                icon={CheckCircle}
+                onClick={() => onProcessar(lote.numeroLote)}
+                isLoading={isActionLoading}
+                variant="success"
+                size="sm"
+                className="px-3 py-2 bg-emerald-500 text-white rounded-lg"
+              >
+                Processar
+              </ButtonWithLoading>
+              <ButtonWithLoading
+                icon={Trash2}
+                onClick={() => onCancelar(lote.numeroLote)}
+                isLoading={isActionLoading}
+                variant="danger"
+                size="sm"
+                className="px-3 py-2 bg-red-500 text-white rounded-lg"
+              >
+                Cancelar
+              </ButtonWithLoading>
             </>
           )}
-          <motion.button whileHover={{ scale: 1.05 }} onClick={() => onExportar(lote.numeroLote)} className="px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center gap-1 text-sm">
-            <Download className="w-4 h-4" /> Resumo
-          </motion.button>
-          <motion.button whileHover={{ scale: 1.05 }} onClick={() => onExportarDetalhado(lote.numeroLote)} className="px-3 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 rounded-lg flex items-center gap-1 text-sm">
-            <FileDown className="w-4 h-4" /> Detalhado
-          </motion.button>
+          <ButtonWithLoading
+            icon={Download}
+            onClick={() => onExportar(lote.numeroLote)}
+            variant="ghost"
+            size="sm"
+            className="px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg"
+          >
+            Resumo
+          </ButtonWithLoading>
+          <ButtonWithLoading
+            icon={FileDown}
+            onClick={() => onExportarDetalhado(lote.numeroLote)}
+            variant="primary"
+            size="sm"
+            className="px-3 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 rounded-lg"
+          >
+            Detalhado
+          </ButtonWithLoading>
         </div>
       </div>
 
@@ -1378,7 +1404,13 @@ const KPICard: React.FC<any> = ({ title, value, trend, icon, color, alert }) => 
     >
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm font-medium text-muted-foreground">{title}</p>
-        <div className={`p-2 rounded-lg bg-gradient-to-br ${colorClasses[color]} text-white`}>{icon}</div>
+        <motion.div
+          whileHover={{ rotate: [0, -10, 10, -10, 0] }}
+          transition={{ duration: 0.5 }}
+          className={`p-2 rounded-lg bg-gradient-to-br ${colorClasses[color]} text-white`}
+        >
+          {icon}
+        </motion.div>
       </div>
       <p className="text-3xl font-black text-foreground mb-2">{value}</p>
       {trend !== undefined && trend !== 0 && (
@@ -1398,14 +1430,22 @@ const StatCard: React.FC<any> = ({ title, value, subtitle, icon, color }) => {
     blue: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300',
   };
   return (
-    <div className={`rounded-2xl p-6 border ${colorClasses[color]}`}>
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ scale: 1.02, y: -2 }}
+      transition={{ duration: 0.2 }}
+      className={`rounded-2xl p-6 border ${colorClasses[color]} cursor-default`}
+    >
       <div className="flex items-center gap-3 mb-3">
-        {icon}
+        <motion.div whileHover={{ scale: 1.1 }} transition={{ duration: 0.2 }}>
+          {icon}
+        </motion.div>
         <span className="text-sm font-medium">{title}</span>
       </div>
       <p className="text-2xl font-black mb-1">{value}</p>
       <p className="text-xs opacity-80">{subtitle}</p>
-    </div>
+    </motion.div>
   );
 };
 

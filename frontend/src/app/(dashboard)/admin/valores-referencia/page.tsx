@@ -26,8 +26,11 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/ContextoAutenticacao';
 import { Plus, Search, Filter, Loader2, DollarSign, AlertCircle, History } from 'lucide-react';
+import { motion } from 'framer-motion';
 import api from '@/lib/axios';
 import toast from 'react-hot-toast';
+import { useDebounce } from '@/hooks/useDebounce';
+import ButtonWithLoading from '@/components/ui/ButtonWithLoading';
 import ValorReferenciaListItem from '@/components/admin/valores-referencia/ValorReferenciaListItem';
 import CriarEditarValorReferenciaModal from '@/components/admin/valores-referencia/CriarEditarValorReferenciaModal';
 
@@ -73,6 +76,9 @@ export default function AdminValoresReferenciaPage() {
   const [filtroCodigo, setFiltroCodigo] = useState('');
   const [filtroStatus, setFiltroStatus] = useState<'todos' | 'ativo' | 'inativo'>('todos');
   const [showFilters, setShowFilters] = useState(false);
+
+  // Debounce do filtro de código
+  const filtroCodigoDebounced = useDebounce(filtroCodigo, 500);
 
   // ==========================================================================
   // PROTEÇÃO DE ROTA
@@ -120,8 +126,8 @@ export default function AdminValoresReferenciaPage() {
     return referencias.filter((ref) => {
       const matchCodigo = ref.codigoReferencia
         .toLowerCase()
-        .includes(filtroCodigo.toLowerCase());
-      
+        .includes(filtroCodigoDebounced.toLowerCase());
+
       const matchStatus =
         filtroStatus === 'todos' ||
         (filtroStatus === 'ativo' && ref.ativo) ||
@@ -129,7 +135,7 @@ export default function AdminValoresReferenciaPage() {
 
       return matchCodigo && matchStatus;
     });
-  }, [referencias, filtroCodigo, filtroStatus]);
+  }, [referencias, filtroCodigoDebounced, filtroStatus]);
 
   // ==========================================================================
   // HANDLERS
@@ -198,13 +204,14 @@ export default function AdminValoresReferenciaPage() {
           </p>
         </div>
 
-        <button
+        <ButtonWithLoading
+          icon={Plus}
           onClick={handleCriar}
-          className="btn-primary flex items-center gap-2 whitespace-nowrap"
+          variant="primary"
+          className="btn-primary whitespace-nowrap"
         >
-          <Plus className="w-4 h-4" />
           Novo Código
-        </button>
+        </ButtonWithLoading>
       </div>
 
       {/* =================================================================== */}
@@ -281,10 +288,14 @@ export default function AdminValoresReferenciaPage() {
               : 'Tente ajustar os filtros de busca'}
           </p>
           {referencias.length === 0 && (
-            <button onClick={handleCriar} className="btn-primary inline-flex items-center gap-2">
-              <Plus className="w-4 h-4" />
+            <ButtonWithLoading
+              icon={Plus}
+              onClick={handleCriar}
+              variant="primary"
+              className="btn-primary"
+            >
               Criar Primeiro Código
-            </button>
+            </ButtonWithLoading>
           )}
         </div>
       ) : (

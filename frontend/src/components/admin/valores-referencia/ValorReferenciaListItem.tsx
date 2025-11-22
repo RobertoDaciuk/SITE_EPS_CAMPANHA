@@ -18,9 +18,12 @@
  * ============================================================================
  */
 
+import { useState } from 'react';
 import { Edit, Power, History, DollarSign } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { motion } from 'framer-motion';
+import ButtonWithLoading from '@/components/ui/ButtonWithLoading';
 
 interface HistoricoAlteracao {
   data: string;
@@ -51,9 +54,25 @@ export default function ValorReferenciaListItem({
   onToggleAtivo,
 }: ValorReferenciaListItemProps) {
   const historicoCount = referencia.historicoAlteracoes?.length || 0;
+  const [isToggling, setIsToggling] = useState(false);
+
+  const handleToggle = async () => {
+    setIsToggling(true);
+    try {
+      await onToggleAtivo(referencia.id, referencia.ativo);
+    } finally {
+      setIsToggling(false);
+    }
+  };
 
   return (
-    <div className="glass rounded-xl p-4 hover:border-primary/30 transition-all">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -2 }}
+      transition={{ duration: 0.2 }}
+      className="glass rounded-xl p-4 hover:border-primary/30 transition-all"
+    >
       <div className="flex flex-col sm:flex-row sm:items-center gap-4">
         {/* =================================================================== */}
         {/* INFORMAÇÕES PRINCIPAIS */}
@@ -74,14 +93,20 @@ export default function ValorReferenciaListItem({
           </div>
 
           {/* Valor em R$ */}
-          <div className="flex items-center gap-2 text-2xl font-bold text-primary">
-            <DollarSign className="w-6 h-6" />
+          <motion.div
+            whileHover={{ scale: 1.02 }}
+            transition={{ duration: 0.2 }}
+            className="flex items-center gap-2 text-2xl font-bold text-primary cursor-default"
+          >
+            <motion.div whileHover={{ rotate: [0, -10, 10, -10, 0] }} transition={{ duration: 0.5 }}>
+              <DollarSign className="w-6 h-6" />
+            </motion.div>
             {(() => {
               const valor = Number((referencia as any).pontosReais);
               const display = Number.isFinite(valor) ? valor.toFixed(2) : '0.00';
               return <>R$ {display}</>;
             })()}
-          </div>
+          </motion.div>
 
           {/* Metadados */}
           <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
@@ -92,10 +117,16 @@ export default function ValorReferenciaListItem({
               })}
             </span>
             {historicoCount > 0 && (
-              <span className="flex items-center gap-1">
-                <History className="w-3 h-3" />
+              <motion.span
+                whileHover={{ scale: 1.05 }}
+                transition={{ duration: 0.2 }}
+                className="flex items-center gap-1 cursor-default"
+              >
+                <motion.div whileHover={{ rotate: 360 }} transition={{ duration: 0.6 }}>
+                  <History className="w-3 h-3" />
+                </motion.div>
                 {historicoCount} {historicoCount === 1 ? 'alteração' : 'alterações'}
-              </span>
+              </motion.span>
             )}
           </div>
         </div>
@@ -105,30 +136,33 @@ export default function ValorReferenciaListItem({
         {/* =================================================================== */}
         <div className="flex items-center gap-2">
           {/* Botão Editar */}
-          <button
+          <ButtonWithLoading
+            icon={Edit}
             onClick={() => onEditar(referencia)}
-            className="btn-secondary flex items-center gap-2"
+            variant="ghost"
+            size="sm"
+            className="btn-secondary"
             title="Editar valor"
           >
-            <Edit className="w-4 h-4" />
             <span className="hidden sm:inline">Editar</span>
-          </button>
+          </ButtonWithLoading>
 
           {/* Botão Ativar/Desativar */}
-          <button
-            onClick={() => onToggleAtivo(referencia.id, referencia.ativo)}
-            className={`btn-secondary flex items-center gap-2 ${
+          <ButtonWithLoading
+            icon={Power}
+            onClick={handleToggle}
+            isLoading={isToggling}
+            variant={referencia.ativo ? 'danger' : 'success'}
+            size="sm"
+            className={`btn-secondary ${
               referencia.ativo ? 'hover:bg-red-500/10' : 'hover:bg-green-500/10'
             }`}
             title={referencia.ativo ? 'Desativar' : 'Ativar'}
           >
-            <Power
-              className={`w-4 h-4 ${referencia.ativo ? 'text-red-500' : 'text-green-500'}`}
-            />
             <span className="hidden sm:inline">{referencia.ativo ? 'Desativar' : 'Ativar'}</span>
-          </button>
+          </ButtonWithLoading>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

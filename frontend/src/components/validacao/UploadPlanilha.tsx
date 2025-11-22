@@ -4,6 +4,8 @@ import { useState, useCallback, ChangeEvent, DragEvent } from "react";
 import { read, utils } from "xlsx";
 import { UploadCloud, File, X, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
+import ButtonWithLoading from "@/components/ui/ButtonWithLoading";
+import { motion, AnimatePresence } from "framer-motion";
 
 /**
  * ========================================
@@ -261,7 +263,9 @@ export default function UploadPlanilha({
       {/* ========================================
           ÁREA DE DROPZONE
           ======================================== */}
-      <div
+      <motion.div
+        whileHover={!arquivo && !isLoading ? { scale: 1.01 } : {}}
+        transition={{ type: "spring", stiffness: 300 }}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
@@ -306,26 +310,42 @@ export default function UploadPlanilha({
         {/* ========================================
             ARQUIVO SELECIONADO
             ======================================== */}
-        {arquivo && !isLoading && (
-          <div className="flex items-center gap-3 bg-white px-4 py-3 rounded-lg shadow-sm border border-green-300">
-            <File className="w-8 h-8 text-green-500" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">
-                {arquivo.name}
-              </p>
-              <p className="text-xs text-gray-500">
-                {(arquivo.size / 1024).toFixed(2)} KB
-              </p>
-            </div>
-            <button
-              onClick={handleRemoverArquivo}
-              className="p-1 hover:bg-red-100 rounded transition-colors"
-              title="Remover arquivo"
+        <AnimatePresence mode="wait">
+          {arquivo && !isLoading && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ duration: 0.2 }}
+              className="flex items-center gap-3 bg-white px-4 py-3 rounded-lg shadow-sm border border-green-300"
             >
-              <X className="w-5 h-5 text-red-500" />
-            </button>
-          </div>
-        )}
+              <motion.div
+                initial={{ rotate: -10 }}
+                animate={{ rotate: 0 }}
+                transition={{ type: "spring", stiffness: 200 }}
+              >
+                <File className="w-8 h-8 text-green-500" />
+              </motion.div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">
+                  {arquivo.name}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {(arquivo.size / 1024).toFixed(2)} KB
+                </p>
+              </div>
+              <ButtonWithLoading
+                icon={X}
+                iconOnly
+                onClick={handleRemoverArquivo}
+                variant="danger"
+                size="sm"
+                title="Remover arquivo"
+                className="text-red-500 hover:bg-red-100"
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* ========================================
             LOADING
@@ -350,7 +370,7 @@ export default function UploadPlanilha({
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
           disabled={isLoading}
         />
-      </div>
+      </motion.div>
 
       {/* ========================================
           MENSAGEM DE ERRO
@@ -365,23 +385,22 @@ export default function UploadPlanilha({
           BOTÃO PROCESSAR
           ======================================== */}
       {arquivo && !isLoading && (
-        <div className="mt-6 flex justify-center">
-          <button
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="mt-6 flex justify-center"
+        >
+          <ButtonWithLoading
+            icon={UploadCloud}
             onClick={handleProcessarArquivo}
             disabled={!arquivo || isLoading}
-            className="
-              px-6 py-3 
-              bg-blue-600 hover:bg-blue-700 
-              text-white font-semibold rounded-lg
-              disabled:bg-gray-300 disabled:cursor-not-allowed
-              transition-colors duration-200
-              flex items-center gap-2
-            "
+            variant="primary"
+            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white"
           >
-            <UploadCloud className="w-5 h-5" />
             Processar Planilha
-          </button>
-        </div>
+          </ButtonWithLoading>
+        </motion.div>
       )}
     </div>
   );
