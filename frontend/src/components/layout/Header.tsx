@@ -39,10 +39,10 @@ export default function Header({ setSidebarOpen }: HeaderProps) {
         <div className="flex items-center">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="md:hidden p-2 rounded-lg hover:bg-accent transition-colors"
+            className="md:hidden p-2 rounded-lg hover:bg-accent transition-colors duration-200 group"
             aria-label="Abrir menu"
           >
-            <Menu className="w-6 h-6" />
+            <Menu className="w-6 h-6 transition-transform duration-200 group-hover:scale-110" />
           </button>
 
           {/* Título da Página removido para evitar redundância visual */}
@@ -56,13 +56,13 @@ export default function Header({ setSidebarOpen }: HeaderProps) {
           {mounted && (
             <button
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="p-2 rounded-lg hover:bg-accent transition-colors"
+              className="p-2 rounded-lg hover:bg-accent transition-colors duration-200 group"
               aria-label="Alternar tema"
             >
               {theme === "dark" ? (
-                <Sun className="w-5 h-5" />
+                <Sun className="w-5 h-5 transition-transform duration-200 group-hover:scale-110 group-hover:rotate-12" />
               ) : (
-                <Moon className="w-5 h-5" />
+                <Moon className="w-5 h-5 transition-transform duration-200 group-hover:scale-110 group-hover:-rotate-12" />
               )}
             </button>
           )}
@@ -70,15 +70,15 @@ export default function Header({ setSidebarOpen }: HeaderProps) {
           {/* Botão de Notificações */}
           <div className="relative group">
             <button
-              className="relative p-2 rounded-lg hover:bg-accent transition-colors"
+              className="relative p-2 rounded-lg hover:bg-accent transition-colors duration-200 group/btn"
               aria-label="Notificações"
             >
-              <Bell className="w-5 h-5" />
+              <Bell className="w-5 h-5 transition-transform duration-200 group-hover/btn:scale-110 group-hover/btn:rotate-12" />
               {/* Badge de notificações não lidas */}
-              <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />
+              <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full animate-pulse" />
             </button>
             {/* Dropdown de notificações recentes */}
-            <div className="absolute right-0 mt-0 w-80 bg-card border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+            <div className="absolute right-0 mt-0 w-80 bg-card border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity duration-200 z-50">
               <div className="p-4 border-b border-border">
                 <h3 className="font-semibold text-sm">Notificações Recentes</h3>
               </div>
@@ -93,10 +93,10 @@ export default function Header({ setSidebarOpen }: HeaderProps) {
           {/* Botão de Perfil */}
           <button
             onClick={() => router.push("/perfil")}
-            className="p-2 rounded-lg hover:bg-accent transition-colors"
+            className="p-2 rounded-lg hover:bg-accent transition-colors duration-200 group"
             aria-label="Perfil do usuário"
           >
-            <User className="w-5 h-5" />
+            <User className="w-5 h-5 transition-transform duration-200 group-hover:scale-110" />
           </button>
         </div>
       </div>
