@@ -111,41 +111,52 @@ export default function RankingGerentePage() {
   };
 
   const toggleVisibilidadeRanking = async () => {
-    setAlterandoVisibilidade(true);
+    const estadoAnterior = rankingVisivel;
     const novoEstado = !rankingVisivel;
 
+    // ✨ OPTIMISTIC UI: Atualizar IMEDIATAMENTE (antes da API)
+    setRankingVisivel(novoEstado);
+    setAlterandoVisibilidade(true);
+
+    // Atualizar o contexto global imediatamente para UI responsiva
+    if (usuario && usuario.optica) {
+      atualizarUsuario({
+        optica: {
+          ...usuario.optica,
+          rankingVisivelParaVendedores: novoEstado,
+        },
+      });
+    }
+
     try {
-      // Debug: verificar se o token está presente
-      const token = localStorage.getItem('eps_campanhas_token');
-      console.log('🔑 Token presente:', !!token);
-      console.log('📤 Enviando requisição PATCH para toggle ranking');
-      
       await api.patch("/oticas/minha-otica/toggle-ranking-vendedores", {
         rankingVisivelParaVendedores: novoEstado,
       });
 
-      setRankingVisivel(novoEstado);
+      // ✅ Sucesso: Confirmar com toast
+      toast.success(
+        novoEstado
+          ? "✓ Ranking habilitado para vendedores!"
+          : "✓ Ranking desabilitado para vendedores!",
+        { duration: 2000 }
+      );
+    } catch (error: any) {
+      // ❌ Erro: REVERTER o estado (Optimistic UI falhou)
+      setRankingVisivel(estadoAnterior);
 
-      // Atualiza o contexto global para refletir a mudança imediatamente (sem refresh)
       if (usuario && usuario.optica) {
         atualizarUsuario({
           optica: {
             ...usuario.optica,
-            rankingVisivelParaVendedores: novoEstado,
+            rankingVisivelParaVendedores: estadoAnterior,
           },
         });
       }
 
-      toast.success(
-        novoEstado
-          ? "Ranking habilitado para vendedores!"
-          : "Ranking desabilitado para vendedores!"
-      );
-    } catch (error: any) {
       console.error("❌ Erro ao alterar visibilidade:", error);
-      console.error("📋 Detalhes do erro:", error.response?.data);
       toast.error(
-        error.response?.data?.message || "Erro ao alterar visibilidade do ranking"
+        error.response?.data?.message || "Erro ao alterar visibilidade do ranking",
+        { duration: 3000 }
       );
     } finally {
       setAlterandoVisibilidade(false);
@@ -267,18 +278,34 @@ export default function RankingGerentePage() {
                 Ranking para Vendedores
               </h3>
             </div>
-            <button
+            <motion.button
               onClick={toggleVisibilidadeRanking}
               disabled={alterandoVisibilidade}
-              className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors
-                         ${rankingVisivel ? "bg-success" : "bg-muted"}
-                         ${alterandoVisibilidade ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+              whileTap={{ scale: 0.95 }}
+              className={`relative inline-flex h-8 w-14 items-center rounded-full transition-all duration-300
+                         ${rankingVisivel ? "bg-success shadow-lg shadow-success/30" : "bg-muted shadow-md"}
+                         ${alterandoVisibilidade ? "cursor-wait animate-pulse" : "cursor-pointer hover:scale-105"}
+                         disabled:opacity-50`}
             >
-              <span
-                className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform
-                           ${rankingVisivel ? "translate-x-7" : "translate-x-1"}`}
+              <motion.span
+                layout
+                transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-md
+                           ${rankingVisivel ? "translate-x-7" : "translate-x-1"}
+                           ${alterandoVisibilidade ? "animate-pulse" : ""}`}
               />
-            </button>
+
+              {/* Indicador de loading interno */}
+              {alterandoVisibilidade && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="absolute inset-0 flex items-center justify-center"
+                >
+                  <div className="h-3 w-3 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                </motion.div>
+              )}
+            </motion.button>
           </div>
           <div className="flex items-start gap-2">
             <Info className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
@@ -328,14 +355,18 @@ export default function RankingGerentePage() {
                     key={vendedor.id}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    className="hover:bg-warning/5 transition-colors duration-200"
+                    whileHover={{ scale: 1.01, x: 4 }}
+                    transition={{ duration: 0.2 }}
+                    className="group hover:bg-gradient-to-r hover:from-warning/10 hover:via-warning/5 hover:to-transparent hover:shadow-md transition-all duration-300 cursor-pointer border-b border-border/20 last:border-b-0"
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2">
                         {medal ? (
-                          <span className="text-2xl">{medal}</span>
+                          <span className="text-2xl group-hover:scale-125 transition-transform duration-300">
+                            {medal}
+                          </span>
                         ) : (
-                          <span className="text-lg font-bold text-foreground">
+                          <span className="text-lg font-bold text-foreground group-hover:text-warning transition-colors duration-300">
                             #{vendedor.posicao}
                           </span>
                         )}
@@ -343,12 +374,12 @@ export default function RankingGerentePage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-warning/20 flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-full bg-warning/20 flex items-center justify-center group-hover:ring-4 group-hover:ring-warning/30 group-hover:bg-warning/30 transition-all duration-300">
                           <span className="text-sm font-bold text-warning">
                             {vendedor.nome.charAt(0)}
                           </span>
                         </div>
-                        <span className="font-semibold text-foreground">
+                        <span className="font-semibold text-foreground group-hover:text-warning transition-colors duration-300">
                           {vendedor.nome}
                         </span>
                       </div>

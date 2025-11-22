@@ -105,12 +105,13 @@ export function ComissaoHeroCard({ comissao }: ComissaoHeroCardProps) {
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
+              whileHover={{ scale: 1.03, y: -2 }}
               transition={{
-                delay: 0.12, // Reduzido de 0.3 → 0.12 (60% mais rápido)
-                duration: 0.28, // Reduzido de 0.4 → 0.28 (30% mais rápido)
+                delay: 0.12, // Otimizado: 0.3 → 0.12 (60% mais rápido)
+                duration: 0.28, // Otimizado: 0.4 → 0.28 (30% mais rápido)
                 ease: [0.25, 0.1, 0.25, 1.0]
               }}
-              className="rounded-2xl bg-white/10 p-4 backdrop-blur-sm"
+              className="rounded-2xl bg-white/10 p-4 backdrop-blur-sm cursor-pointer hover:bg-white/15 hover:shadow-lg hover:shadow-purple-500/20 transition-all duration-300"
             >
               <div className="flex items-center gap-2 mb-2">
                 <Calendar className="h-4 w-4 text-purple-300" />
@@ -128,12 +129,13 @@ export function ComissaoHeroCard({ comissao }: ComissaoHeroCardProps) {
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
+            whileHover={{ scale: 1.03, y: -2 }}
             transition={{
-              delay: 0.16, // Reduzido de 0.4 → 0.16 (60% mais rápido)
+              delay: 0.16, // Otimizado: 0.4 → 0.16 (60% mais rápido)
               duration: 0.28,
               ease: [0.25, 0.1, 0.25, 1.0]
             }}
-            className="rounded-2xl bg-white/10 p-4 backdrop-blur-sm"
+            className="rounded-2xl bg-white/10 p-4 backdrop-blur-sm cursor-pointer hover:bg-white/15 hover:shadow-lg hover:shadow-purple-500/20 transition-all duration-300"
           >
             <div className="flex items-center gap-2 mb-2">
               <History className="h-4 w-4 text-purple-300" />
@@ -150,12 +152,13 @@ export function ComissaoHeroCard({ comissao }: ComissaoHeroCardProps) {
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
+            whileHover={{ scale: 1.03, y: -2 }}
             transition={{
-              delay: 0.20, // Reduzido de 0.5 → 0.20 (60% mais rápido)
+              delay: 0.20, // Otimizado: 0.5 → 0.20 (60% mais rápido)
               duration: 0.28,
               ease: [0.25, 0.1, 0.25, 1.0]
             }}
-            className="rounded-2xl bg-white/10 p-4 backdrop-blur-sm"
+            className="rounded-2xl bg-white/10 p-4 backdrop-blur-sm cursor-pointer hover:bg-white/15 hover:shadow-lg hover:shadow-purple-500/20 transition-all duration-300"
           >
             <div className="flex items-center gap-2 mb-2">
               <TrendingUp className="h-4 w-4 text-purple-300" />
