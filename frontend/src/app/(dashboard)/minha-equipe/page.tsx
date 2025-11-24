@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import useSWR from "swr";
 import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";

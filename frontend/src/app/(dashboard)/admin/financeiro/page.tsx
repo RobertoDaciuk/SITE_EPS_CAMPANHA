@@ -604,7 +604,7 @@ export default function FinanceiroPage() {
     if (searchTerm) {
       result = result.filter(l =>
         l.numeroLote.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        l.relatorios.some(r =>
+        l.relatorios.some((r: any) =>
           r.usuario?.nome?.toLowerCase().includes(searchTerm.toLowerCase())
         )
       );

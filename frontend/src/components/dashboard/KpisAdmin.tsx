@@ -39,7 +39,6 @@ const containerVariantes = {
     opacity: 1,
     transition: {
       staggerChildren: 0.06, // Reduzido de 0.1 → 0.06 (40% mais rápido)
-      ease: [0.25, 0.1, 0.25, 1.0],
     },
   },
 };

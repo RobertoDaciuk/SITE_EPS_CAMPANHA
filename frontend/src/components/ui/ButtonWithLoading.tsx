@@ -54,6 +54,23 @@ export default function ButtonWithLoading({
   ...props
 }: ButtonWithLoadingProps) {
 
+  // Remove props conflitantes do React que não são aceitas pelo motion.button
+  // Lista de props de drag do React
+  const {
+    onDrag,
+    onDragEnd,
+    onDragEnter,
+    onDragExit,
+    onDragLeave,
+    onDragOver,
+    onDragStart,
+    onDrop,
+    onAnimationStart,
+    onAnimationEnd,
+    onAnimationIteration,
+    ...motionSafeProps
+  } = props;
+
   // ========================================
   // VARIANTES DE COR
   // ========================================
@@ -103,7 +120,7 @@ export default function ButtonWithLoading({
         ${className}
       `}
       disabled={isDisabled}
-      {...props}
+      {...motionSafeProps}
     >
       {/* Ícone ou Spinner */}
       {isLoading ? (
