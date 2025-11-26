@@ -1,9 +1,10 @@
 ﻿"use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/ContextoAutenticacao";
+import { useOticas, useUsuarios } from "@/hooks/useUsuarios";
 import api from "@/lib/axios";
 import toast from "react-hot-toast";
 import { TOKEN_KEY } from "@/lib/constantes";
@@ -15,7 +16,6 @@ import {
 import CriarEditarUsuarioModal from "@/components/admin/usuarios/CriarEditarUsuarioModal";
 import ResetSenhaModal from "@/components/admin/usuarios/ResetSenhaModal";
 import ButtonWithLoading from "@/components/ui/ButtonWithLoading";
-import { useDebounce } from "@/hooks/useDebounce";
 
 interface Usuario {
   id: string;
@@ -42,13 +42,22 @@ interface Otica {
 export default function AdminUsuariosPage() {
   const router = useRouter();
   const { usuario, carregando: isAuthLoading } = useAuth();
-  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
-  const [oticas, setOticas] = useState<Otica[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+
+  // ⚡ SWR HOOKS - Cache automático e deduping
   const [filtroNome, setFiltroNome] = useState("");
   const [filtroPapel, setFiltroPapel] = useState("");
   const [filtroStatus, setFiltroStatus] = useState("");
   const [filtroOtica, setFiltroOtica] = useState("");
+
+  const { oticas } = useOticas();
+  const { usuarios, isLoading, mutate: revalidarUsuarios } = useUsuarios({
+    nomeOuEmail: filtroNome,
+    papel: filtroPapel,
+    status: filtroStatus,
+    opticaId: filtroOtica,
+  });
+
+  // UI State
   const [showFilters, setShowFilters] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
@@ -58,55 +67,12 @@ export default function AdminUsuariosPage() {
   // Estados de loading para ações individuais
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
 
-  // Debounce nos filtros de busca (reduz chamadas à API)
-  const filtroNomeDebounced = useDebounce(filtroNome, 500);
-  const filtroCnpjDebounced = useDebounce(filtroOtica, 300);
-
   useEffect(() => {
     if (!isAuthLoading && (!usuario || usuario.papel !== "ADMIN")) {
       router.push("/");
       toast.error("Acesso negado");
     }
   }, [isAuthLoading, usuario, router]);
-
-  useEffect(() => {
-    if (usuario?.papel === "ADMIN") {
-      fetchOticas();
-      fetchUsuarios();
-    }
-  }, [usuario]);
-
-  const fetchOticas = async () => {
-    try {
-      const res = await api.get("/oticas");
-      setOticas(res.data);
-    } catch (error) {
-      console.error("Erro ao carregar óticas:", error);
-    }
-  };
-
-  const fetchUsuarios = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const params = new URLSearchParams();
-      if (filtroNomeDebounced) params.append("nomeOuEmail", filtroNomeDebounced);
-      if (filtroPapel) params.append("papel", filtroPapel);
-      if (filtroStatus) params.append("status", filtroStatus);
-      if (filtroCnpjDebounced) params.append("opticaId", filtroCnpjDebounced);
-      const res = await api.get(`/usuarios?${params.toString()}`);
-      setUsuarios(res.data);
-    } catch (error: any) {
-      toast.error("Erro ao carregar usuários");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [filtroNomeDebounced, filtroPapel, filtroStatus, filtroCnpjDebounced]);
-
-  useEffect(() => {
-    if (usuario?.papel === "ADMIN") {
-      fetchUsuarios();
-    }
-  }, [usuario, fetchUsuarios]);
 
   const limparFiltros = () => {
     setFiltroNome("");
@@ -151,7 +117,7 @@ export default function AdminUsuariosPage() {
     try {
       await api.delete(`/usuarios/${usuario.id}`);
       toast.success("Usuário deletado com sucesso!");
-      fetchUsuarios();
+      revalidarUsuarios(); // SWR revalida cache
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Erro ao deletar usuário");
     } finally {
@@ -231,9 +197,9 @@ export default function AdminUsuariosPage() {
 
   const stats = {
     total: usuarios.length,
-    ativos: usuarios.filter(u => u.status === "ATIVO").length,
-    pendentes: usuarios.filter(u => u.status === "PENDENTE").length,
-    bloqueados: usuarios.filter(u => u.status === "BLOQUEADO").length,
+    ativos: usuarios.filter((u: Usuario) => u.status === "ATIVO").length,
+    pendentes: usuarios.filter((u: Usuario) => u.status === "PENDENTE").length,
+    bloqueados: usuarios.filter((u: Usuario) => u.status === "BLOQUEADO").length,
   };
 
   return (
@@ -321,7 +287,7 @@ export default function AdminUsuariosPage() {
                 </select>
                 <select value={filtroOtica} onChange={(e) => setFiltroOtica(e.target.value)} className="px-4 py-3 rounded-xl border-2 border-border/50 bg-background/60 focus:border-primary focus:outline-none">
                   <option value="">Todas as Óticas</option>
-                  {oticas.map(o => <option key={o.id} value={o.id}>{o.nome}</option>)}
+                  {oticas.map((o: Otica) => <option key={o.id} value={o.id}>{o.nome}</option>)}
                 </select>
                 {(filtroNome || filtroPapel || filtroStatus || filtroOtica) && (
                   <button onClick={limparFiltros} className="px-4 py-3 rounded-xl border-2 border-border/50 hover:bg-destructive/10 hover:border-destructive flex items-center justify-center gap-2">
@@ -358,7 +324,7 @@ export default function AdminUsuariosPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/20">
-                {usuarios.map((u, idx) => (
+                {usuarios.map((u: Usuario, idx: number) => (
                   <motion.tr key={u.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * 0.05 }} className="hover:bg-muted/20">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -462,7 +428,7 @@ export default function AdminUsuariosPage() {
         onClose={fecharModal}
         onSuccess={() => {
           fecharModal();
-          fetchUsuarios();
+          revalidarUsuarios(); // SWR revalida cache
         }}
         userToEdit={usuarioParaEditar}
       />
